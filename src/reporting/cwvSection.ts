@@ -81,7 +81,13 @@ export const renderCwvDiagnosisMarkdown = (evaluations: readonly TechEvaluation[
         lines.push(`| ${segment.label} | ${Math.round(segment.ms)}ms | ${percent(segment.share)} |`)
       }
       if (lcp.target !== null) lines.push('', `Suçlu element: \`${lcp.target}\``)
-      if (lcp.url === null) lines.push('', 'LCP bir **metin** — kaynak web fontudur.')
+      // Metin LCP testi kaynak fazlarına bakar; URL'nin bilinmemesi yetmez
+      // (CSS arka plan görselinde de URL çıkarılamaz ama kaynak indirilir).
+      if (lcp.resourceLoadDuration === 0 && lcp.resourceLoadDelay === 0) {
+        lines.push('', 'LCP bir **metin** — kaynak web fontudur.')
+      } else if (lcp.url === null) {
+        lines.push('', 'LCP kaynağı bir görsel ama URL çıkarılamadı — büyük ihtimalle CSS `background-image`.')
+      }
       lines.push('')
     }
 

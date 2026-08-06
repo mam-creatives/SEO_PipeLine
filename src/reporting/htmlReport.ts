@@ -1,3 +1,4 @@
+import { COMPETITOR_REPORT_LIMIT } from '../config/constants.js'
 import { CWV_SECTION_STYLE, renderCwvDiagnosisHtml } from './cwvSection.js'
 import type { ReportModel } from './reportModel.js'
 
@@ -92,7 +93,10 @@ export const renderHtml = (model: ReportModel): string => {
   sections.push(
     table(
       ['Domain', 'Görünme Oranı', 'Sınıf', 'Gerçek Rakip?', 'Kaynak'],
-      model.analysis.competitors.map((competitor) => [
+      model.analysis.competitors
+        .filter((competitor, index) => competitor.isRealCompetitor || index < COMPETITOR_REPORT_LIMIT)
+        .slice(0, COMPETITOR_REPORT_LIMIT)
+        .map((competitor) => [
         escapeHtml(competitor.domain),
         rateBar(competitor.appearanceRate),
         competitor.classification,
@@ -132,9 +136,14 @@ export const renderHtml = (model: ReportModel): string => {
       ]),
     ),
   )
-  const clientIssues = model.analysis.techEvaluations
-    .filter((evaluation) => evaluation.isClient)
-    .flatMap((evaluation) => evaluation.audit.issues)
+  // Aynı sorun her sayfada tekrar raporlanıyor; tekrarlar ayıklanmazsa liste şişiyor.
+  const clientIssues = [
+    ...new Set(
+      model.analysis.techEvaluations
+        .filter((evaluation) => evaluation.isClient)
+        .flatMap((evaluation) => evaluation.audit.issues),
+    ),
+  ]
   if (clientIssues.length > 0) {
     sections.push(`<ul>${clientIssues.map((issue) => `<li>${escapeHtml(issue)}</li>`).join('')}</ul>`)
   }
@@ -154,7 +163,9 @@ export const renderHtml = (model: ReportModel): string => {
           return [
             escapeHtml(visibility.query),
             rateBar(visibility.clientRate),
-            strongest === undefined ? '—' : `${escapeHtml(strongest.domain)} (${percent(strongest.rate)})`,
+            strongest === undefined || strongest.rate === 0
+              ? '—'
+              : `${escapeHtml(strongest.domain)} (${percent(strongest.rate)})`,
             visibility.isGap ? '⚠️' : '—',
           ]
         }),

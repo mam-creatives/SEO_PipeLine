@@ -114,12 +114,13 @@ describe('diagnoseLcp — faz bütçeleri', () => {
     expect(phases(overBudget)).toContain('timeToFirstByte')
   })
 
-  test('metin LCP (url null) font preload önerir, görsel LCP fetchpriority önerir', () => {
-    const textLcp = diagnoseLcp(3000, lcp({ resourceLoadDelay: 900, resourceLoadDuration: 100 }), null)
-    const textFinding = textLcp.find((finding) => finding.phase === 'resourceLoadDelay')
-    expect(textFinding?.title).toContain('web fontunu')
-    expect(textFinding?.fixSnippet).toContain('rel="preload"')
-    expect(textFinding?.fixSnippet).toContain('as="font"')
+  test('URL çıkarılamayan kaynak hem font hem CSS arka planı ihtimalini anar', () => {
+    const unknown = diagnoseLcp(3000, lcp({ resourceLoadDelay: 900, resourceLoadDuration: 100 }), null)
+    const finding = unknown.find((item) => item.phase === 'resourceLoadDelay')
+    expect(finding?.explanation).toContain('background-image')
+    expect(finding?.explanation).toContain('web fontu')
+    expect(finding?.fixSnippet).toContain('as="font"')
+    expect(finding?.fixSnippet).toContain('as="image"')
 
     const imageLcp = diagnoseLcp(
       3000,

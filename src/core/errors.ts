@@ -30,6 +30,25 @@ export class StorageError extends AppError {
   }
 }
 
+/**
+ * Zod hatasını tek satırlık okunabilir özete indirger.
+ *
+ * `error.message` tüm sorunları biçimlendirilmiş JSON olarak taşır; 15 keyword'lük
+ * bir yanıtta bu 100+ satır eder ve olduğu gibi rapora düşerse raporu okunmaz kılar
+ * (fiilen yaşandı). İlk birkaç sorun sebebi anlamak için yeterli.
+ */
+export const summarizeZodError = (
+  issues: readonly { readonly path: readonly (string | number)[]; readonly message: string }[],
+  maxIssues = 3,
+): string => {
+  const shown = issues
+    .slice(0, maxIssues)
+    .map((issue) => `${issue.path.join('.') || '(kök)'}: ${issue.message}`)
+    .join('; ')
+  const rest = issues.length - maxIssues
+  return rest > 0 ? `${shown} (+${rest} sorun daha)` : shown
+}
+
 export class ValidationError extends AppError {
   constructor(message: string, options?: { cause?: unknown }) {
     super('VALIDATION_ERROR', message, options)

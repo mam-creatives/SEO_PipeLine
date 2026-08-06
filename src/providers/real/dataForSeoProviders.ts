@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ProviderError } from '../../core/errors.js'
+import { ProviderError, summarizeZodError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
 import type { BacklinkProfile, KeywordMetric } from '../../core/types.js'
 import type { BacklinkProvider, KeywordProvider } from '../types.js'
@@ -40,14 +40,32 @@ const EnvelopeSchema = z.object({
     .optional(),
 })
 
+/**
+ * DİKKAT: `competition` sayı DEĞİL, string enum ("LOW"/"MEDIUM"/"HIGH").
+ * Sayısal karşılığı ayrı alanda: `competition_index` 0..100.
+ * Şema başta sayı beklediği için tüm keyword dalı düşüyordu.
+ */
 const KeywordResultSchema = z.array(
   z.object({
     keyword: z.string(),
     search_volume: z.number().nullable().optional(),
-    competition: z.number().nullable().optional(),
+    competition: z.string().nullable().optional(),
+    competition_index: z.number().nullable().optional(),
     cpc: z.number().nullable().optional(),
   }),
 )
+
+/** `competition_index` yoksa string enum'dan makul bir yaklaşıklık üret. */
+const COMPETITION_ENUM_TO_DIFFICULTY: Readonly<Record<string, number>> = {
+  LOW: 0.25,
+  MEDIUM: 0.5,
+  HIGH: 0.85,
+}
+
+const toDifficulty = (index: number | null | undefined, label: string | null | undefined): number => {
+  if (typeof index === 'number') return Math.min(Math.max(index / 100, 0), 1)
+  return label === null || label === undefined ? 0 : (COMPETITION_ENUM_TO_DIFFICULTY[label.toUpperCase()] ?? 0)
+}
 
 const BacklinkResultSchema = z.array(
   z.object({
@@ -73,7 +91,7 @@ export const buildBacklinkRequestBody = (domain: string): string =>
 const extractResult = (raw: unknown, providerName: string): Result<unknown, ProviderError> => {
   const parsed = EnvelopeSchema.safeParse(raw)
   if (!parsed.success) {
-    return err(new ProviderError(providerName, `Yanıt beklenen şemaya uymuyor: ${parsed.error.message}`))
+    return err(new ProviderError(providerName, `Yanıt beklenen şemaya uymuyor: ${summarizeZodError(parsed.error.issues)}`))
   }
   if (parsed.data.status_code !== DATAFORSEO_OK) {
     const hint =
@@ -116,7 +134,7 @@ export const dataForSeoResponseToMetrics = (
 
   const parsed = KeywordResultSchema.safeParse(extracted.value ?? [])
   if (!parsed.success) {
-    return err(new ProviderError(KEYWORD_PROVIDER_NAME, `Keyword sonucu okunamadı: ${parsed.error.message}`))
+    return err(new ProviderError(KEYWORD_PROVIDER_NAME, `Keyword sonucu okunamadı: ${summarizeZodError(parsed.error.issues)}`))
   }
 
   const byKeyword = new Map(parsed.data.map((row) => [row.keyword.toLocaleLowerCase('tr-TR'), row]))
@@ -126,7 +144,7 @@ export const dataForSeoResponseToMetrics = (
       return {
         keyword,
         volume: row?.search_volume ?? 0,
-        difficulty: row?.competition ?? 0,
+        difficulty: toDifficulty(row?.competition_index, row?.competition),
         cpc: row?.cpc ?? 0,
       }
     }),
@@ -143,7 +161,7 @@ export const dataForSeoResponseToBacklinkProfile = (
 
   const parsed = BacklinkResultSchema.safeParse(extracted.value ?? [])
   if (!parsed.success) {
-    return err(new ProviderError(BACKLINK_PROVIDER_NAME, `Backlink sonucu okunamadı: ${parsed.error.message}`))
+    return err(new ProviderError(BACKLINK_PROVIDER_NAME, `Backlink sonucu okunamadı: ${summarizeZodError(parsed.error.issues)}`))
   }
   const row = parsed.data[0]
   if (row === undefined) {

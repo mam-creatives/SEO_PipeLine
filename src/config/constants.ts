@@ -37,6 +37,13 @@ export const TECH_AUDIT_COMPETITOR_COUNT = 3
  */
 export const TECH_AUDIT_CONCURRENCY = 1
 
+/**
+ * Rakip haritasında gösterilecek azami satır. Keşif onlarca tek-seferlik domain
+ * bulabiliyor (bir koşuda 90+); gerçek rakipler her hâlükârda listelenir,
+ * gerisi bu sınırla kırpılır ki tablo okunabilir kalsın.
+ */
+export const COMPETITOR_REPORT_LIMIT = 20
+
 export const DEFAULT_MOCK_SEED = 42
 export const TOP_N_SERP = 10
 export const OPPORTUNITY_TOP_COUNT = 5

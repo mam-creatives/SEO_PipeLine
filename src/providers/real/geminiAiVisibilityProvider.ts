@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ProviderError } from '../../core/errors.js'
+import { ProviderError, summarizeZodError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
 import type { AiAnswer } from '../../core/types.js'
 import type { AiVisibilityProvider } from '../types.js'
@@ -48,7 +48,7 @@ export const buildGeminiRequestBody = (query: string): string =>
 export const geminiResponseToAnswer = (raw: unknown, query: string): Result<AiAnswer, ProviderError> => {
   const parsed = GeminiResponseSchema.safeParse(raw)
   if (!parsed.success) {
-    return err(new ProviderError(GEMINI_MODEL, `Yanıt beklenen şemaya uymuyor ('${query}'): ${parsed.error.message}`))
+    return err(new ProviderError(GEMINI_MODEL, `Yanıt beklenen şemaya uymuyor ('${query}'): ${summarizeZodError(parsed.error.issues)}`))
   }
   if (parsed.data.error !== undefined) {
     return err(

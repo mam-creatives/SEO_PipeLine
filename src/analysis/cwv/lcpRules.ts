@@ -60,7 +60,12 @@ const resourceLoadDelayFinding = (
   severity: FindingSeverity,
   attribution: LcpAttribution,
 ): CwvFinding => {
-  const isTextLcp = attribution.url === null
+  // Kaynak fazı var ama URL çıkarılamıyorsa iki ihtimal kalır: web fontu (RUM
+  // verisinde metin LCP böyle görünür) ya da CSS `background-image` (lab verisinde
+  // snippet'te src olmaz). İkisi de preload ile çözülür, bu yüzden mesaj ikisini de anar.
+  // Eskiden yalnız `url === null` bakılıyordu ve rapor 8 saniyelik kaynak indirme
+  // gösterirken "LCP bir metin" diyordu.
+  const isUnknownResource = attribution.url === null
 
   return {
     metric: 'LCP',
@@ -68,19 +73,22 @@ const resourceLoadDelayFinding = (
     phase: 'resourceLoadDelay',
     phaseShare: share,
     culpritSelector: attribution.target,
-    title: isTextLcp
-      ? `LCP metni web fontunu geç keşfediyor (${percentLabel(share)})`
+    title: isUnknownResource
+      ? `LCP kaynağı geç keşfediliyor (${percentLabel(share)})`
       : `LCP görseli geç keşfediliyor (${percentLabel(share)})`,
-    explanation: isTextLcp
-      ? `LCP elementi bir metin, dolayısıyla LCP kaynağı web fontu. Font ancak CSS ayrıştırıldıktan sonra ` +
-        `keşfedildiği için tarayıcının preload scanner'ı onu göremiyor: HTML → CSS → font keşfi → font indirme ` +
-        `zincirinde ${Math.round(attribution.resourceLoadDelay)}ms boşa gidiyor ` +
-        `(hedef: <%${LCP_PHASE_BUDGETS.resourceLoadDelay * 100}).`
+    explanation: isUnknownResource
+      ? `LCP kaynağı ilk HTML yanıtında keşfedilemiyor; ${Math.round(attribution.resourceLoadDelay)}ms sadece ` +
+        `kaynağın bulunmasını beklemekle geçiyor (hedef: <%${LCP_PHASE_BUDGETS.resourceLoadDelay * 100}). ` +
+        `Kaynağın adresi çıkarılamadı — bu genelde iki şeyden biri demektir: CSS içinde tanımlı bir ` +
+        `\`background-image\` ya da metni çizen web fontu. Her ikisi de ancak CSS ayrıştırıldıktan sonra ` +
+        `keşfedilir, yani tarayıcının preload scanner'ı onları göremez.`
       : `LCP görseli ilk HTML yanıtında keşfedilemiyor; ${Math.round(attribution.resourceLoadDelay)}ms sadece ` +
         `kaynağın bulunmasını beklemekle geçiyor (hedef: <%${LCP_PHASE_BUDGETS.resourceLoadDelay * 100}). ` +
         `En yaygın sebepler: loading="lazy", CSS background-image (preload scanner göremez) veya JS ile enjekte edilen görsel.`,
-    fixSnippet: isTextLcp
-      ? `<!-- Fontu HTML'de preload et: CSS beklenmeden indirilmeye başlar -->\n` +
+    fixSnippet: isUnknownResource
+      ? `<!-- CSS arka plan görseliyse: kaynağı HTML'de preload et -->\n` +
+        `<link rel="preload" as="image" href="/img/hero.jpg" fetchpriority="high">\n\n` +
+        `<!-- Web fontuysa: fontu preload et, CSS beklenmeden indirilmeye başlar -->\n` +
         `<link rel="preload" href="/fonts/display.woff2" as="font" type="font/woff2" crossorigin>\n\n` +
         `/* Font inerken metin görünmez kalmasın */\n` +
         `@font-face { font-family: Display; src: url(/fonts/display.woff2) format('woff2'); font-display: swap; }\n\n` +

@@ -1,5 +1,5 @@
 import type { ClsAttribution, CwvAttribution, LcpAttribution } from '../../core/cwv.js'
-import { ProviderError } from '../../core/errors.js'
+import { ProviderError, summarizeZodError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
 import type { TechAudit } from '../../core/types.js'
 import {
@@ -139,7 +139,7 @@ export const lighthouseResultToTechAudit = (
   const parsed = LighthouseResultSchema.safeParse(raw)
   if (!parsed.success) {
     return err(
-      new ProviderError(providerName, `Lighthouse yanıtı beklenen şemaya uymuyor: ${parsed.error.message}`),
+      new ProviderError(providerName, `Lighthouse yanıtı beklenen şemaya uymuyor: ${summarizeZodError(parsed.error.issues)}`),
     )
   }
 

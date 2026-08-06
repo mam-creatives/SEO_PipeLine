@@ -1,0 +1,10 @@
+node_modules/
+data/
+reports/
+coverage/
+# Gerçek anahtarlar. .env.example BİLEREK izlenir — o boş şablondur.
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store

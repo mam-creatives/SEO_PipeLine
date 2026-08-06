@@ -60,7 +60,10 @@ describe('dataForSeoResponseToMetrics', () => {
   const envelope = (result: unknown) => ({ status_code: 20000, tasks: [{ status_code: 20000, result }] })
 
   test('girdi kardinalitesi korunur — veri bulunmayan keyword volume 0 alır', () => {
-    const raw = envelope([{ keyword: 'dijital ajans', search_volume: 2400, competition: 0.42, cpc: 12.5 }])
+    // DataForSEO `competition`'ı string enum döndürür; sayısal karşılığı competition_index (0..100)
+    const raw = envelope([
+      { keyword: 'dijital ajans', search_volume: 2400, competition: 'MEDIUM', competition_index: 42, cpc: 12.5 },
+    ])
     const result = dataForSeoResponseToMetrics(raw, ['dijital ajans', 'bulunmayan kelime'])
     expect(result.ok).toBe(true)
     if (result.ok) {

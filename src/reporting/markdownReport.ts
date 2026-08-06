@@ -1,3 +1,4 @@
+import { COMPETITOR_REPORT_LIMIT } from '../config/constants.js'
 import { renderCwvDiagnosisMarkdown } from './cwvSection.js'
 import type { ReportModel } from './reportModel.js'
 
@@ -54,11 +55,18 @@ export const renderMarkdown = (model: ReportModel): string => {
   push()
   push('| Domain | Görünme Oranı | Sınıf | Gerçek Rakip? | Kaynak |')
   push('|--------|--------------:|-------|:-------------:|--------|')
-  for (const competitor of model.analysis.competitors) {
+  // Tek keyword'de bir kez görünen onlarca domain listeyi okunmaz kılıyor;
+  // gerçek rakipler her hâlükârda gösterilir, gerisi ilk sıralarla sınırlanır.
+  const shownCompetitors = model.analysis.competitors
+    .filter((competitor, index) => competitor.isRealCompetitor || index < COMPETITOR_REPORT_LIMIT)
+    .slice(0, COMPETITOR_REPORT_LIMIT)
+  for (const competitor of shownCompetitors) {
     push(
       `| ${competitor.domain} | ${percent(competitor.appearanceRate)} | ${competitor.classification} | ${competitor.isRealCompetitor ? '✅' : '—'} | ${competitor.source} |`,
     )
   }
+  const hiddenCount = model.analysis.competitors.length - shownCompetitors.length
+  if (hiddenCount > 0) push(`\n_${hiddenCount} domain daha bulundu; hiçbiri gerçek rakip eşiğini geçmedi._`)
   push()
 
   push('## Küme Görünümü')
@@ -82,7 +90,11 @@ export const renderMarkdown = (model: ReportModel): string => {
     )
   }
   push()
-  const clientIssues = model.analysis.techEvaluations.filter((item) => item.isClient).flatMap((item) => item.audit.issues)
+  // Aynı sorun her sayfada tekrar raporlanıyor (ör. tüm sayfalarda aynı blokan CSS);
+  // tekrarlar ayıklanmazsa liste 50 satıra çıkıp okunmaz oluyordu.
+  const clientIssues = [
+    ...new Set(model.analysis.techEvaluations.filter((item) => item.isClient).flatMap((item) => item.audit.issues)),
+  ]
   if (clientIssues.length > 0) {
     push('Tespit edilen sorunlar:')
     push()
@@ -105,7 +117,9 @@ export const renderMarkdown = (model: ReportModel): string => {
     push('|-------|------------:|----------------|:-------:|')
     for (const visibility of model.analysis.aiVisibility) {
       const strongest = [...visibility.competitorRates].sort((a, b) => b.rate - a.rate)[0]
-      const strongestLabel = strongest === undefined ? '—' : `${strongest.domain} (${percent(strongest.rate)})`
+      // %0 oranlı bir rakibi "en güçlü" diye göstermek anlamsız — kimse geçmiyor demektir.
+      const strongestLabel =
+        strongest === undefined || strongest.rate === 0 ? '—' : `${strongest.domain} (${percent(strongest.rate)})`
       push(`| ${visibility.query} | ${percent(visibility.clientRate)} | ${strongestLabel} | ${visibility.isGap ? '⚠️' : '—'} |`)
     }
   }

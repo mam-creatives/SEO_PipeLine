@@ -23,6 +23,7 @@ import type {
 } from '../types.js'
 
 const MOCK_MODEL_NAME = 'mock-llm'
+const GSC_MOCK_ROW_COUNT = 6
 
 const findFixture = (keyword: string): KeywordFixture | undefined =>
   AYAKKABI_KEYWORDS.find((fixture) => normalizeTr(fixture.keyword) === normalizeTr(keyword))
@@ -158,14 +159,22 @@ export const createMockSearchConsoleProvider = (config: ProjectConfig): SearchCo
         new ProviderError('mock-gsc', `GSC yalnız kendi sitenin verisini verir — '${domain}' erişilemez`),
       )
     }
+    // Satırlar config'in KENDİ keyword'lerinden türetilir. Sabit fixture kullanılınca
+    // başka bir projenin raporuna yabancı veri sızıyordu (mamcreatives raporunda
+    // "örnek ayakkabı" satırları çıkmıştı) — mock veri en azından doğru domaine ait görünmeli.
     return ok(
-      GSC_FIXTURES.map((row) => ({
-        query: row.query,
-        clicks: row.clicks,
-        impressions: row.impressions,
-        ctr: Number((row.clicks / row.impressions).toFixed(4)),
-        avgPosition: row.avgPosition,
-      })),
+      config.seedKeywords.slice(0, GSC_MOCK_ROW_COUNT).map((keyword) => {
+        const rng = mulberry32(hashString(normalizeTr(keyword)))
+        const impressions = randomInt(rng, 200, 6000)
+        const clicks = randomInt(rng, 1, Math.max(2, Math.round(impressions / 20)))
+        return {
+          query: keyword,
+          clicks,
+          impressions,
+          ctr: Number((clicks / impressions).toFixed(4)),
+          avgPosition: randomInt(rng, 10, 90) / 10,
+        }
+      }),
     )
   },
 })

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { TOP_N_SERP } from '../../config/constants.js'
-import { ProviderError } from '../../core/errors.js'
+import { ProviderError, summarizeZodError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
 import { extractRootDomain } from '../../core/text.js'
 import type { SerpSnapshot } from '../../core/types.js'
@@ -54,7 +54,7 @@ export const serpApiResponseToSnapshot = (raw: unknown, keyword: string): Result
   const parsed = SerpApiResponseSchema.safeParse(raw)
   if (!parsed.success) {
     return err(
-      new ProviderError(PROVIDER_NAME, `Yanıt beklenen şemaya uymuyor ('${keyword}'): ${parsed.error.message}`),
+      new ProviderError(PROVIDER_NAME, `Yanıt beklenen şemaya uymuyor ('${keyword}'): ${summarizeZodError(parsed.error.issues)}`),
     )
   }
   if (parsed.data.error !== undefined) {
