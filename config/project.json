@@ -1,0 +1,35 @@
+{
+  "domain": "mamcreatives.com",
+  "brandName": "MAM Creatives",
+  "brandTokens": ["mam creatives", "mamcreatives"],
+  "seedCompetitors": [],
+  "seedKeywords": [
+    "dijital ajans",
+    "reklam ajansı",
+    "sosyal medya ajansı",
+    "web tasarım ajansı",
+    "logo tasarım",
+    "seo ajansı",
+    "İstanbul dijital ajans",
+    "Şişli reklam ajansı",
+    "dijital pazarlama ajansı fiyatları",
+    "kurumsal web sitesi tasarımı",
+    "e-ticaret sitesi kurma",
+    "dijital pazarlama nedir",
+    "marka konumlandırma nasıl yapılır",
+    "logo tasarımı nasıl yapılır",
+    "mam creatives"
+  ],
+  "aiQueries": [
+    "İstanbul'da startup'lar için en iyi dijital ajanslar hangileri?",
+    "Türkiye'de logo ve marka kimliği tasarımı için hangi ajanslar öneriliyor?",
+    "Küçük işletmeler için uygun fiyatlı dijital pazarlama ajansı önerir misin?"
+  ],
+  "auditUrls": [
+    "https://www.mamcreatives.com/",
+    "https://www.mamcreatives.com/hizmetlerimiz",
+    "https://www.mamcreatives.com/blog/google-aramalarinda-ust-siraya-cikmak-icin-neler-yapilmali"
+  ],
+  "locale": "tr-TR",
+  "mockSeed": 42
+}

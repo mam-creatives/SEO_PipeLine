@@ -1,0 +1,32 @@
+{
+  "name": "seo-komuta-merkezi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Türkiye pazarı için otomatik SEO araştırma pipeline'ı — keyword/SERP, backlink, teknik denetim, AI görünürlük (GEO), trend takibi",
+  "scripts": {
+    "research": "tsx src/cli/research.ts",
+    "audit": "tsx src/cli/auditUrl.ts",
+    "doctor": "tsx src/cli/doctor.ts",
+    "rum": "tsx src/cli/rum.ts",
+    "report": "tsx src/cli/report.ts",
+    "discover-competitors": "tsx src/cli/discoverCompetitors.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^3.0.0",
+    "chrome-launcher": "^1.2.1",
+    "lighthouse": "^13.4.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
