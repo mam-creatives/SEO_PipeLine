@@ -1,11 +1,13 @@
 import type { CwvFinding } from '../analysis/cwv/types.js'
 import type { TechEvaluation } from '../analysis/runAnalysis.js'
 import { lcpPhaseShares, type LcpAttribution } from '../core/cwv.js'
+import { escapeHtml } from './htmlEscape.js'
 
 const SEVERITY_LABEL: Readonly<Record<CwvFinding['severity'], string>> = {
   critical: '🔴 KRİTİK',
   high: '🟡 ÖNEMLİ',
   medium: '🔵 ORTA',
+  low: '⚪ BİLGİ',
 }
 
 const PHASE_LABEL: Readonly<Record<string, string>> = {
@@ -46,9 +48,6 @@ const phaseSegments = (lcp: LcpAttribution): readonly PhaseSegment[] => {
 }
 
 const percent = (share: number): string => `%${Math.round(share * 100)}`
-
-const escapeHtml = (text: string): string =>
-  text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
 
 const withDiagnosis = (evaluations: readonly TechEvaluation[]): readonly TechEvaluation[] =>
   evaluations.filter((evaluation) => evaluation.diagnosis !== null && evaluation.diagnosis.findings.length > 0)

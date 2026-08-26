@@ -124,6 +124,13 @@ export const MIGRATIONS: readonly string[] = [
 
   CREATE INDEX idx_rum_samples_lookup ON rum_samples(url, metric, receivedAt);
   `,
+  // v4 — Lighthouse SEO kategorisi (document-title, meta-description, canonical, ...).
+  // Ek istek/anahtar/kota gerektirmez: performans denetimiyle aynı Lighthouse koşusundan gelir.
+  // seoScore null olabilir (SEO kategorisi çalışmadıysa); seoFindings 'attribution' ile aynı desen.
+  `
+  ALTER TABLE tech_audits ADD COLUMN seoScore REAL;
+  ALTER TABLE tech_audits ADD COLUMN seoFindings TEXT NOT NULL DEFAULT '[]';
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

@@ -23,8 +23,11 @@ export const buildPageSpeedUrl = (apiKey: string, url: string): string => {
     key: apiKey,
     strategy: 'mobile',
     locale: 'tr',
-    category: 'performance',
   })
+  // PSI `category` tekrarlanabilir bir parametre — Lighthouse tarafındaki
+  // `--only-categories=performance,seo` ile aynı kapsamı ücretsiz sağlar.
+  params.append('category', 'performance')
+  params.append('category', 'seo')
   return `${PAGESPEED_BASE_URL}?${params.toString()}`
 }
 

@@ -9,6 +9,7 @@ const SEVERITY_MARKER: Readonly<Record<CwvFinding['severity'], string>> = {
   critical: '🔴 KRİTİK',
   high: '🟡 ÖNEMLİ',
   medium: '🔵 ORTA',
+  low: '⚪ BİLGİ',
 }
 
 const printFinding = (finding: CwvFinding, index: number): void => {

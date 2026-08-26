@@ -1,5 +1,11 @@
 import { INP_PHASE_DOMINANCE, inpPhaseShares, rateMetric, type InpAttribution } from '../../core/cwv.js'
-import { percentLabel, type CwvFinding, type FindingSeverity } from './types.js'
+import { estimateImpact, percentLabel, type CwvFinding, type FindingSeverity } from './types.js'
+
+const EFFORT_BY_PHASE = {
+  inputDelay: 'medium',
+  processingDuration: 'medium',
+  presentationDelay: 'small',
+} as const
 
 const severityFor = (inpMs: number): FindingSeverity => {
   const rating = rateMetric('INP', inpMs)
@@ -12,11 +18,16 @@ const targetLabel = (attribution: InpAttribution): string =>
   attribution.interactionTarget === null ? 'bir öğe' : attribution.interactionTarget
 
 const inputDelayFinding = (share: number, severity: FindingSeverity, attribution: InpAttribution): CwvFinding => ({
+  category: 'cwv',
   metric: 'INP',
   severity,
   phase: 'inputDelay',
   phaseShare: share,
+  url: null,
   culpritSelector: attribution.interactionTarget,
+  evidence: `Input delay ${Math.round(attribution.inputDelay)}ms`,
+  impact: estimateImpact(severity, share),
+  effort: EFFORT_BY_PHASE.inputDelay,
   title: `Etkileşim başlarken ana thread meşgul (${percentLabel(share)})`,
   explanation:
     `Kullanıcı ${targetLabel(attribution)} öğesiyle etkileşime geçtiğinde tarayıcı ` +
@@ -48,11 +59,16 @@ const processingDurationFinding = (
           : ` (${Math.round(attribution.longestScriptDuration)}ms).`)
 
   return {
+    category: 'cwv',
     metric: 'INP',
     severity,
     phase: 'processingDuration',
     phaseShare: share,
+    url: null,
     culpritSelector: attribution.interactionTarget,
+    evidence: `İşleme süresi ${Math.round(attribution.processingDuration)}ms`,
+    impact: estimateImpact(severity, share),
+    effort: EFFORT_BY_PHASE.processingDuration,
     title: `Olay işleyicisi çok uzun çalışıyor (${percentLabel(share)})`,
     explanation:
       `${targetLabel(attribution)} üzerindeki olay işleyicisi ${Math.round(attribution.processingDuration)}ms ` +
@@ -72,11 +88,16 @@ const presentationDelayFinding = (
   severity: FindingSeverity,
   attribution: InpAttribution,
 ): CwvFinding => ({
+  category: 'cwv',
   metric: 'INP',
   severity,
   phase: 'presentationDelay',
   phaseShare: share,
+  url: null,
   culpritSelector: attribution.interactionTarget,
+  evidence: `Sunum gecikmesi ${Math.round(attribution.presentationDelay)}ms`,
+  impact: estimateImpact(severity, share),
+  effort: EFFORT_BY_PHASE.presentationDelay,
   title: `İşleyici bitti ama kare geç çiziliyor (${percentLabel(share)})`,
   explanation:
     `Olay işleyicisi tamamlandıktan sonra tarayıcının yeni kareyi sunması ` +

@@ -6,7 +6,15 @@ import {
   type LcpAttribution,
   type TtfbAttribution,
 } from '../../core/cwv.js'
-import { percentLabel, type CwvFinding, type FindingSeverity } from './types.js'
+import { estimateImpact, percentLabel, type CwvFinding, type FindingSeverity } from './types.js'
+
+/** Fazın niteliğine göre sabit emek etiketi — düzeltmenin kapsamı bulgu tipine göre değişmez. */
+const EFFORT_BY_PHASE = {
+  timeToFirstByte: 'large',
+  resourceLoadDelay: 'small',
+  resourceLoadDuration: 'medium',
+  elementRenderDelay: 'medium',
+} as const
 
 const TTFB_PHASE_LABELS: Readonly<Record<string, string>> = {
   waitingDuration: 'sunucunun isteği işlemeye başlaması (backend/yönlendirme)',
@@ -37,11 +45,16 @@ const ttfbFinding = (
   })()
 
   return {
+    category: 'cwv',
     metric: 'LCP',
     severity,
     phase: 'timeToFirstByte',
     phaseShare: share,
+    url: null,
     culpritSelector: attribution.target,
+    evidence: `TTFB ${Math.round(attribution.timeToFirstByte)}ms`,
+    impact: estimateImpact(severity, share),
+    effort: EFFORT_BY_PHASE.timeToFirstByte,
     title: `Sunucu yanıtı LCP'nin ${percentLabel(share)}'ini alıyor`,
     explanation:
       `TTFB ${Math.round(attribution.timeToFirstByte)}ms — LCP süresinin ${percentLabel(share)}'i daha ilk bayt ` +
@@ -68,11 +81,16 @@ const resourceLoadDelayFinding = (
   const isUnknownResource = attribution.url === null
 
   return {
+    category: 'cwv',
     metric: 'LCP',
     severity,
     phase: 'resourceLoadDelay',
     phaseShare: share,
+    url: null,
     culpritSelector: attribution.target,
+    evidence: `Kaynak keşif gecikmesi ${Math.round(attribution.resourceLoadDelay)}ms`,
+    impact: estimateImpact(severity, share),
+    effort: EFFORT_BY_PHASE.resourceLoadDelay,
     title: isUnknownResource
       ? `LCP kaynağı geç keşfediliyor (${percentLabel(share)})`
       : `LCP görseli geç keşfediliyor (${percentLabel(share)})`,
@@ -106,11 +124,16 @@ const resourceLoadDurationFinding = (
   severity: FindingSeverity,
   attribution: LcpAttribution,
 ): CwvFinding => ({
+  category: 'cwv',
   metric: 'LCP',
   severity,
   phase: 'resourceLoadDuration',
   phaseShare: share,
+  url: null,
   culpritSelector: attribution.target,
+  evidence: `Kaynak indirme süresi ${Math.round(attribution.resourceLoadDuration)}ms`,
+  impact: estimateImpact(severity, share),
+  effort: EFFORT_BY_PHASE.resourceLoadDuration,
   title: `LCP kaynağının indirilmesi çok uzun sürüyor (${percentLabel(share)})`,
   explanation:
     `Kaynağın indirilmesi ${Math.round(attribution.resourceLoadDuration)}ms sürüyor` +
@@ -134,11 +157,16 @@ const elementRenderDelayFinding = (
   severity: FindingSeverity,
   attribution: LcpAttribution,
 ): CwvFinding => ({
+  category: 'cwv',
   metric: 'LCP',
   severity,
   phase: 'elementRenderDelay',
   phaseShare: share,
+  url: null,
   culpritSelector: attribution.target,
+  evidence: `Render gecikmesi ${Math.round(attribution.elementRenderDelay)}ms`,
+  impact: estimateImpact(severity, share),
+  effort: EFFORT_BY_PHASE.elementRenderDelay,
   title: `Kaynak hazır ama element geç boyanıyor (${percentLabel(share)})`,
   explanation:
     `LCP kaynağı indikten sonra elementin ekrana çizilmesi ${Math.round(attribution.elementRenderDelay)}ms daha ` +

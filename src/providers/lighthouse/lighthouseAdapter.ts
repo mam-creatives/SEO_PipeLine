@@ -1,5 +1,6 @@
 import type { ClsAttribution, CwvAttribution, LcpAttribution } from '../../core/cwv.js'
 import { ProviderError, summarizeZodError } from '../../core/errors.js'
+import { estimateImpact, type Finding, type FindingEffort, type FindingSeverity } from '../../core/findings.js'
 import { err, ok, type Result } from '../../core/result.js'
 import type { TechAudit } from '../../core/types.js'
 import {
@@ -87,6 +88,168 @@ const extractClsAttribution = (audits: LighthouseAudits): ClsAttribution | null 
 
 const formatKib = (bytes: number): string => `${Math.round(bytes / KIB).toLocaleString('tr-TR')} KB`
 
+interface SeoAuditCopy {
+  readonly severity: FindingSeverity
+  readonly effort: FindingEffort
+  readonly title: string
+  readonly explanation: string
+  readonly fixSnippet: string
+}
+
+/**
+ * Lighthouse SEO kategorisinin otomatik puanlanan (`scoreDisplayMode: 'binary'`) on audit'i.
+ * `structured-data` bilerek dışarıda: `scoreDisplayMode: 'manual'`, hiçbir zaman otomatik
+ * puanlanmaz — `score` her zaman null gelir, bulgu üretmek yanlış olurdu.
+ * Gerçek mamcreatives.com koşusuna karşı doğrulandı (audit id'leri ve `details` şekli).
+ */
+const SEO_AUDIT_COPY: Readonly<Record<string, SeoAuditCopy>> = {
+  'is-crawlable': {
+    severity: 'critical',
+    effort: 'small',
+    title: 'Arama motorları sayfayı taramasını engelleyen bir direktif buldu',
+    explanation:
+      'Sayfa "noindex" meta etiketi, X-Robots-Tag başlığı veya robots.txt disallow kuralı yüzünden ' +
+      'taranamıyor olabilir. Bu, sayfanın Google indeksinden tamamen dışlanması demektir — düzeltilmeden ' +
+      'diğer tüm SEO çalışmaları anlamsız kalır.',
+    fixSnippet:
+      `<!-- HTML meta etiketini kontrol et -->\n<meta name="robots" content="index, follow">\n\n` +
+      `# HTTP başlığını kontrol et\ncurl -sI https://example.com/ | grep -i x-robots-tag`,
+  },
+  'document-title': {
+    severity: 'high',
+    effort: 'trivial',
+    title: 'Sayfada <title> etiketi eksik veya boş',
+    explanation:
+      'Arama sonuçlarında gösterilen başlık ve tıklama oranını (CTR) en çok etkileyen tek etikettir. ' +
+      'Eksikse Google kendi başlığını üretir — marka ve anahtar kelime kontrolü kaybedilir.',
+    fixSnippet: `<title>Anahtar Kelime | Marka Adı</title>`,
+  },
+  'meta-description': {
+    severity: 'medium',
+    effort: 'trivial',
+    title: 'Sayfada meta description eksik',
+    explanation:
+      "Google bu alanı SERP özetinde gösterir; boşsa sayfa içeriğinden rastgele bir parça seçer — CTR'yi " +
+      'doğrudan etkiler. 150-160 karakter, sayfaya özgü ve harekete geçirici olmalı.',
+    fixSnippet: `<meta name="description" content="Sayfaya özgü, 150-160 karakter, harekete geçirici bir özet.">`,
+  },
+  'http-status-code': {
+    severity: 'critical',
+    effort: 'large',
+    title: 'Sayfa başarısız bir HTTP durum kodu döndürüyor',
+    explanation: '4xx/5xx yanıt veren bir sayfa arama motorları tarafından taranamaz ve indekslenemez.',
+    fixSnippet: `curl -sI https://example.com/ | head -1`,
+  },
+  'link-text': {
+    severity: 'low',
+    effort: 'small',
+    title: 'Bağlantı metinleri açıklayıcı değil',
+    explanation:
+      '"buraya tıkla", "devamını oku" gibi genel ifadeler hem kullanıcıya hem arama motoruna bağlantının ' +
+      'hedefi hakkında bilgi vermez — anchor metni bir sıralama sinyalidir.',
+    fixSnippet:
+      `<!-- KÖTÜ -->\n<a href="/hizmetler">buraya tıkla</a>\n\n` +
+      `<!-- İYİ -->\n<a href="/hizmetler">Dijital pazarlama hizmetlerimiz</a>`,
+  },
+  'crawlable-anchors': {
+    severity: 'high',
+    effort: 'small',
+    title: 'Bağlantılar taranabilir değil',
+    explanation:
+      'href="javascript:void(0)" gibi bağlantılar tarayıcı için tıklanabilir ama arama motoru için ' +
+      'görünmezdir — o linkin götürdüğü sayfa hiç keşfedilemez.',
+    fixSnippet:
+      `<!-- KÖTÜ: tarama motoru bu linki takip edemez -->\n` +
+      `<a href="javascript:void(0);" onclick="toggleMenu()">Kurumsal</a>\n\n` +
+      `<!-- İYİ: gerçek href + davranış ayrı -->\n` +
+      `<a href="/kurumsal" onclick="toggleMenu(event)">Kurumsal</a>`,
+  },
+  'robots-txt': {
+    severity: 'high',
+    effort: 'small',
+    title: 'robots.txt geçersiz',
+    explanation:
+      "Söz dizimi hataları arama motorunun robots.txt'i yanlış yorumlamasına, istemeden tüm siteyi ya da " +
+      'kritik bölümleri engellemesine yol açabilir.',
+    fixSnippet: `User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml`,
+  },
+  'image-alt': {
+    severity: 'medium',
+    effort: 'medium',
+    title: 'Görsellerde alt metni eksik',
+    explanation:
+      'alt metni hem erişilebilirlik hem görsel arama (Google Images) için gereklidir; eksikse görsel ' +
+      'hiçbir bağlamda indekslenemez.',
+    fixSnippet: `<img src="/urun.jpg" alt="Ürünün açıklayıcı, anahtar kelime içeren metni">`,
+  },
+  hreflang: {
+    severity: 'medium',
+    effort: 'medium',
+    title: 'hreflang etiketleri hatalı',
+    explanation:
+      "Karşılıklı olmayan (reciprocal olmayan) hreflang etiketleri veya eksik x-default, Google'ın yanlış " +
+      'dil/bölge sürümünü göstermesine yol açar.',
+    fixSnippet:
+      `<link rel="alternate" hreflang="tr" href="https://example.com/tr/" />\n` +
+      `<link rel="alternate" hreflang="en" href="https://example.com/en/" />\n` +
+      `<link rel="alternate" hreflang="x-default" href="https://example.com/" />`,
+  },
+  canonical: {
+    severity: 'high',
+    effort: 'small',
+    title: 'canonical etiketi hatalı veya çelişkili',
+    explanation:
+      "Birden fazla ya da başka bir domaine işaret eden canonical, Google'ın hangi URL'i sıralayacağına " +
+      'kendi kararını vermesine yol açar — genelde istenmeyen bir sayfa öne çıkar.',
+    fixSnippet: `<link rel="canonical" href="https://example.com/hedef-sayfa/">`,
+  },
+}
+
+/** İlk `node` detayının CSS seçicisi — audit'in suçladığı somut element. */
+const firstCulprit = (details: unknown): string | null => {
+  const items = detailItems(details)
+  for (const item of items) {
+    const record = asRecord(item)
+    const node = isNodeDetail(record['node']) ? record['node'] : isNodeDetail(item) ? item : null
+    const selector = stringOrNull(node?.selector ?? null)
+    if (selector !== null) return selector
+  }
+  return null
+}
+
+/**
+ * Lighthouse SEO audit'lerini rapor bulgusuna çevirir. Yalnız `score === 0` olanlar
+ * (gerçekten başarısız, otomatik puanlanmış) bulgu üretir — `null` (manual/notApplicable)
+ * veya `1` (geçti) sessizce atlanır.
+ *
+ * `evidence` önce audit'in kendi `explanation`'ını kullanır (Lighthouse'un tek satırlık
+ * somut sebebi); yoksa etkilenen element sayısına düşer — uydurma kanıt üretilmez.
+ */
+export const extractSeoFindings = (audits: LighthouseAudits, url: string): readonly Finding[] =>
+  Object.entries(SEO_AUDIT_COPY).flatMap(([id, copy]) => {
+    const audit = audits[id]
+    if (audit === undefined || audit.score !== 0) return []
+
+    const itemCount = detailItems(audit.details).length
+    const evidence =
+      stringOrNull(audit.explanation ?? null) ?? (itemCount > 0 ? `${itemCount} elementte tespit edildi` : copy.title)
+
+    return [
+      {
+        category: 'onpage',
+        severity: copy.severity,
+        url,
+        culpritSelector: firstCulprit(audit.details),
+        title: copy.title,
+        explanation: `${copy.explanation} (${evidence})`,
+        evidence,
+        impact: estimateImpact(copy.severity),
+        effort: copy.effort,
+        fixSnippet: copy.fixSnippet,
+      },
+    ]
+  })
+
 /** Lighthouse insight'larını rapordaki serbest metin sorun listesine çevirir. */
 const extractIssues = (audits: LighthouseAudits): readonly string[] => {
   const imageIssues = detailItems(auditDetails(audits, 'image-delivery-insight')).flatMap((item) => {
@@ -166,13 +329,18 @@ export const lighthouseResultToTechAudit = (
     ttfb: null,
   }
 
+  const seoScore = result.categories.seo?.score ?? null
+  const url = result.finalDisplayedUrl ?? result.requestedUrl ?? ''
+
   return ok({
-    url: result.finalDisplayedUrl ?? result.requestedUrl ?? '',
+    url,
     lcpMs,
     inpMs: 0,
     cls,
     performanceScore: score === null ? 0 : Math.round(score * 100),
     issues: extractIssues(audits),
     attribution,
+    seoScore: seoScore === null ? null : Math.round(seoScore * 100),
+    seoFindings: extractSeoFindings(audits, url),
   })
 }

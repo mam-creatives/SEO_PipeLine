@@ -66,8 +66,8 @@ export const insertBacklinks = (db: Db, runId: number, profiles: readonly Backli
 
 export const insertTechAudits = (db: Db, runId: number, audits: readonly TechAudit[]): void => {
   const stmt = db.prepare(
-    `INSERT INTO tech_audits (runId, url, lcpMs, inpMs, cls, performanceScore, issues, attribution)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tech_audits (runId, url, lcpMs, inpMs, cls, performanceScore, issues, attribution, seoScore, seoFindings)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
   inTransaction(db, 'Teknik denetimler', () => {
     for (const audit of audits) {
@@ -80,6 +80,8 @@ export const insertTechAudits = (db: Db, runId: number, audits: readonly TechAud
         audit.performanceScore,
         JSON.stringify(audit.issues),
         JSON.stringify(audit.attribution ?? null),
+        audit.seoScore ?? null,
+        JSON.stringify(audit.seoFindings ?? []),
       )
     }
   })

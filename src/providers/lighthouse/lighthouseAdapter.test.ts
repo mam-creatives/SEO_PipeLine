@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest'
 import { diagnoseCwv } from '../../analysis/cwv/diagnose.js'
 import { AIZHO_LIGHTHOUSE_RESULT } from './fixtures/aizhoLighthouse.js'
-import { lighthouseResultToTechAudit } from './lighthouseAdapter.js'
+import { MAMCREATIVES_LIGHTHOUSE_SEO_RESULT } from './fixtures/mamcreativesLighthouseSeo.js'
+import { extractSeoFindings, lighthouseResultToTechAudit } from './lighthouseAdapter.js'
 
 const PROVIDER = 'test'
 
@@ -99,6 +100,61 @@ describe('lighthouseResultToTechAudit — hata durumları', () => {
       expect(result.value.attribution?.lcp).toBeNull()
       expect(result.value.issues).toEqual([])
       expect(diagnoseCwv(result.value)?.findings).toEqual([])
+    }
+  })
+})
+
+describe('extractSeoFindings — gerçek mamcreatives.com SEO denetimi', () => {
+  const findings = extractSeoFindings(MAMCREATIVES_LIGHTHOUSE_SEO_RESULT.audits, 'https://www.mamcreatives.com/')
+
+  test('yalnız gerçekten başarısız (score 0) audit\'ler bulgu üretir — 11 audit\'ten 2\'si', () => {
+    expect(findings).toHaveLength(2)
+    expect(findings.map((finding) => finding.title).sort()).toEqual(
+      ['Bağlantılar taranabilir değil', 'Sayfada meta description eksik'].sort(),
+    )
+  })
+
+  test('explanation dolu audit: evidence doğrudan Lighthouse açıklamasını taşır', () => {
+    const finding = findings.find((item) => item.title === 'Sayfada meta description eksik')
+    expect(finding?.evidence).toBe('Description text is empty.')
+    expect(finding?.category).toBe('onpage')
+    expect(finding?.url).toBe('https://www.mamcreatives.com/')
+  })
+
+  test('explanation yok ama details.items dolu: evidence element sayısına düşer, ilk seçici culprit olur', () => {
+    const finding = findings.find((item) => item.title === 'Bağlantılar taranabilir değil')
+    expect(finding?.evidence).toBe('2 elementte tespit edildi')
+    expect(finding?.culpritSelector).toBe('nav > ul > li.has-dropdown > a')
+  })
+
+  test('manual audit (structured-data, score null) bulgu üretmez', () => {
+    expect(findings.some((finding) => finding.title.includes('structured'))).toBe(false)
+  })
+})
+
+describe('lighthouseResultToTechAudit — SEO alanları wiring', () => {
+  test('categories.seo yoksa (AIZHO fixture) seoScore null, seoFindings boş kalır', () => {
+    const audit = parseFixture()
+    expect(audit.seoScore).toBeNull()
+    expect(audit.seoFindings).toEqual([])
+  })
+
+  test('categories.seo ve audit\'ler varsa seoScore 0..100 ölçeğine çevrilir, seoFindings dolar', () => {
+    const result = lighthouseResultToTechAudit(
+      {
+        categories: { performance: { score: 0.9 }, seo: MAMCREATIVES_LIGHTHOUSE_SEO_RESULT.categories.seo },
+        audits: {
+          'largest-contentful-paint': { numericValue: 1800 },
+          'cumulative-layout-shift': { numericValue: 0.02 },
+          ...MAMCREATIVES_LIGHTHOUSE_SEO_RESULT.audits,
+        },
+      },
+      PROVIDER,
+    )
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value.seoScore).toBe(85)
+      expect(result.value.seoFindings).toHaveLength(2)
     }
   })
 })

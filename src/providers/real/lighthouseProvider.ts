@@ -38,7 +38,7 @@ const cliArguments = (url: string, outputPath: string): readonly string[] => [
   '--quiet',
   '--output=json',
   `--output-path=${outputPath}`,
-  '--only-categories=performance',
+  '--only-categories=performance,seo',
   '--form-factor=mobile',
   '--screenEmulation.mobile',
   '--chrome-flags=--headless=new --no-sandbox --disable-gpu',

@@ -15,8 +15,11 @@ const AuditSchema = z
   .object({
     id: z.string().optional(),
     score: z.number().nullable().optional(),
+    scoreDisplayMode: z.string().optional(),
     numericValue: z.number().optional(),
     displayValue: z.string().optional(),
+    /** Audit tek satırlık başarısızlık sebebini burada verir (ör. "Description text is empty."). */
+    explanation: z.string().optional(),
     details: z.unknown().optional(),
   })
   .passthrough()
@@ -28,6 +31,8 @@ export const LighthouseResultSchema = z
     finalDisplayedUrl: z.string().optional(),
     categories: z.object({
       performance: z.object({ score: z.number().nullable() }),
+      // Opsiyonel: yalnız `--only-categories` performance'a daraltılmamışsa gelir.
+      seo: z.object({ score: z.number().nullable() }).optional(),
     }),
     audits: z.record(AuditSchema),
   })

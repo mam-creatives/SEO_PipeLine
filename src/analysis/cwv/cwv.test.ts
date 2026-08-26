@@ -289,9 +289,10 @@ describe('yardımcılar', () => {
   })
 
   test('sortFindings girdiyi değiştirmez (immutability)', () => {
+    const base = { category: 'cwv' as const, url: null, culpritSelector: null, title: '', explanation: '', evidence: '', impact: 0, effort: 'small' as const, fixSnippet: null }
     const findings: CwvFinding[] = [
-      { metric: 'LCP', severity: 'medium', phase: 'a', phaseShare: 0.2, culpritSelector: null, title: '', explanation: '', fixSnippet: null },
-      { metric: 'CLS', severity: 'critical', phase: 'b', phaseShare: null, culpritSelector: null, title: '', explanation: '', fixSnippet: null },
+      { ...base, metric: 'LCP', severity: 'medium', phase: 'a', phaseShare: 0.2 },
+      { ...base, metric: 'CLS', severity: 'critical', phase: 'b', phaseShare: null },
     ]
     const sorted = sortFindings(findings)
     expect(sorted[0]?.phase).toBe('b')

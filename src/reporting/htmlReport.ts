@@ -1,13 +1,8 @@
 import { COMPETITOR_REPORT_LIMIT } from '../config/constants.js'
 import { CWV_SECTION_STYLE, renderCwvDiagnosisHtml } from './cwvSection.js'
+import { escapeHtml } from './htmlEscape.js'
 import type { ReportModel } from './reportModel.js'
-
-const escapeHtml = (text: string): string =>
-  text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
+import { renderSeoFindingsHtml } from './seoSection.js'
 
 const percent = (rate: number): string => `%${Math.round(rate * 100)}`
 const rankLabel = (rank: number | null): string => (rank === null ? '—' : `#${rank}`)
@@ -150,6 +145,9 @@ export const renderHtml = (model: ReportModel): string => {
 
   const cwvDiagnosis = renderCwvDiagnosisHtml(model.analysis.techEvaluations)
   if (cwvDiagnosis !== '') sections.push(cwvDiagnosis)
+
+  const seoFindings = renderSeoFindingsHtml(model.analysis.techEvaluations)
+  if (seoFindings !== '') sections.push(seoFindings)
 
   sections.push('<h2>AI Görünürlüğü (GEO)</h2>')
   if (model.analysis.aiVisibility.length === 0) {

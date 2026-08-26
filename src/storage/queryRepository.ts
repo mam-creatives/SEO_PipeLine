@@ -1,5 +1,6 @@
 import type { CwvAttribution } from '../core/cwv.js'
 import { StorageError } from '../core/errors.js'
+import type { Finding } from '../core/findings.js'
 import type {
   AiVisibilitySample,
   BacklinkProfile,
@@ -54,6 +55,16 @@ const parseAttribution = (raw: string): CwvAttribution | null => {
   }
 }
 
+/** Bozuk/eksik JSON'da boş dizi döner — SEO bulgusu okunamaması denetimin tamamını geçersiz kılmaz. */
+const parseSeoFindings = (raw: string): readonly Finding[] => {
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as readonly Finding[]) : []
+  } catch {
+    return []
+  }
+}
+
 /** Bir run'ın tüm verisini tek RunSnapshot olarak okur — diff motorunun girdisi. */
 export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
   const run = getRunById(db, runId)
@@ -75,9 +86,14 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
 
   const techAuditRows = db
     .prepare(
-      `SELECT url, lcpMs, inpMs, cls, performanceScore, issues, attribution FROM tech_audits WHERE runId = ?`,
+      `SELECT url, lcpMs, inpMs, cls, performanceScore, issues, attribution, seoScore, seoFindings FROM tech_audits WHERE runId = ?`,
     )
-    .all(runId) as (Omit<TechAudit, 'issues' | 'attribution'> & { issues: string; attribution: string })[]
+    .all(runId) as (Omit<TechAudit, 'issues' | 'attribution' | 'seoFindings'> & {
+    issues: string
+    attribution: string
+    seoScore: number | null
+    seoFindings: string
+  })[]
 
   const aiSampleRows = db
     .prepare(
@@ -106,6 +122,7 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
       ...row,
       issues: JSON.parse(row.issues) as string[],
       attribution: parseAttribution(row.attribution),
+      seoFindings: parseSeoFindings(row.seoFindings),
     })),
     aiSamples: aiSampleRows.map((row) => ({
       ...row,

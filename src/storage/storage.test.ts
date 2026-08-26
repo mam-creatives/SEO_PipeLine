@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { StorageError } from '../core/errors.js'
-import type { KeywordSnapshotRow, SerpSnapshot } from '../core/types.js'
+import type { Finding } from '../core/findings.js'
+import type { KeywordSnapshotRow, SerpSnapshot, TechAudit } from '../core/types.js'
 import { openDatabase, type Db } from './db.js'
 import { applyMigrations, MIGRATIONS } from './migrations.js'
 import { getRunSnapshot } from './queryRepository.js'
 import { createRun, finishRun, getLatestCompletedRun, getPreviousCompletedRun } from './runRepository.js'
-import { insertAiSamples, insertKeywordSnapshots, insertSerpSnapshots } from './snapshotRepository.js'
+import { insertAiSamples, insertKeywordSnapshots, insertSerpSnapshots, insertTechAudits } from './snapshotRepository.js'
 
 const sampleKeyword: KeywordSnapshotRow = {
   keyword: 'spor ayakkabı',
@@ -25,6 +26,31 @@ const sampleSerp: SerpSnapshot = {
   ],
   hasFeaturedSnippet: false,
   hasAiOverview: true,
+}
+
+const sampleSeoFinding: Finding = {
+  category: 'onpage',
+  severity: 'medium',
+  url: 'https://ornek-ayakkabi.com/',
+  culpritSelector: null,
+  title: 'Sayfada meta description eksik',
+  explanation: 'test',
+  evidence: 'Description text is empty.',
+  impact: 25,
+  effort: 'trivial',
+  fixSnippet: null,
+}
+
+const sampleTechAudit: TechAudit = {
+  url: 'https://ornek-ayakkabi.com/',
+  lcpMs: 2400,
+  inpMs: 180,
+  cls: 0.05,
+  performanceScore: 82,
+  issues: [],
+  attribution: null,
+  seoScore: 85,
+  seoFindings: [sampleSeoFinding],
 }
 
 describe('storage', () => {
@@ -80,6 +106,7 @@ describe('storage', () => {
     const run = createRun(db, 'h', [])
     insertKeywordSnapshots(db, run.id, [sampleKeyword])
     insertSerpSnapshots(db, run.id, [sampleSerp])
+    insertTechAudits(db, run.id, [sampleTechAudit])
     insertAiSamples(db, run.id, [
       {
         query: 'en iyi ayakkabı mağazası',
@@ -94,6 +121,7 @@ describe('storage', () => {
 
     const snapshot = getRunSnapshot(db, run.id)
     expect(snapshot.keywords).toEqual([sampleKeyword])
+    expect(snapshot.techAudits).toEqual([sampleTechAudit])
     expect(snapshot.serps).toEqual([sampleSerp])
     expect(snapshot.aiSamples[0]?.clientMentioned).toBe(true)
     expect(snapshot.aiSamples[0]?.competitorsMentioned).toEqual(['flo.com.tr'])

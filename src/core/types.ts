@@ -1,4 +1,5 @@
 import type { CwvAttribution } from './cwv.js'
+import type { Finding } from './findings.js'
 
 /** Paylaşılan domain tipleri — tüm katmanlar bu tiplere bağımlıdır, tersine bağımlılık yok. */
 
@@ -49,6 +50,10 @@ export interface TechAudit {
    * Opsiyonel: attribution üretemeyen sağlayıcılar ve migration öncesi kayıtlar için.
    */
   readonly attribution?: CwvAttribution | null
+  /** Lighthouse `categories.seo.score` × 100 — SEO kategorisi çalışmadıysa null. */
+  readonly seoScore?: number | null
+  /** Lighthouse SEO audit'lerinden türetilen bulgular — audit'ler çalışmadıysa boş dizi. */
+  readonly seoFindings?: readonly Finding[]
 }
 
 export interface AiAnswer {

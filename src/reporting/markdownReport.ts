@@ -1,5 +1,6 @@
 import { COMPETITOR_REPORT_LIMIT } from '../config/constants.js'
 import { renderCwvDiagnosisMarkdown } from './cwvSection.js'
+import { renderSeoFindingsMarkdown } from './seoSection.js'
 import type { ReportModel } from './reportModel.js'
 
 const percent = (rate: number): string => `%${Math.round(rate * 100)}`
@@ -105,6 +106,12 @@ export const renderMarkdown = (model: ReportModel): string => {
   const cwvDiagnosis = renderCwvDiagnosisMarkdown(model.analysis.techEvaluations)
   if (cwvDiagnosis !== '') {
     push(cwvDiagnosis)
+    push()
+  }
+
+  const seoFindings = renderSeoFindingsMarkdown(model.analysis.techEvaluations)
+  if (seoFindings !== '') {
+    push(seoFindings)
     push()
   }
 

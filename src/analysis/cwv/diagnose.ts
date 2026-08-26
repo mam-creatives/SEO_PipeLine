@@ -18,11 +18,13 @@ export const diagnoseCwv = (audit: TechAudit): CwvDiagnosis | null => {
   const attribution = audit.attribution
   if (attribution === undefined || attribution === null) return null
 
+  // Kural fonksiyonları `url: null` üretir (sayfa bağlamını bilmezler) — burada gerçek url
+  // damgalanır. Yeni obje: mevcut bulgu mutasyona uğramaz.
   const findings = [
     ...(attribution.lcp === null ? [] : diagnoseLcp(audit.lcpMs, attribution.lcp, attribution.ttfb)),
     ...(attribution.inp === null ? [] : diagnoseInp(audit.inpMs, attribution.inp)),
     ...(attribution.cls === null ? [] : diagnoseCls(audit.cls, attribution.cls)),
-  ]
+  ].map((finding) => ({ ...finding, url: audit.url }))
 
   const ratings: Partial<Record<CwvMetricName, CwvRating>> = {
     LCP: rateMetric('LCP', audit.lcpMs),

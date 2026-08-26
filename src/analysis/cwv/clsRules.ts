@@ -1,5 +1,5 @@
 import { CLS_LOAD_PHASE_MS, rateMetric, type ClsAttribution } from '../../core/cwv.js'
-import type { CwvFinding, FindingSeverity } from './types.js'
+import { estimateImpact, type CwvFinding, type FindingSeverity } from './types.js'
 
 const severityFor = (cls: number): FindingSeverity => {
   const rating = rateMetric('CLS', cls)
@@ -13,11 +13,16 @@ const targetLabel = (attribution: ClsAttribution): string =>
 
 /** Yükleme sırasındaki kayma: boyutu bildirilmemiş görsel/iframe veya font takası. */
 const loadPhaseFinding = (cls: number, attribution: ClsAttribution): CwvFinding => ({
+  category: 'cwv',
   metric: 'CLS',
   severity: severityFor(cls),
   phase: 'loadShift',
   phaseShare: null,
+  url: null,
   culpritSelector: attribution.largestShiftTarget,
+  evidence: `CLS puanı ${attribution.largestShiftValue.toFixed(3)}`,
+  impact: estimateImpact(severityFor(cls)),
+  effort: 'trivial',
   title: 'Sayfa yüklenirken içerik kayıyor',
   explanation:
     `${targetLabel(attribution)} sayfanın ilk ${CLS_LOAD_PHASE_MS / 1000} saniyesinde ` +
@@ -36,11 +41,16 @@ const loadPhaseFinding = (cls: number, attribution: ClsAttribution): CwvFinding 
 
 /** Geç kayma: reklam, çerez bandı, öneri widget'ı gibi sonradan enjekte edilen içerik. */
 const latePhaseFinding = (cls: number, attribution: ClsAttribution): CwvFinding => ({
+  category: 'cwv',
   metric: 'CLS',
   severity: severityFor(cls),
   phase: 'lateShift',
   phaseShare: null,
+  url: null,
   culpritSelector: attribution.largestShiftTarget,
+  evidence: `CLS puanı ${attribution.largestShiftValue.toFixed(3)}, ${Math.round(attribution.largestShiftTime)}ms sonra`,
+  impact: estimateImpact(severityFor(cls)),
+  effort: 'small',
   title: 'Sayfa yüklendikten sonra içerik kayıyor',
   explanation:
     `${targetLabel(attribution)} yüklemeden ${Math.round(attribution.largestShiftTime)}ms sonra ` +
