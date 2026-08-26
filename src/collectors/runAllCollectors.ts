@@ -6,6 +6,7 @@ import type {
   AiVisibilitySample,
   BacklinkProfile,
   GscRow,
+  IndexStatus,
   KeywordMetric,
   SerpSnapshot,
   TechAudit,
@@ -15,6 +16,7 @@ import {
   collectAiVisibility,
   collectBacklinks,
   collectGsc,
+  collectIndexStatuses,
   collectKeywords,
   collectSerps,
   collectTechAudits,
@@ -43,6 +45,7 @@ export interface CollectedData {
   readonly techAudits: readonly TechAudit[]
   readonly aiSamples: readonly AiVisibilitySample[]
   readonly gscRows: readonly GscRow[]
+  readonly indexStatuses: readonly IndexStatus[]
   readonly failedBranches: readonly FailedBranch[]
 }
 
@@ -86,17 +89,20 @@ export const runAllCollectors = async (
   // Aşama 2 — SERP'ten rakip domain'leri türet, kalan dalları paralel topla
   const competitorDomains = deps.deriveCompetitorDomains(serpResult.value)
   const backlinkDomains = [...new Set([config.domain, ...config.seedCompetitors, ...competitorDomains])]
+  const clientAuditUrls = deps.deriveAuditUrls(serpResult.value)
   const techUrls = [
-    ...deps.deriveAuditUrls(serpResult.value),
+    ...clientAuditUrls,
     ...competitorDomains.slice(0, TECH_AUDIT_COMPETITOR_COUNT).map((domain) => `https://${domain}/`),
   ]
   logger.info(`Teknik denetim ${techUrls.length} URL için çalışacak.`)
 
-  const [backlinkResult, techResult, aiResult, gscResult] = await Promise.all([
+  const [backlinkResult, techResult, aiResult, gscResult, indexResult] = await Promise.all([
     collectBacklinks(providers, backlinkDomains),
     collectTechAudits(providers, techUrls),
     collectAiVisibility(providers, config, backlinkDomains.filter((domain) => domain !== config.domain)),
     collectGsc(providers, config),
+    // Yalnız müşteri sayfaları — rakip URL'leri servis hesabının erişemediği bir mülk.
+    collectIndexStatuses(providers, clientAuditUrls),
   ])
 
   const failedBranches: FailedBranch[] = [...spineFailures]
@@ -114,6 +120,7 @@ export const runAllCollectors = async (
     techAudits: takeOrEmpty('teknik denetim', techResult) as readonly TechAudit[],
     aiSamples: takeOrEmpty('AI görünürlük', aiResult) as readonly AiVisibilitySample[],
     gscRows: takeOrEmpty('GSC', gscResult) as readonly GscRow[],
+    indexStatuses: takeOrEmpty('indeksleme durumu', indexResult) as readonly IndexStatus[],
     failedBranches,
   }
 }

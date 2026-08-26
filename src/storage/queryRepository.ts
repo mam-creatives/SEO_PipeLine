@@ -6,6 +6,7 @@ import type {
   BacklinkProfile,
   Competitor,
   GscRow,
+  IndexStatus,
   KeywordSnapshotRow,
   RunSnapshot,
   SerpSnapshot,
@@ -113,6 +114,13 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     .prepare(`SELECT domain, appearanceRate, classification, isRealCompetitor, source FROM competitors WHERE runId = ?`)
     .all(runId) as (Omit<Competitor, 'isRealCompetitor'> & { isRealCompetitor: number })[]
 
+  const indexStatuses = db
+    .prepare(
+      `SELECT url, coverageState, robotsTxtState, indexingState, pageFetchState, googleCanonical, userCanonical, lastCrawlTime
+       FROM index_status WHERE runId = ?`,
+    )
+    .all(runId) as IndexStatus[]
+
   return {
     run,
     keywords,
@@ -131,5 +139,6 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     })),
     gscRows,
     competitors: competitorRows.map((row) => ({ ...row, isRealCompetitor: row.isRealCompetitor === 1 })),
+    indexStatuses,
   }
 }

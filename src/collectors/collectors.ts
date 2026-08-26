@@ -7,6 +7,7 @@ import type {
   AiVisibilitySample,
   BacklinkProfile,
   GscRow,
+  IndexStatus,
   KeywordMetric,
   SerpSnapshot,
   TechAudit,
@@ -84,6 +85,22 @@ export const collectAiVisibility = async (
       return ok(sample)
     }),
   )
+  const failed = results.find((result) => !result.ok)
+  if (failed !== undefined && !failed.ok) {
+    return err(failed.error)
+  }
+  return ok(results.flatMap((result) => (result.ok ? [result.value] : [])))
+}
+
+/**
+ * URL Inspection yalnız servis hesabının erişebildiği MÜLKE ait URL'ler için çalışır —
+ * rakip URL'leri buraya girmez (deriveAuditUrls yalnız müşteri sayfalarını seçer).
+ */
+export const collectIndexStatuses = async (
+  providers: ProviderSet,
+  urls: readonly string[],
+): Promise<Result<readonly IndexStatus[], ProviderError>> => {
+  const results = await Promise.all(urls.map((url) => providers.indexing.fetchIndexStatus(url)))
   const failed = results.find((result) => !result.ok)
   if (failed !== undefined && !failed.ok) {
     return err(failed.error)

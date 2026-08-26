@@ -114,6 +114,7 @@ için bu üç yerin config'ten okunacak şekilde açılması gerekir.
 | Teknik denetim (CWV) | *anahtar yok* → `TECH_AUDIT_PROVIDER=lighthouse` | Lokal Lighthouse | **ücretsiz, kotasız** |
 | Teknik denetim (yedek) | `PAGESPEED_API_KEY` | Google PageSpeed | ücretsiz, ama kotalı |
 | GSC (kendi siteniz) | `GSC_CLIENT_EMAIL/PRIVATE_KEY` | Search Console | ücretsiz — **en değerli gerçek veri** |
+| İndeksleme durumu | *aynı GSC anahtarları* | Search Console URL Inspection | ücretsiz, ek anahtar gerekmez |
 | AI görünürlük (GEO) | `GEMINI_API_KEY` | Gemini API | token başına |
 
 Gemini birincil AI motoru çünkü Google AI Overviews'ı besleyen model odur — oradaki
@@ -126,8 +127,14 @@ anahtarlı kategorilerde anahtarlardan biri eksikse pipeline **yüksek sesle hat
 en tehlikeli sessiz hatadır.
 
 Yapılandırmayı doğrulamak için: `npm run doctor` — hangi kategorinin gerçek sağlayıcıya
-bağlandığını gösterir ve ücretsiz olanları (Gemini, GSC, Lighthouse) canlı dener; kotalı
-olanları bilerek denemez.
+bağlandığını gösterir ve ücretsiz olanları (Gemini, GSC, İndeksleme, Lighthouse) canlı
+dener; kotalı olanları bilerek denemez.
+
+**Not (İndeksleme durumu):** `gscUrlInspectionProvider.ts`'in şeması Google'ın resmi
+dokümantasyonundan yazıldı, henüz **canlı bir GSC servis hesabına karşı doğrulanmadı**
+(bu depoda GSC anahtarları henüz yok). GSC anahtarlarını ekledikten sonra `npm run doctor`
+çalıştırıp "İndeksleme durumu" satırının ✓ verdiğini kontrol edin — repodaki diğer tüm
+sağlayıcılar gerçek yanıta karşı doğrulanmış durumda, bu tek istisna.
 
 ## Mimari
 

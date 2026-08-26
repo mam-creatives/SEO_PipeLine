@@ -109,9 +109,9 @@ describe('mockSearchConsoleProvider', () => {
 })
 
 describe('registry.selectProviders', () => {
-  test('hiç anahtar yoksa 6 kategori de mock seçilir', () => {
+  test('hiç anahtar yoksa 7 kategori de mock seçilir', () => {
     const providers = selectProviders({}, config)
-    expect(providers.mockCategories).toHaveLength(6)
+    expect(providers.mockCategories).toHaveLength(7)
     expect(providers.keyword.isMock).toBe(true)
   })
 

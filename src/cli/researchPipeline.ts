@@ -17,6 +17,7 @@ import {
   insertBacklinks,
   insertCompetitors,
   insertGscRows,
+  insertIndexStatuses,
   insertKeywordSnapshots,
   insertSerpSnapshots,
   insertTechAudits,
@@ -70,6 +71,7 @@ export const runResearch = async (options: ResearchOptions): Promise<ResearchOut
       insertTechAudits(db, run.id, collected.techAudits)
       insertAiSamples(db, run.id, collected.aiSamples)
       insertGscRows(db, run.id, collected.gscRows)
+      insertIndexStatuses(db, run.id, collected.indexStatuses)
       insertCompetitors(db, run.id, analysis.competitors)
       finishRun(db, run.id, 'completed')
 

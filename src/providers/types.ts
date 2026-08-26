@@ -4,12 +4,20 @@ import type {
   AiAnswer,
   BacklinkProfile,
   GscRow,
+  IndexStatus,
   KeywordMetric,
   SerpSnapshot,
   TechAudit,
 } from '../core/types.js'
 
-export type ProviderCategory = 'keyword' | 'serp' | 'backlink' | 'tech' | 'aiVisibility' | 'searchConsole'
+export type ProviderCategory =
+  | 'keyword'
+  | 'serp'
+  | 'backlink'
+  | 'tech'
+  | 'aiVisibility'
+  | 'searchConsole'
+  | 'indexing'
 
 interface ProviderBase {
   readonly name: string
@@ -43,6 +51,10 @@ export interface SearchConsoleProvider extends ProviderBase {
   readonly fetchPerformance: (domain: string) => Promise<Result<readonly GscRow[], ProviderError>>
 }
 
+export interface IndexingProvider extends ProviderBase {
+  readonly fetchIndexStatus: (url: string) => Promise<Result<IndexStatus, ProviderError>>
+}
+
 export interface ProviderSet {
   readonly keyword: KeywordProvider
   readonly serp: SerpProvider
@@ -50,6 +62,7 @@ export interface ProviderSet {
   readonly tech: TechAuditProvider
   readonly aiVisibility: AiVisibilityProvider
   readonly searchConsole: SearchConsoleProvider
+  readonly indexing: IndexingProvider
   /** Mock çalışan kategoriler — boş değilse raporlarda "MOCK MODE" banner'ı gösterilir. */
   readonly mockCategories: readonly ProviderCategory[]
 }

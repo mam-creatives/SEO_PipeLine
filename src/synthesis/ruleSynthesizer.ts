@@ -2,7 +2,7 @@ import type { TrendDiff } from '../analysis/diffRuns.js'
 import type { AnalysisResult } from '../analysis/runAnalysis.js'
 import { CWV_THRESHOLDS, OPPORTUNITY_TOP_COUNT } from '../config/constants.js'
 
-export type ActionCategory = 'trend' | 'fırsat' | 'teknik' | 'ai-görünürlük'
+export type ActionCategory = 'trend' | 'fırsat' | 'teknik' | 'ai-görünürlük' | 'indeksleme'
 
 export interface ActionItem {
   /** 1 = acil, 2 = önemli, 3 = bilgi */
@@ -76,7 +76,17 @@ export const synthesizeWithRules = (analysis: AnalysisResult, diff: TrendDiff): 
     }
   }
 
-  // 4) AI görünürlük boşlukları — yeni nesil (GEO) cephe
+  // 4) İndeksleme sorunları — hepsi zaten critical (bkz. detectIndexingIssues.ts),
+  // her zaman öncelik 1: indekslenmeyen sayfa için diğer her şey anlamsızdır.
+  for (const finding of analysis.indexingFindings) {
+    actions.push({
+      priority: 1,
+      category: 'indeksleme',
+      text: `${finding.url ?? ''} — ${finding.title}. ${finding.explanation}`,
+    })
+  }
+
+  // 5) AI görünürlük boşlukları — yeni nesil (GEO) cephe
   for (const visibility of analysis.aiVisibility.filter((item) => item.isGap)) {
     const strongest = [...visibility.competitorRates].sort((a, b) => b.rate - a.rate)[0]
     const competitorNote =

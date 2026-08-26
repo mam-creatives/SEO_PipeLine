@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'vitest'
 import { dataForSeoResponseToBacklinkProfile, dataForSeoResponseToMetrics } from './dataForSeoProviders.js'
 import { geminiResponseToAnswer } from './geminiAiVisibilityProvider.js'
-import { buildDateRange, gscResponseToRows, matchSiteUrl, signServiceAccountJwt } from './gscProvider.js'
+import { matchSiteUrl, signServiceAccountJwt } from './gscAuth.js'
+import { buildDateRange, gscResponseToRows } from './gscProvider.js'
+import { inspectionResponseToIndexStatus } from './gscUrlInspectionProvider.js'
 import { serpApiResponseToSnapshot } from './serpApiProvider.js'
 
 describe('serpApiResponseToSnapshot', () => {
@@ -177,5 +179,53 @@ describe('GSC yardımcıları', () => {
 
   test('geçersiz PEM ile imzalama fırlatır — sağlayıcı bunu yakalayıp Result üretir', () => {
     expect(() => signServiceAccountJwt('a@b.com', 'GEÇERSİZ ANAHTAR')).toThrow()
+  })
+})
+
+describe('inspectionResponseToIndexStatus', () => {
+  test('indexStatusResult alanları IndexStatus alanlarına birebir eşlenir', () => {
+    const raw = {
+      inspectionResult: {
+        indexStatusResult: {
+          coverageState: 'Submitted and indexed',
+          robotsTxtState: 'ALLOWED',
+          indexingState: 'INDEXING_ALLOWED',
+          pageFetchState: 'SUCCESSFUL',
+          googleCanonical: 'https://ornek.com/',
+          userCanonical: 'https://ornek.com/',
+          lastCrawlTime: '2026-08-01T00:00:00Z',
+        },
+      },
+    }
+    const result = inspectionResponseToIndexStatus(raw, 'https://ornek.com/')
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value).toEqual({
+        url: 'https://ornek.com/',
+        coverageState: 'Submitted and indexed',
+        robotsTxtState: 'ALLOWED',
+        indexingState: 'INDEXING_ALLOWED',
+        pageFetchState: 'SUCCESSFUL',
+        googleCanonical: 'https://ornek.com/',
+        userCanonical: 'https://ornek.com/',
+        lastCrawlTime: '2026-08-01T00:00:00Z',
+      })
+    }
+  })
+
+  test('eksik alanlar UNSPECIFIED/null olarak doldurulur, uydurulmaz', () => {
+    const raw = { inspectionResult: { indexStatusResult: {} } }
+    const result = inspectionResponseToIndexStatus(raw, 'https://ornek.com/')
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value.indexingState).toBe('INDEXING_STATE_UNSPECIFIED')
+      expect(result.value.googleCanonical).toBeNull()
+    }
+  })
+
+  test('indexStatusResult hiç yoksa hata döner', () => {
+    const result = inspectionResponseToIndexStatus({ inspectionResult: {} }, 'https://ornek.com/')
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.message).toContain('indexStatusResult yok')
   })
 })

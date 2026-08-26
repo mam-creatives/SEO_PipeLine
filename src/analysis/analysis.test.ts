@@ -209,6 +209,7 @@ describe('diffRuns', () => {
     aiSamples: [],
     gscRows: [],
     competitors: [],
+    indexStatuses: [],
     ...overrides,
   })
 

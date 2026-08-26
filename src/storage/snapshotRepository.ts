@@ -4,6 +4,7 @@ import type {
   BacklinkProfile,
   Competitor,
   GscRow,
+  IndexStatus,
   KeywordSnapshotRow,
   SerpSnapshot,
   TechAudit,
@@ -114,6 +115,28 @@ export const insertGscRows = (db: Db, runId: number, rows: readonly GscRow[]): v
   inTransaction(db, 'GSC metrikleri', () => {
     for (const row of rows) {
       stmt.run(runId, row.query, row.clicks, row.impressions, row.ctr, row.avgPosition)
+    }
+  })
+}
+
+export const insertIndexStatuses = (db: Db, runId: number, statuses: readonly IndexStatus[]): void => {
+  const stmt = db.prepare(
+    `INSERT INTO index_status (runId, url, coverageState, robotsTxtState, indexingState, pageFetchState, googleCanonical, userCanonical, lastCrawlTime)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+  inTransaction(db, 'İndeksleme durumları', () => {
+    for (const status of statuses) {
+      stmt.run(
+        runId,
+        status.url,
+        status.coverageState,
+        status.robotsTxtState,
+        status.indexingState,
+        status.pageFetchState,
+        status.googleCanonical,
+        status.userCanonical,
+        status.lastCrawlTime,
+      )
     }
   })
 }

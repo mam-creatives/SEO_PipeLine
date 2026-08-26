@@ -16,6 +16,7 @@ import {
 import type {
   AiVisibilityProvider,
   BacklinkProvider,
+  IndexingProvider,
   KeywordProvider,
   SearchConsoleProvider,
   SerpProvider,
@@ -177,4 +178,25 @@ export const createMockSearchConsoleProvider = (config: ProjectConfig): SearchCo
       }),
     )
   },
+})
+
+/**
+ * Sağlıklı bir varsayılan döner (indeksli, canonical uyumlu) — mock'un amacı
+ * sentetik hata üretmek değil, gerçek sağlayıcı yokken pipeline'ın akışını
+ * kanıtlamak. Gerçek indeksleme sorunları yalnız gerçek GSC ile görünür.
+ */
+export const createMockIndexingProvider = (): IndexingProvider => ({
+  name: 'mock-gsc-url-inspection',
+  isMock: true,
+  fetchIndexStatus: async (url) =>
+    ok({
+      url,
+      coverageState: 'Submitted and indexed',
+      robotsTxtState: 'ALLOWED',
+      indexingState: 'INDEXING_ALLOWED',
+      pageFetchState: 'SUCCESSFUL',
+      googleCanonical: url,
+      userCanonical: url,
+      lastCrawlTime: new Date().toISOString(),
+    }),
 })

@@ -3,6 +3,7 @@ import { ProviderError } from '../core/errors.js'
 import {
   createMockAiVisibilityProvider,
   createMockBacklinkProvider,
+  createMockIndexingProvider,
   createMockKeywordProvider,
   createMockSearchConsoleProvider,
   createMockSerpProvider,
@@ -10,7 +11,9 @@ import {
 } from './mocks/mockProviders.js'
 import { createDataForSeoBacklinkProvider, createDataForSeoKeywordProvider } from './real/dataForSeoProviders.js'
 import { createGeminiAiVisibilityProvider } from './real/geminiAiVisibilityProvider.js'
+import { createGscAuth } from './real/gscAuth.js'
 import { createGscProvider } from './real/gscProvider.js'
+import { createGscUrlInspectionProvider } from './real/gscUrlInspectionProvider.js'
 import { createLighthouseProvider } from './real/lighthouseProvider.js'
 import { createPageSpeedProvider } from './real/pageSpeedProvider.js'
 import { createSerpApiProvider } from './real/serpApiProvider.js'
@@ -100,10 +103,16 @@ export const selectProviders = (env: Env, config: ProjectConfig): ProviderSet =>
       ? real(createDataForSeoBacklinkProvider(dataForSeoLogin, dataForSeoPassword))
       : mock(createMockBacklinkProvider(config))
 
+  // Tek paylaşılan auth örneği: searchConsole + indexing aynı jeton önbelleğini
+  // kullanmalı, yoksa her çalıştırmada iki ayrı OAuth turu atılır (bkz. gscAuth.ts).
+  const gscAuth =
+    hasGsc && gscEmail !== undefined && gscKey !== undefined ? createGscAuth(gscEmail, gscKey) : null
+
   const searchConsole =
-    hasGsc && gscEmail !== undefined && gscKey !== undefined
-      ? real(createGscProvider(gscEmail, gscKey))
-      : mock(createMockSearchConsoleProvider(config))
+    gscAuth !== null ? real(createGscProvider(gscAuth)) : mock(createMockSearchConsoleProvider(config))
+
+  const indexing =
+    gscAuth !== null ? real(createGscUrlInspectionProvider(gscAuth)) : mock(createMockIndexingProvider())
 
   const serp =
     env.SERPAPI_KEY !== undefined ? real(createSerpApiProvider(env.SERPAPI_KEY)) : mock(createMockSerpProvider(config))
@@ -118,6 +127,7 @@ export const selectProviders = (env: Env, config: ProjectConfig): ProviderSet =>
     ['tech', tech.isMock],
     ['aiVisibility', aiVisibility.isMock],
     ['searchConsole', searchConsole.isMock],
+    ['indexing', indexing.isMock],
   ]
 
   return {
@@ -127,6 +137,7 @@ export const selectProviders = (env: Env, config: ProjectConfig): ProviderSet =>
     tech: tech.provider,
     aiVisibility: aiVisibility.provider,
     searchConsole: searchConsole.provider,
+    indexing: indexing.provider,
     mockCategories: selections.flatMap(([category, isMock]) => (isMock ? [category] : [])),
   }
 }

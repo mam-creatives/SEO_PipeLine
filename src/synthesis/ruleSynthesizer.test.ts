@@ -52,6 +52,7 @@ const analysis: AnalysisResult = {
     },
   ],
   gscRows: [],
+  indexingFindings: [],
 }
 
 describe('synthesizeWithRules', () => {
@@ -83,5 +84,29 @@ describe('synthesizeWithRules', () => {
 
   test('aynı girdi aynı çıktıyı üretir (deterministik)', () => {
     expect(synthesizeWithRules(analysis, baselineDiff)).toEqual(synthesizeWithRules(analysis, baselineDiff))
+  })
+
+  test('indeksleme bulgusu öncelik 1 aksiyona dönüşür — indekslenmeyen sayfa her şeyden önce gelir', () => {
+    const withIndexingIssue = {
+      ...analysis,
+      indexingFindings: [
+        {
+          category: 'indexing' as const,
+          severity: 'critical' as const,
+          url: 'https://ornek.tr/urun',
+          culpritSelector: null,
+          title: 'Sayfa Google tarafından indekslenmesi engelleniyor',
+          explanation: 'test',
+          evidence: 'indexingState: BLOCKED_BY_ROBOTS_TXT',
+          impact: 70,
+          effort: 'small' as const,
+          fixSnippet: null,
+        },
+      ],
+    }
+    const output = synthesizeWithRules(withIndexingIssue, baselineDiff)
+    const indexingAction = output.actions.find((action) => action.category === 'indeksleme')
+    expect(indexingAction?.priority).toBe(1)
+    expect(indexingAction?.text).toContain('ornek.tr/urun')
   })
 })

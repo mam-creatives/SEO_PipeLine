@@ -33,6 +33,7 @@ const main = async (): Promise<void> => {
         techAudits: snapshot.techAudits,
         aiSamples: snapshot.aiSamples,
         gscRows: snapshot.gscRows,
+        indexStatuses: snapshot.indexStatuses,
         failedBranches: [],
       }
       const analysis = runAnalysis(collected, config)

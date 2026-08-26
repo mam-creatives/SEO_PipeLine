@@ -1,5 +1,6 @@
 import { COMPETITOR_REPORT_LIMIT } from '../config/constants.js'
 import { renderCwvDiagnosisMarkdown } from './cwvSection.js'
+import { renderIndexingFindingsMarkdown } from './indexingSection.js'
 import { renderSeoFindingsMarkdown } from './seoSection.js'
 import type { ReportModel } from './reportModel.js'
 
@@ -112,6 +113,12 @@ export const renderMarkdown = (model: ReportModel): string => {
   const seoFindings = renderSeoFindingsMarkdown(model.analysis.techEvaluations)
   if (seoFindings !== '') {
     push(seoFindings)
+    push()
+  }
+
+  const indexingFindings = renderIndexingFindingsMarkdown(model.analysis.indexingFindings)
+  if (indexingFindings !== '') {
+    push(indexingFindings)
     push()
   }
 

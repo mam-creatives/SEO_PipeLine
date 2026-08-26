@@ -13,6 +13,7 @@ const CATEGORY_LABELS: Readonly<Record<ProviderCategory, string>> = {
   tech: 'Teknik denetim (CWV)',
   aiVisibility: 'AI görünürlük (GEO)',
   searchConsole: 'Search Console',
+  indexing: 'İndeksleme durumu (URL Inspection)',
 }
 
 const printSelection = (providers: ProviderSet): void => {
@@ -51,6 +52,20 @@ const checkSearchConsole = async (providers: ProviderSet, domain: string): Promi
     }
   } else {
     console.log(`  ✗ Search Console başarısız: ${result.error.message}`)
+  }
+}
+
+const checkIndexing = async (providers: ProviderSet, auditUrls: readonly string[]): Promise<void> => {
+  const url = auditUrls[0]
+  if (providers.indexing.isMock || url === undefined) {
+    console.log('  ⊘ İndeksleme durumu mock ya da denetlenecek URL yok, atlandı.')
+    return
+  }
+  const result = await providers.indexing.fetchIndexStatus(url)
+  if (result.ok) {
+    console.log(`  ✓ URL Inspection çalışıyor — ${url} · coverageState: "${result.value.coverageState}"`)
+  } else {
+    console.log(`  ✗ URL Inspection başarısız: ${result.error.message}`)
   }
 }
 
@@ -94,6 +109,7 @@ const main = async (): Promise<void> => {
     console.log('─'.repeat(64))
     await checkGemini(providers)
     await checkSearchConsole(providers, config.domain)
+    await checkIndexing(providers, config.auditUrls)
     await checkTechAudit(providers, config.auditUrls)
 
     console.log('\nDENENMEYENLER (kota/ücret harcamamak için)')

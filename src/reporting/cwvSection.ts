@@ -1,14 +1,7 @@
-import type { CwvFinding } from '../analysis/cwv/types.js'
 import type { TechEvaluation } from '../analysis/runAnalysis.js'
 import { lcpPhaseShares, type LcpAttribution } from '../core/cwv.js'
 import { escapeHtml } from './htmlEscape.js'
-
-const SEVERITY_LABEL: Readonly<Record<CwvFinding['severity'], string>> = {
-  critical: '🔴 KRİTİK',
-  high: '🟡 ÖNEMLİ',
-  medium: '🔵 ORTA',
-  low: '⚪ BİLGİ',
-}
+import { SEVERITY_LABEL } from './severityLabel.js'
 
 const PHASE_LABEL: Readonly<Record<string, string>> = {
   timeToFirstByte: 'Sunucu yanıtı',

@@ -1,12 +1,18 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { StorageError } from '../core/errors.js'
 import type { Finding } from '../core/findings.js'
-import type { KeywordSnapshotRow, SerpSnapshot, TechAudit } from '../core/types.js'
+import type { IndexStatus, KeywordSnapshotRow, SerpSnapshot, TechAudit } from '../core/types.js'
 import { openDatabase, type Db } from './db.js'
 import { applyMigrations, MIGRATIONS } from './migrations.js'
 import { getRunSnapshot } from './queryRepository.js'
 import { createRun, finishRun, getLatestCompletedRun, getPreviousCompletedRun } from './runRepository.js'
-import { insertAiSamples, insertKeywordSnapshots, insertSerpSnapshots, insertTechAudits } from './snapshotRepository.js'
+import {
+  insertAiSamples,
+  insertIndexStatuses,
+  insertKeywordSnapshots,
+  insertSerpSnapshots,
+  insertTechAudits,
+} from './snapshotRepository.js'
 
 const sampleKeyword: KeywordSnapshotRow = {
   keyword: 'spor ayakkabı',
@@ -51,6 +57,17 @@ const sampleTechAudit: TechAudit = {
   attribution: null,
   seoScore: 85,
   seoFindings: [sampleSeoFinding],
+}
+
+const sampleIndexStatus: IndexStatus = {
+  url: 'https://ornek-ayakkabi.com/',
+  coverageState: 'Submitted and indexed',
+  robotsTxtState: 'ALLOWED',
+  indexingState: 'INDEXING_ALLOWED',
+  pageFetchState: 'SUCCESSFUL',
+  googleCanonical: 'https://ornek-ayakkabi.com/',
+  userCanonical: 'https://ornek-ayakkabi.com/',
+  lastCrawlTime: '2026-08-01T00:00:00Z',
 }
 
 describe('storage', () => {
@@ -107,6 +124,7 @@ describe('storage', () => {
     insertKeywordSnapshots(db, run.id, [sampleKeyword])
     insertSerpSnapshots(db, run.id, [sampleSerp])
     insertTechAudits(db, run.id, [sampleTechAudit])
+    insertIndexStatuses(db, run.id, [sampleIndexStatus])
     insertAiSamples(db, run.id, [
       {
         query: 'en iyi ayakkabı mağazası',
@@ -122,6 +140,7 @@ describe('storage', () => {
     const snapshot = getRunSnapshot(db, run.id)
     expect(snapshot.keywords).toEqual([sampleKeyword])
     expect(snapshot.techAudits).toEqual([sampleTechAudit])
+    expect(snapshot.indexStatuses).toEqual([sampleIndexStatus])
     expect(snapshot.serps).toEqual([sampleSerp])
     expect(snapshot.aiSamples[0]?.clientMentioned).toBe(true)
     expect(snapshot.aiSamples[0]?.competitorsMentioned).toEqual(['flo.com.tr'])

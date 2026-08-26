@@ -1,13 +1,6 @@
 import type { TechEvaluation } from '../analysis/runAnalysis.js'
-import type { Finding } from '../core/findings.js'
 import { escapeHtml } from './htmlEscape.js'
-
-const SEVERITY_LABEL: Readonly<Record<Finding['severity'], string>> = {
-  critical: '🔴 KRİTİK',
-  high: '🟡 ÖNEMLİ',
-  medium: '🔵 ORTA',
-  low: '⚪ BİLGİ',
-}
+import { SEVERITY_LABEL } from './severityLabel.js'
 
 /** Yalnız SEO bulgusu olan denetimler — Lighthouse SEO kategorisi çalışmadıysa (PSI/mock) sessizce atlanır. */
 const withSeoFindings = (evaluations: readonly TechEvaluation[]): readonly TechEvaluation[] =>

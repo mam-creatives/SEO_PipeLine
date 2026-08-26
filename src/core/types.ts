@@ -88,6 +88,23 @@ export interface Competitor {
   readonly source: 'seed' | 'discovered'
 }
 
+/**
+ * Google Search Console URL Inspection sonucu — SEO'nun en kritik tek sinyali:
+ * sayfa gerçekten indekslendi mi, Google hangi canonical'ı seçti. Tahmin değil,
+ * Google'ın kendi crawler'ının gördüğü.
+ */
+export interface IndexStatus {
+  readonly url: string
+  /** Serbest metin (ör. "Submitted and indexed") — Google API'si burada sabit enum vermiyor. */
+  readonly coverageState: string
+  readonly robotsTxtState: string
+  readonly indexingState: string
+  readonly pageFetchState: string
+  readonly googleCanonical: string | null
+  readonly userCanonical: string | null
+  readonly lastCrawlTime: string | null
+}
+
 export interface RunMeta {
   readonly id: number
   readonly startedAt: string
@@ -107,6 +124,7 @@ export interface RunSnapshot {
   readonly aiSamples: readonly AiVisibilitySample[]
   readonly gscRows: readonly GscRow[]
   readonly competitors: readonly Competitor[]
+  readonly indexStatuses: readonly IndexStatus[]
 }
 
 export interface KeywordSnapshotRow extends KeywordMetric {

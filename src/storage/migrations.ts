@@ -131,6 +131,25 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE tech_audits ADD COLUMN seoScore REAL;
   ALTER TABLE tech_audits ADD COLUMN seoFindings TEXT NOT NULL DEFAULT '[]';
   `,
+  // v5 — GSC URL Inspection: indeksleme durumu, canonical seçimi, robots durumu.
+  // Yalnız müşterinin kendi sayfaları için mevcut (servis hesabı rakip mülke erişemez).
+  `
+  CREATE TABLE index_status (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    runId INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    coverageState TEXT NOT NULL,
+    robotsTxtState TEXT NOT NULL,
+    indexingState TEXT NOT NULL,
+    pageFetchState TEXT NOT NULL,
+    googleCanonical TEXT,
+    userCanonical TEXT,
+    lastCrawlTime TEXT,
+    UNIQUE (runId, url)
+  );
+
+  CREATE INDEX idx_index_status_run ON index_status(runId);
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

@@ -2,15 +2,9 @@ import { diagnoseCwv } from '../analysis/cwv/diagnose.js'
 import type { CwvFinding } from '../analysis/cwv/types.js'
 import { createLogger } from '../core/logger.js'
 import { createLighthouseProvider } from '../providers/real/lighthouseProvider.js'
+import { SEVERITY_LABEL as SEVERITY_MARKER } from '../reporting/severityLabel.js'
 
 const logger = createLogger('audit')
-
-const SEVERITY_MARKER: Readonly<Record<CwvFinding['severity'], string>> = {
-  critical: '🔴 KRİTİK',
-  high: '🟡 ÖNEMLİ',
-  medium: '🔵 ORTA',
-  low: '⚪ BİLGİ',
-}
 
 const printFinding = (finding: CwvFinding, index: number): void => {
   console.log(`\n${index + 1}. ${SEVERITY_MARKER[finding.severity]} — ${finding.title}`)
