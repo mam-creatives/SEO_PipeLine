@@ -45,11 +45,15 @@ export const collectBacklinks = async (
   return ok(results.flatMap((result) => (result.ok ? [result.value] : [])))
 }
 
+/**
+ * TECH_AUDIT_CONCURRENCY ile sınırlı — Lighthouse süreç-global performance.mark()
+ * kullandığı için aynı Node sürecinde paralel koşamaz (constants.ts'teki not).
+ */
 export const collectTechAudits = async (
   providers: ProviderSet,
   urls: readonly string[],
 ): Promise<Result<readonly TechAudit[], ProviderError>> => {
-  const results = await Promise.all(urls.map((url) => providers.tech.auditUrl(url)))
+  const results = await mapWithConcurrency(urls, TECH_AUDIT_CONCURRENCY, (url) => providers.tech.auditUrl(url))
   const failed = results.find((result) => !result.ok)
   if (failed !== undefined && !failed.ok) {
     return err(failed.error)

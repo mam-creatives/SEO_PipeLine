@@ -9,14 +9,16 @@ import { openDatabase } from '../storage/db.js'
 import { getRunSnapshot } from '../storage/queryRepository.js'
 import { getLatestCompletedRun, getPreviousCompletedRun } from '../storage/runRepository.js'
 import { synthesizeWithRules } from '../synthesis/ruleSynthesizer.js'
+import { resolveCliPaths } from './args.js'
 
 const logger = createLogger('report')
 
 /** Yeni veri TOPLAMADAN, son tamamlanmış snapshot'tan raporları yeniden üretir. */
 const main = async (): Promise<void> => {
   try {
-    const config = loadProjectConfig('config/project.json')
-    const db = openDatabase('data/seo.db')
+    const paths = resolveCliPaths(process.argv.slice(2), (configPath) => loadProjectConfig(configPath).domain)
+    const config = loadProjectConfig(paths.configPath)
+    const db = openDatabase(paths.dbPath)
     try {
       const latest = getLatestCompletedRun(db)
       if (latest === null) {

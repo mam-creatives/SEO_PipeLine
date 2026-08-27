@@ -3,6 +3,7 @@ import { loadProjectConfig } from '../config/loadConfig.js'
 import { createLogger } from '../core/logger.js'
 import { selectProviders } from '../providers/registry.js'
 import type { ProviderCategory, ProviderSet } from '../providers/types.js'
+import { resolveCliPaths } from './args.js'
 
 const logger = createLogger('doctor')
 
@@ -96,7 +97,8 @@ const checkTechAudit = async (providers: ProviderSet, auditUrls: readonly string
  */
 const main = async (): Promise<void> => {
   try {
-    const config = loadProjectConfig('config/project.json')
+    const paths = resolveCliPaths(process.argv.slice(2), (configPath) => loadProjectConfig(configPath).domain)
+    const config = loadProjectConfig(paths.configPath)
     const providers = selectProviders(loadEnv(), config)
 
     console.log(`\nHedef domain: ${config.domain}  ·  marka: ${config.brandName}`)
