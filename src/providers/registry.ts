@@ -3,12 +3,14 @@ import { ProviderError } from '../core/errors.js'
 import {
   createMockAiVisibilityProvider,
   createMockBacklinkProvider,
+  createMockCruxProvider,
   createMockIndexingProvider,
   createMockKeywordProvider,
   createMockSearchConsoleProvider,
   createMockSerpProvider,
   createMockTechAuditProvider,
 } from './mocks/mockProviders.js'
+import { createCruxProvider } from './real/cruxProvider.js'
 import { createDataForSeoBacklinkProvider, createDataForSeoKeywordProvider } from './real/dataForSeoProviders.js'
 import { createGeminiAiVisibilityProvider } from './real/geminiAiVisibilityProvider.js'
 import { createGscAuth } from './real/gscAuth.js'
@@ -73,6 +75,10 @@ const selectAiVisibility = (env: Env, config: ProjectConfig): Selection<Provider
   return mock(createMockAiVisibilityProvider(config, config.mockSeed))
 }
 
+/** CrUX (Chrome UX Report): anahtar yoksa mock. Diğer kategorilerin aksine tek anahtarlı ve opsiyonel — verilmezse rapor bu zenginleştirmeyi atlar, hata vermez. */
+const selectCrux = (env: Env): Selection<ProviderSet['crux']> =>
+  env.CRUX_API_KEY !== undefined ? real(createCruxProvider(env.CRUX_API_KEY)) : mock(createMockCruxProvider())
+
 /**
  * Kategori başına mock/gerçek sağlayıcı seçiminin yapıldığı TEK yer.
  * `mockCategories` sabit bir listeden değil, fiilen yapılan seçimlerden türetilir —
@@ -119,6 +125,7 @@ export const selectProviders = (env: Env, config: ProjectConfig): ProviderSet =>
 
   const tech = selectTech(env, config)
   const aiVisibility = selectAiVisibility(env, config)
+  const crux = selectCrux(env)
 
   const selections: readonly (readonly [ProviderCategory, boolean])[] = [
     ['keyword', keyword.isMock],
@@ -128,6 +135,7 @@ export const selectProviders = (env: Env, config: ProjectConfig): ProviderSet =>
     ['aiVisibility', aiVisibility.isMock],
     ['searchConsole', searchConsole.isMock],
     ['indexing', indexing.isMock],
+    ['crux', crux.isMock],
   ]
 
   return {
@@ -138,6 +146,7 @@ export const selectProviders = (env: Env, config: ProjectConfig): ProviderSet =>
     aiVisibility: aiVisibility.provider,
     searchConsole: searchConsole.provider,
     indexing: indexing.provider,
+    crux: crux.provider,
     mockCategories: selections.flatMap(([category, isMock]) => (isMock ? [category] : [])),
   }
 }

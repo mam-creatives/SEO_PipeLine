@@ -5,6 +5,7 @@ import type {
   AiVisibilitySample,
   BacklinkProfile,
   Competitor,
+  FieldCwv,
   GscRow,
   IndexStatus,
   KeywordSnapshotRow,
@@ -121,6 +122,10 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     )
     .all(runId) as IndexStatus[]
 
+  const fieldCwv = db
+    .prepare(`SELECT url, formFactor, lcpMs, inpMs, cls FROM field_cwv WHERE runId = ?`)
+    .all(runId) as FieldCwv[]
+
   return {
     run,
     keywords,
@@ -140,5 +145,6 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     gscRows,
     competitors: competitorRows.map((row) => ({ ...row, isRealCompetitor: row.isRealCompetitor === 1 })),
     indexStatuses,
+    fieldCwv,
   }
 }

@@ -29,6 +29,8 @@ export const EnvSchema = z.object({
   PAGESPEED_API_KEY: optionalKey,
   GSC_CLIENT_EMAIL: optionalKey,
   GSC_PRIVATE_KEY: optionalKey,
+  /** CrUX (Chrome UX Report) — gerçek kullanıcı p75 alan verisi, rakipler dahil. Opsiyonel. */
+  CRUX_API_KEY: optionalKey,
   /**
    * AI görünürlük (GEO) birincil motoru — Google AI Overviews'ı besleyen model
    * Gemini olduğu için buradaki görünürlük doğrudan arama sonucuna yansır.

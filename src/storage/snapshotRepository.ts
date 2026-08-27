@@ -3,6 +3,7 @@ import type {
   AiVisibilitySample,
   BacklinkProfile,
   Competitor,
+  FieldCwv,
   GscRow,
   IndexStatus,
   KeywordSnapshotRow,
@@ -137,6 +138,17 @@ export const insertIndexStatuses = (db: Db, runId: number, statuses: readonly In
         status.userCanonical,
         status.lastCrawlTime,
       )
+    }
+  })
+}
+
+export const insertFieldCwv = (db: Db, runId: number, rows: readonly FieldCwv[]): void => {
+  const stmt = db.prepare(
+    `INSERT INTO field_cwv (runId, url, formFactor, lcpMs, inpMs, cls) VALUES (?, ?, ?, ?, ?, ?)`,
+  )
+  inTransaction(db, 'CrUX alan verisi', () => {
+    for (const row of rows) {
+      stmt.run(runId, row.url, row.formFactor, row.lcpMs, row.inpMs, row.cls)
     }
   })
 }

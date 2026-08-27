@@ -36,6 +36,7 @@ const main = async (): Promise<void> => {
         aiSamples: snapshot.aiSamples,
         gscRows: snapshot.gscRows,
         indexStatuses: snapshot.indexStatuses,
+        fieldCwv: snapshot.fieldCwv,
         failedBranches: [],
       }
       const analysis = runAnalysis(collected, config)

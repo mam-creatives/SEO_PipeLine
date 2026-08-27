@@ -107,6 +107,19 @@ export interface IndexStatus {
   readonly lastCrawlTime: string | null
 }
 
+/**
+ * CrUX (Chrome UX Report) alan verisi — gerçek kullanıcı p75 ölçümü, rakipler dahil.
+ * Herhangi bir metrik null olabilir: CrUX yeterli trafiği olmayan metrikleri sessizce
+ * atlar (404 değil, "veri yok" demektir).
+ */
+export interface FieldCwv {
+  readonly url: string
+  readonly formFactor: string
+  readonly lcpMs: number | null
+  readonly inpMs: number | null
+  readonly cls: number | null
+}
+
 export interface RunMeta {
   readonly id: number
   readonly startedAt: string
@@ -127,6 +140,7 @@ export interface RunSnapshot {
   readonly gscRows: readonly GscRow[]
   readonly competitors: readonly Competitor[]
   readonly indexStatuses: readonly IndexStatus[]
+  readonly fieldCwv: readonly FieldCwv[]
 }
 
 export interface KeywordSnapshotRow extends KeywordMetric {

@@ -55,6 +55,7 @@ const analysis: AnalysisResult = {
   gscRows: [],
   indexingFindings: [],
   cannibalizationFindings: [],
+  fieldCwv: [],
 }
 
 describe('synthesizeWithRules', () => {

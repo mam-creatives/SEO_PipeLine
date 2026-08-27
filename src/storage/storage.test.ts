@@ -2,13 +2,14 @@ import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { StorageError } from '../core/errors.js'
 import type { Finding } from '../core/findings.js'
-import type { GscRow, IndexStatus, KeywordSnapshotRow, SerpSnapshot, TechAudit } from '../core/types.js'
+import type { FieldCwv, GscRow, IndexStatus, KeywordSnapshotRow, SerpSnapshot, TechAudit } from '../core/types.js'
 import { openDatabase, type Db } from './db.js'
 import { applyMigrations, MIGRATIONS } from './migrations.js'
 import { getRunSnapshot } from './queryRepository.js'
 import { createRun, finishRun, getLatestCompletedRun, getPreviousCompletedRun } from './runRepository.js'
 import {
   insertAiSamples,
+  insertFieldCwv,
   insertGscRows,
   insertIndexStatuses,
   insertKeywordSnapshots,
@@ -81,6 +82,14 @@ const sampleGscRow: GscRow = {
   avgPosition: 4.2,
 }
 
+const sampleFieldCwv: FieldCwv = {
+  url: 'https://ornek-ayakkabi.com/',
+  formFactor: 'ALL_FORM_FACTORS',
+  lcpMs: 2300,
+  inpMs: 190,
+  cls: 0.04,
+}
+
 describe('storage', () => {
   let db: Db
 
@@ -137,6 +146,7 @@ describe('storage', () => {
     insertTechAudits(db, run.id, [sampleTechAudit])
     insertIndexStatuses(db, run.id, [sampleIndexStatus])
     insertGscRows(db, run.id, [sampleGscRow])
+    insertFieldCwv(db, run.id, [sampleFieldCwv])
     insertAiSamples(db, run.id, [
       {
         query: 'en iyi ayakkabı mağazası',
@@ -155,11 +165,12 @@ describe('storage', () => {
     expect(snapshot.indexStatuses).toEqual([sampleIndexStatus])
     expect(snapshot.serps).toEqual([sampleSerp])
     expect(snapshot.gscRows).toEqual([sampleGscRow])
+    expect(snapshot.fieldCwv).toEqual([sampleFieldCwv])
     expect(snapshot.aiSamples[0]?.clientMentioned).toBe(true)
     expect(snapshot.aiSamples[0]?.competitorsMentioned).toEqual(['flo.com.tr'])
   })
 
-  test('v5 veritabanı v6\'ya sorunsuz yükselir — eski gsc_metrics satırı page="" ile korunur', () => {
+  test('v5 veritabanı en son sürüme sorunsuz yükselir — eski gsc_metrics satırı page="" ile korunur', () => {
     // openDatabase yerine ham Database: v5'e kadar manuel uygulamak için, `beforeEach`'in
     // zaten tam göç ettirdiği paylaşılan `db`'yi (openDatabase → applyMigrations) kullanamayız.
     const legacyDb = new Database(':memory:')

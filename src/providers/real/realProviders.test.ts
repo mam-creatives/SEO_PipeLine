@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+import { buildCruxRequestBody, cruxResponseToFieldCwv } from './cruxProvider.js'
 import { dataForSeoResponseToBacklinkProfile, dataForSeoResponseToMetrics } from './dataForSeoProviders.js'
 import { geminiResponseToAnswer } from './geminiAiVisibilityProvider.js'
 import { matchSiteUrl, signServiceAccountJwt } from './gscAuth.js'
@@ -243,5 +244,55 @@ describe('inspectionResponseToIndexStatus', () => {
     const result = inspectionResponseToIndexStatus({ inspectionResult: {} }, 'https://ornek.com/')
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error.message).toContain('indexStatusResult yok')
+  })
+})
+
+describe('cruxResponseToFieldCwv', () => {
+  // Yapı, CrUX API'sinin resmi records:queryRecord dokümantasyonundaki örnekten alındı.
+  const raw = {
+    record: {
+      key: { url: 'https://ornek.com/' },
+      metrics: {
+        largest_contentful_paint: { percentiles: { p75: 2400 } },
+        interaction_to_next_paint: { percentiles: { p75: 180 } },
+        cumulative_layout_shift: { percentiles: { p75: 0.05 } },
+      },
+    },
+  }
+
+  test('p75 metrikleri FieldCwv alanlarına eşlenir', () => {
+    const result = cruxResponseToFieldCwv(raw, 'https://ornek.com/')
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value).toEqual({
+        url: 'https://ornek.com/',
+        formFactor: 'ALL_FORM_FACTORS',
+        lcpMs: 2400,
+        inpMs: 180,
+        cls: 0.05,
+      })
+    }
+  })
+
+  test('bir metrik yetersiz trafikte eksikse null olur, uydurulmaz', () => {
+    const raw2 = { record: { metrics: { largest_contentful_paint: { percentiles: { p75: 2400 } } } } }
+    const result = cruxResponseToFieldCwv(raw2, 'https://ornek.com/')
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value.lcpMs).toBe(2400)
+      expect(result.value.inpMs).toBeNull()
+      expect(result.value.cls).toBeNull()
+    }
+  })
+
+  test('metrics alanı hiç yoksa hata döner', () => {
+    const result = cruxResponseToFieldCwv({ record: {} }, 'https://ornek.com/')
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.message).toContain('metrics alanı yok')
+  })
+
+  test('buildCruxRequestBody url ve origin anahtarlarını doğru üretir', () => {
+    expect(JSON.parse(buildCruxRequestBody('url', 'https://ornek.com/x'))).toEqual({ url: 'https://ornek.com/x' })
+    expect(JSON.parse(buildCruxRequestBody('origin', 'https://ornek.com'))).toEqual({ origin: 'https://ornek.com' })
   })
 })

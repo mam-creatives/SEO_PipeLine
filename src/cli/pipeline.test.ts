@@ -33,6 +33,7 @@ const SECTION_HEADERS = [
   // Mock GSC sağlayıcısı ilk sorgu için deterministik olarak iki sayfa üretir
   // (mockProviders.ts) — bu satır o bölümün sessizce boş kalmadığını doğrular.
   '### Sayfa Yamyamlığı',
+  '### Gerçek Kullanıcı Verisi (CrUX)',
 ]
 
 describe('runResearch (uçtan uca, mock mod)', () => {
@@ -56,7 +57,7 @@ describe('runResearch (uçtan uca, mock mod)', () => {
       envFilePath: join(scratchDir, 'yok.env'),
     })
 
-    expect(outcome.mockCategories).toHaveLength(7)
+    expect(outcome.mockCategories).toHaveLength(8)
     const markdown = readFileSync(outcome.markdownPath, 'utf-8')
     expect(markdown).toContain('MOCK MODE')
     for (const header of SECTION_HEADERS) {

@@ -6,6 +6,7 @@ import { err, ok, type Result } from '../core/result.js'
 import type {
   AiVisibilitySample,
   BacklinkProfile,
+  FieldCwv,
   GscRow,
   IndexStatus,
   KeywordMetric,
@@ -116,3 +117,20 @@ export const collectGsc = async (
   providers: ProviderSet,
   config: ProjectConfig,
 ): Promise<Result<readonly GscRow[], ProviderError>> => providers.searchConsole.fetchPerformance(config.domain)
+
+/**
+ * Yeterli trafiği olmayan URL'ler `null` döner (hata değil) — sonuç listesinden
+ * sessizce elenir. Bir URL'in gerçek hata dönmesi (ör. ağ hatası) hâlâ dalın
+ * tamamını başarısız sayar; "veri yok" ile "istek başarısız" farklı şeylerdir.
+ */
+export const collectFieldCwv = async (
+  providers: ProviderSet,
+  urls: readonly string[],
+): Promise<Result<readonly FieldCwv[], ProviderError>> => {
+  const results = await Promise.all(urls.map((url) => providers.crux.fetchFieldCwv(url)))
+  const failed = results.find((result) => !result.ok)
+  if (failed !== undefined && !failed.ok) {
+    return err(failed.error)
+  }
+  return ok(results.flatMap((result) => (result.ok && result.value !== null ? [result.value] : [])))
+}

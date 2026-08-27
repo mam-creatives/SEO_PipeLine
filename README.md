@@ -24,7 +24,7 @@ Anahtar gerektirmez — lokalde Lighthouse çalıştırır (Chrome kurulu olmal�
 "LCP 6 saniye" demez; LCP'yi dört faza böler, suçlu elementin CSS seçicisini verir ve
 baskın faza göre hazır düzeltme kodu üretir.
 
-### Gerçek kullanıcı verisi (RUM) — INP'nin tek kaynağı
+### Gerçek kullanıcı verisi (RUM) — anlık ve attribution detaylı
 
 ```bash
 npm run rum -- snippet https://siten.com/api/rum   # web-vitals snippet kodunu üretir
@@ -32,10 +32,15 @@ npm run rum -- serve 8787                          # beacon toplayıcıyı başl
 npm run rum -- status                              # toplanan örneklerin p75 özeti
 ```
 
-Lab araçları INP ölçemez (gerçek etkileşim gerekir). Üretilen snippet
+Lab araçları (Lighthouse/PSI) INP ölçemez (gerçek etkileşim gerekir). Üretilen snippet
 [GoogleChrome/web-vitals](https://github.com/GoogleChrome/web-vitals) attribution
 build'ini kullanır; toplanan örnekler **75. persentil** ile değerlendirilir (Google'ın
 kullandığı yöntem — ortalama değil).
+
+RUM tek INP kaynağı değil: CrUX (`CRUX_API_KEY`, aşağıya bakın) trafiği olan siteler için
+INP'yi bedavaya verir ve rakip karşılaştırmasını mümkün kılar — RUM'un yapamadığı şey bu.
+İkisi birbirini tamamlar: CrUX geniş ama 28 günlük ve toplu (p75 tek sayı); RUM anlık ve
+sayfa/attribution detaylı (hangi etkileşim, hangi element yavaş).
 
 API anahtarı olmadan her şey **MOCK modda** çalışır: Türkçe "ayakkabı" ailesi sentetik verisiyle uçtan uca gerçekçi bir demo raporu üretilir. Raporlarda belirgin bir "⚠ MOCK MODE" banner'ı bulunur.
 
@@ -92,9 +97,10 @@ ayrı, "Sınırlı" yetki yeterli. Eklenmezse yalnız o dal düşer, rapor uyar�
 gerisi çalışır. Not: sitede zaten bir `google-site-verification` etiketi varsa mülk
 oluşturulmuş demektir; DNS TXT kaydına gerek yok, sahibinin kullanıcı eklemesi yeter.
 
-**RUM için** (gerçek INP) müşterinin sitesine web-vitals snippet'inin gömülmesi ve
-beacon'ların bir endpoint'e gitmesi gerekir (`npm run rum -- snippet`). Bu daha büyük bir
-iş; ilk kurulumda atlanabilir, lab verisi INP dışındaki her şeyi kapsar.
+**RUM için** (anlık, attribution detaylı INP) müşterinin sitesine web-vitals snippet'inin
+gömülmesi ve beacon'ların bir endpoint'e gitmesi gerekir (`npm run rum -- snippet`). Bu
+daha büyük bir iş; ilk kurulumda atlanabilir — `CRUX_API_KEY` eklenirse INP zaten (toplu,
+28 günlük) geliyor olur, RUM sonradan eklenebilir.
 
 ### Bilinen sınır: şu an yalnız Türkiye pazarı
 
@@ -115,11 +121,19 @@ için bu üç yerin config'ten okunacak şekilde açılması gerekir.
 | Teknik denetim (yedek) | `PAGESPEED_API_KEY` | Google PageSpeed | ücretsiz, ama kotalı |
 | GSC (kendi siteniz) | `GSC_CLIENT_EMAIL/PRIVATE_KEY` | Search Console | ücretsiz — **en değerli gerçek veri** |
 | İndeksleme durumu | *aynı GSC anahtarları* | Search Console URL Inspection | ücretsiz, ek anahtar gerekmez |
+| CrUX alan verisi (rakipler dahil) | `CRUX_API_KEY` | Chrome UX Report | ücretsiz |
 | AI görünürlük (GEO) | `GEMINI_API_KEY` | Gemini API | token başına |
 
 Gemini birincil AI motoru çünkü Google AI Overviews'ı besleyen model odur — oradaki
 görünürlük doğrudan arama sonuç sayfasına yansır. `ANTHROPIC_API_KEY` tanınır ama
 sağlayıcısı implemente edilmedi; verilirse pipeline sessizce mock'a düşmek yerine hata verir.
+
+`CRUX_API_KEY` ayrı bir Google API'si — aynı Google Cloud projesindeki bir anahtar
+çalışır ama projede **Chrome UX Report API** ayrıca etkinleştirilmeli, aksi halde
+`403 PERMISSION_DENIED` döner. Anahtar kısıtlaması "Application restrictions" için
+**None** ya da **IP addresses** olmalı — "Websites" (HTTP referrer) sunucu taraflı
+çağrılarda çalışmaz, Node.js `Referer` başlığı göndermez. Verilmezse kategori mock'a
+düşer, pipeline hata vermez (tek anahtarlı, opsiyonel bir zenginleştirme).
 
 Önemli politika: yarım yapılandırma sessizce mock'a düşmez. DataForSEO ve GSC gibi çok
 anahtarlı kategorilerde anahtarlardan biri eksikse pipeline **yüksek sesle hata verir**

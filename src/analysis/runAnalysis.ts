@@ -2,7 +2,7 @@ import type { CollectedData } from '../collectors/runAllCollectors.js'
 import { CWV_THRESHOLDS } from '../config/constants.js'
 import type { ProjectConfig } from '../config/schema.js'
 import { extractRootDomain } from '../core/text.js'
-import type { Competitor, GscRow, KeywordSnapshotRow, TechAudit } from '../core/types.js'
+import type { Competitor, FieldCwv, GscRow, KeywordSnapshotRow, TechAudit } from '../core/types.js'
 import type { Finding } from '../core/findings.js'
 import { buildClusters, buildKeywordRows, type KeywordCluster } from './clusterKeywords.js'
 import { diagnoseCwv } from './cwv/diagnose.js'
@@ -31,6 +31,7 @@ export interface AnalysisResult {
   readonly gscRows: readonly GscRow[]
   readonly indexingFindings: readonly Finding[]
   readonly cannibalizationFindings: readonly Finding[]
+  readonly fieldCwv: readonly FieldCwv[]
 }
 
 /** Toplanan ham veriyi rapora hazır analiz sonucuna dönüştürür — tamamı saf hesap. */
@@ -58,5 +59,6 @@ export const runAnalysis = (collected: CollectedData, config: ProjectConfig): An
     gscRows: collected.gscRows,
     indexingFindings: detectIndexingIssues(collected.indexStatuses),
     cannibalizationFindings: detectCannibalization(collected.gscRows),
+    fieldCwv: collected.fieldCwv,
   }
 }

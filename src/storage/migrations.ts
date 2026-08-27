@@ -176,6 +176,25 @@ export const MIGRATIONS: readonly string[] = [
 
   CREATE INDEX idx_gsc_metrics_run ON gsc_metrics(runId);
   `,
+  // v7 — CrUX (Chrome UX Report) alan verisi: gerçek kullanıcı p75 ölçümü, rakipler
+  // dahil. formFactor şimdilik hep 'ALL_FORM_FACTORS' (cihaz bazlı sorgu yok, tek
+  // çağrı) ama şema ileride cihaz kırılımına açık kalsın diye UNIQUE'e dahil.
+  // lcpMs/inpMs/cls ayrı ayrı null olabilir — CrUX yetersiz trafikte metriği sessizce
+  // atlar, 404 değil "veri yok" demektir.
+  `
+  CREATE TABLE field_cwv (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    runId INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    formFactor TEXT NOT NULL,
+    lcpMs REAL,
+    inpMs REAL,
+    cls REAL,
+    UNIQUE (runId, url, formFactor)
+  );
+
+  CREATE INDEX idx_field_cwv_run ON field_cwv(runId);
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

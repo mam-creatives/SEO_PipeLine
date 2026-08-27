@@ -239,6 +239,7 @@ describe('diffRuns', () => {
     gscRows: [],
     competitors: [],
     indexStatuses: [],
+    fieldCwv: [],
     ...overrides,
   })
 

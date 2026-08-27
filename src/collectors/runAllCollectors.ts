@@ -5,6 +5,7 @@ import { createLogger } from '../core/logger.js'
 import type {
   AiVisibilitySample,
   BacklinkProfile,
+  FieldCwv,
   GscRow,
   IndexStatus,
   KeywordMetric,
@@ -15,6 +16,7 @@ import type { ProviderSet } from '../providers/types.js'
 import {
   collectAiVisibility,
   collectBacklinks,
+  collectFieldCwv,
   collectGsc,
   collectIndexStatuses,
   collectKeywords,
@@ -46,6 +48,7 @@ export interface CollectedData {
   readonly aiSamples: readonly AiVisibilitySample[]
   readonly gscRows: readonly GscRow[]
   readonly indexStatuses: readonly IndexStatus[]
+  readonly fieldCwv: readonly FieldCwv[]
   readonly failedBranches: readonly FailedBranch[]
 }
 
@@ -96,13 +99,16 @@ export const runAllCollectors = async (
   ]
   logger.info(`Teknik denetim ${techUrls.length} URL için çalışacak.`)
 
-  const [backlinkResult, techResult, aiResult, gscResult, indexResult] = await Promise.all([
+  const [backlinkResult, techResult, aiResult, gscResult, indexResult, cruxResult] = await Promise.all([
     collectBacklinks(providers, backlinkDomains),
     collectTechAudits(providers, techUrls),
     collectAiVisibility(providers, config, backlinkDomains.filter((domain) => domain !== config.domain)),
     collectGsc(providers, config),
     // Yalnız müşteri sayfaları — rakip URL'leri servis hesabının erişemediği bir mülk.
     collectIndexStatuses(providers, clientAuditUrls),
+    // Aynı URL seti: müşteri denetim sayfaları + rakip anasayfaları — Lighthouse/PSI'nin
+    // lab verisiyle karşılaştırılabilir gerçek kullanıcı p75'i, rakipler dahil.
+    collectFieldCwv(providers, techUrls),
   ])
 
   const failedBranches: FailedBranch[] = [...spineFailures]
@@ -121,6 +127,7 @@ export const runAllCollectors = async (
     aiSamples: takeOrEmpty('AI görünürlük', aiResult) as readonly AiVisibilitySample[],
     gscRows: takeOrEmpty('GSC', gscResult) as readonly GscRow[],
     indexStatuses: takeOrEmpty('indeksleme durumu', indexResult) as readonly IndexStatus[],
+    fieldCwv: takeOrEmpty('CrUX alan verisi', cruxResult) as readonly FieldCwv[],
     failedBranches,
   }
 }

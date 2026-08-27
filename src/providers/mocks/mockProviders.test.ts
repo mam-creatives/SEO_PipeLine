@@ -5,6 +5,7 @@ import { selectProviders } from '../registry.js'
 import {
   createMockAiVisibilityProvider,
   createMockBacklinkProvider,
+  createMockCruxProvider,
   createMockKeywordProvider,
   createMockSearchConsoleProvider,
   createMockSerpProvider,
@@ -108,11 +109,36 @@ describe('mockSearchConsoleProvider', () => {
   })
 })
 
+describe('mockCruxProvider', () => {
+  test('deterministik p75 metrikleri döner', async () => {
+    const provider = createMockCruxProvider()
+    const result = await provider.fetchFieldCwv('https://ornek.com/')
+    expect(result.ok).toBe(true)
+    if (result.ok && result.value !== null) {
+      expect(result.value.url).toBe('https://ornek.com/')
+      expect(result.value.lcpMs).not.toBeNull()
+    }
+  })
+
+  test('aynı url her seferinde aynı değeri üretir', async () => {
+    const provider = createMockCruxProvider()
+    const first = await provider.fetchFieldCwv('https://ornek.com/')
+    const second = await provider.fetchFieldCwv('https://ornek.com/')
+    expect(first).toEqual(second)
+  })
+})
+
 describe('registry.selectProviders', () => {
-  test('hiç anahtar yoksa 7 kategori de mock seçilir', () => {
+  test('hiç anahtar yoksa 8 kategori de mock seçilir', () => {
     const providers = selectProviders({}, config)
-    expect(providers.mockCategories).toHaveLength(7)
+    expect(providers.mockCategories).toHaveLength(8)
     expect(providers.keyword.isMock).toBe(true)
+  })
+
+  test('CRUX_API_KEY verilince crux gerçek sağlayıcıya geçer', () => {
+    const providers = selectProviders({ CRUX_API_KEY: 'test' }, config)
+    expect(providers.crux.isMock).toBe(false)
+    expect(providers.mockCategories).not.toContain('crux')
   })
 
   test('SERPAPI_KEY verilince serp gerçek sağlayıcıya geçer', () => {

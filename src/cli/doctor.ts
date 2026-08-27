@@ -15,6 +15,7 @@ const CATEGORY_LABELS: Readonly<Record<ProviderCategory, string>> = {
   aiVisibility: 'AI görünürlük (GEO)',
   searchConsole: 'Search Console',
   indexing: 'İndeksleme durumu (URL Inspection)',
+  crux: 'CrUX alan verisi (gerçek kullanıcı)',
 }
 
 const printSelection = (providers: ProviderSet): void => {
@@ -88,6 +89,23 @@ const checkTechAudit = async (providers: ProviderSet, auditUrls: readonly string
   }
 }
 
+/** CrUX ücretsiz olduğu için canlı denenir. Yeterli trafik yoksa ok(null) döner — bu bir hata değil. */
+const checkCrux = async (providers: ProviderSet, auditUrls: readonly string[]): Promise<void> => {
+  const url = auditUrls[0]
+  if (providers.crux.isMock || url === undefined) {
+    console.log('  ⊘ CrUX mock ya da denetlenecek URL yok, atlandı.')
+    return
+  }
+  const result = await providers.crux.fetchFieldCwv(url)
+  if (result.ok && result.value !== null) {
+    console.log(`  ✓ CrUX çalışıyor — ${url} · LCP p75 ${result.value.lcpMs ?? '?'}ms`)
+  } else if (result.ok) {
+    console.log(`  ⊘ CrUX çalışıyor ama '${url}' için yeterli trafik verisi yok (küçük sitede beklenir).`)
+  } else {
+    console.log(`  ✗ CrUX başarısız: ${result.error.message}`)
+  }
+}
+
 /**
  * Yapılandırma tanılaması: hangi kategorinin gerçek sağlayıcıya bağlandığını gösterir
  * ve ÜCRETSİZ olanları canlı dener. Ücretli/kotalı çağrılar (SerpApi, DataForSEO)
@@ -113,6 +131,7 @@ const main = async (): Promise<void> => {
     await checkSearchConsole(providers, config.domain)
     await checkIndexing(providers, config.auditUrls)
     await checkTechAudit(providers, config.auditUrls)
+    await checkCrux(providers, config.auditUrls)
 
     console.log('\nDENENMEYENLER (kota/ücret harcamamak için)')
     console.log('─'.repeat(64))

@@ -1,6 +1,6 @@
 import { COMPETITOR_REPORT_LIMIT } from '../config/constants.js'
 import { renderCannibalizationFindingsHtml } from './cannibalizationSection.js'
-import { CWV_SECTION_STYLE, renderCwvDiagnosisHtml } from './cwvSection.js'
+import { CWV_SECTION_STYLE, renderCwvDiagnosisHtml, renderFieldCwvComparisonHtml } from './cwvSection.js'
 import { escapeHtml } from './htmlEscape.js'
 import { renderIndexingFindingsHtml } from './indexingSection.js'
 import type { ReportModel } from './reportModel.js'
@@ -154,6 +154,9 @@ export const renderHtml = (model: ReportModel): string => {
 
   const cwvDiagnosis = renderCwvDiagnosisHtml(model.analysis.techEvaluations)
   if (cwvDiagnosis !== '') sections.push(cwvDiagnosis)
+
+  const fieldCwvComparison = renderFieldCwvComparisonHtml(model.analysis.fieldCwv, model.domain)
+  if (fieldCwvComparison !== '') sections.push(fieldCwvComparison)
 
   const seoFindings = renderSeoFindingsHtml(model.analysis.techEvaluations)
   if (seoFindings !== '') sections.push(seoFindings)

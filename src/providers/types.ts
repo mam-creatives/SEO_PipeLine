@@ -3,6 +3,7 @@ import type { Result } from '../core/result.js'
 import type {
   AiAnswer,
   BacklinkProfile,
+  FieldCwv,
   GscRow,
   IndexStatus,
   KeywordMetric,
@@ -18,6 +19,7 @@ export type ProviderCategory =
   | 'aiVisibility'
   | 'searchConsole'
   | 'indexing'
+  | 'crux'
 
 interface ProviderBase {
   readonly name: string
@@ -55,6 +57,11 @@ export interface IndexingProvider extends ProviderBase {
   readonly fetchIndexStatus: (url: string) => Promise<Result<IndexStatus, ProviderError>>
 }
 
+export interface CruxProvider extends ProviderBase {
+  /** Yeterli trafik yoksa ok(null) döner — 404 hata değil, "veri yok" demektir. */
+  readonly fetchFieldCwv: (url: string) => Promise<Result<FieldCwv | null, ProviderError>>
+}
+
 export interface ProviderSet {
   readonly keyword: KeywordProvider
   readonly serp: SerpProvider
@@ -63,6 +70,7 @@ export interface ProviderSet {
   readonly aiVisibility: AiVisibilityProvider
   readonly searchConsole: SearchConsoleProvider
   readonly indexing: IndexingProvider
+  readonly crux: CruxProvider
   /** Mock çalışan kategoriler — boş değilse raporlarda "MOCK MODE" banner'ı gösterilir. */
   readonly mockCategories: readonly ProviderCategory[]
 }

@@ -16,6 +16,7 @@ import {
 import type {
   AiVisibilityProvider,
   BacklinkProvider,
+  CruxProvider,
   IndexingProvider,
   KeywordProvider,
   SearchConsoleProvider,
@@ -214,4 +215,24 @@ export const createMockIndexingProvider = (): IndexingProvider => ({
       userCanonical: url,
       lastCrawlTime: new Date().toISOString(),
     }),
+})
+
+/**
+ * Deterministik p75 üretir (URL hash'inden) — gerçek CrUX'un "bazı metrikler
+ * yetersiz trafikte eksik gelir" davranışını taklit etmez, mock modun amacı
+ * akışı kanıtlamaktır: her zaman üç metrik de dolu döner.
+ */
+export const createMockCruxProvider = (): CruxProvider => ({
+  name: 'mock-crux',
+  isMock: true,
+  fetchFieldCwv: async (url) => {
+    const rng = mulberry32(hashString(url))
+    return ok({
+      url,
+      formFactor: 'ALL_FORM_FACTORS',
+      lcpMs: randomInt(rng, 1800, 4200),
+      inpMs: randomInt(rng, 120, 350),
+      cls: randomInt(rng, 2, 18) / 100,
+    })
+  },
 })

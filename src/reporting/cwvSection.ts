@@ -1,5 +1,7 @@
 import type { TechEvaluation } from '../analysis/runAnalysis.js'
 import { lcpPhaseShares, type LcpAttribution } from '../core/cwv.js'
+import { extractRootDomain } from '../core/text.js'
+import type { FieldCwv } from '../core/types.js'
 import { escapeHtml } from './htmlEscape.js'
 import { SEVERITY_LABEL } from './severityLabel.js'
 
@@ -139,6 +141,56 @@ export const renderCwvDiagnosisHtml = (evaluations: readonly TechEvaluation[]): 
   })
 
   return `<h2>Core Web Vitals Teşhisi</h2>\n${cards.join('\n')}`
+}
+
+const fieldMsLabel = (ms: number | null): string => (ms === null ? '—' : `${Math.round(ms)}ms`)
+const fieldClsLabel = (cls: number | null): string => (cls === null ? '—' : cls.toFixed(3))
+
+/** Müşteri satırları önce — karşılaştırma tablosunda göz kendini bulur. */
+const sortClientFirst = (rows: readonly FieldCwv[], clientDomain: string): readonly FieldCwv[] =>
+  [...rows].sort((a, b) => {
+    const aClient = extractRootDomain(a.url) === clientDomain
+    const bClient = extractRootDomain(b.url) === clientDomain
+    return aClient === bClient ? 0 : aClient ? -1 : 1
+  })
+
+/**
+ * CrUX (gerçek kullanıcı) alan verisiyle müşteri-rakip karşılaştırması. Lab verisinden
+ * (yukarıdaki teşhis) farkı: burada "ölçülen" değil "gerçek kullanıcıların yaşadığı" p75
+ * var — rakip verisi yalnız burada mevcut, Lighthouse/PSI rakip sitede koşamaz.
+ */
+export const renderFieldCwvComparisonMarkdown = (rows: readonly FieldCwv[], clientDomain: string): string => {
+  if (rows.length === 0) return ''
+
+  const lines: string[] = ['### Gerçek Kullanıcı Verisi (CrUX) — Müşteri vs Rakip', '']
+  lines.push('| Site | LCP p75 | INP p75 | CLS p75 |')
+  lines.push('|------|--------:|--------:|--------:|')
+  for (const row of sortClientFirst(rows, clientDomain)) {
+    const isClient = extractRootDomain(row.url) === clientDomain
+    const label = isClient ? `**${row.url}** (müşteri)` : row.url
+    lines.push(`| ${label} | ${fieldMsLabel(row.lcpMs)} | ${fieldMsLabel(row.inpMs)} | ${fieldClsLabel(row.cls)} |`)
+  }
+  return lines.join('\n')
+}
+
+export const renderFieldCwvComparisonHtml = (rows: readonly FieldCwv[], clientDomain: string): string => {
+  if (rows.length === 0) return ''
+
+  const body = sortClientFirst(rows, clientDomain)
+    .map((row) => {
+      const isClient = extractRootDomain(row.url) === clientDomain
+      const label = isClient
+        ? `<strong>${escapeHtml(row.url)}</strong> <span class="muted">(müşteri)</span>`
+        : escapeHtml(row.url)
+      return `<tr><td>${label}</td><td>${fieldMsLabel(row.lcpMs)}</td><td>${fieldMsLabel(row.inpMs)}</td><td>${fieldClsLabel(row.cls)}</td></tr>`
+    })
+    .join('\n')
+
+  return (
+    `<h2>Gerçek Kullanıcı Verisi (CrUX) — Müşteri vs Rakip</h2>` +
+    `<table><thead><tr><th>Site</th><th>LCP p75</th><th>INP p75</th><th>CLS p75</th></tr></thead>` +
+    `<tbody>${body}</tbody></table>`
+  )
 }
 
 /** htmlReport'un stil bloğuna eklenen teşhis kartı stilleri. */
