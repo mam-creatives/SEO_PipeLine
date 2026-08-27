@@ -19,6 +19,18 @@ export const STRIKING_DISTANCE_MIN = 4
 export const STRIKING_DISTANCE_MAX = 20
 
 /**
+ * AI Overview varken Google cevabı doğrudan gösterildiği için üst sırada olmanın
+ * tıklama (CTR) değeri düşer — fırsat skoru bu oranda kısılır (%15 ceza).
+ */
+export const AI_OVERVIEW_OPPORTUNITY_PENALTY = 0.85
+
+/**
+ * Featured snippet yokken niyet 'informational' ise snippet'i kapma fırsatı var
+ * ve niyet zaten "doğrudan cevap arıyorum" — fırsat skoru bu oranda artırılır (%15 prim).
+ */
+export const FEATURED_SNIPPET_INFORMATIONAL_BONUS = 1.15
+
+/**
  * Denetim maliyeti: her URL bir Lighthouse koşusu (10-30sn) demek.
  * Müşteri sayfaları ve rakip ana sayfaları ayrı ayrı sınırlanır.
  */

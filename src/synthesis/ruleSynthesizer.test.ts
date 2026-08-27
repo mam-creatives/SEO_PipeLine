@@ -30,6 +30,7 @@ const analysis: AnalysisResult = {
       volume: 9900,
       difficulty: 0.55,
       clientRank: 5,
+      serpFeatures: { hasAiOverview: false, hasFeaturedSnippet: false },
       score: 36,
       reason: 'vuruş mesafesinde',
     },

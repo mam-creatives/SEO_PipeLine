@@ -41,7 +41,7 @@ export const runAnalysis = (collected: CollectedData, config: ProjectConfig): An
     rows,
     clusters: buildClusters(rows),
     competitors,
-    opportunities: rankOpportunities(rows),
+    opportunities: rankOpportunities(rows, collected.serps),
     aiVisibility: detectAiGaps(collected.aiSamples, reals),
     techEvaluations: collected.techAudits.map((audit) => ({
       audit,

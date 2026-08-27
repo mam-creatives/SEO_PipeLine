@@ -7,6 +7,12 @@ import type { ReportModel } from './reportModel.js'
 const percent = (rate: number): string => `%${Math.round(rate * 100)}`
 const rankLabel = (rank: number | null): string => (rank === null ? '—' : `#${rank}`)
 const passLabel = (passes: boolean): string => (passes ? '✅' : '❌')
+const serpFeaturesLabel = (features: { readonly hasAiOverview: boolean; readonly hasFeaturedSnippet: boolean }): string => {
+  const badges: string[] = []
+  if (features.hasAiOverview) badges.push('AI Overview')
+  if (features.hasFeaturedSnippet) badges.push('Featured Snippet')
+  return badges.length > 0 ? badges.join(', ') : '—'
+}
 
 /** ReportModel → Markdown rapor. Saf fonksiyon, G/Ç yok. */
 export const renderMarkdown = (model: ReportModel): string => {
@@ -44,11 +50,11 @@ export const renderMarkdown = (model: ReportModel): string => {
 
   push('## Fırsatlar')
   push()
-  push('| Skor | Keyword | Niyet | Hacim/ay | Zorluk | Sıra | Neden |')
-  push('|-----:|---------|-------|---------:|-------:|-----:|-------|')
+  push('| Skor | Keyword | Niyet | Hacim/ay | Zorluk | Sıra | SERP Özellikleri | Neden |')
+  push('|-----:|---------|-------|---------:|-------:|-----:|-------------------|-------|')
   for (const opportunity of model.analysis.opportunities) {
     push(
-      `| ${opportunity.score} | ${opportunity.keyword} | ${opportunity.intent} | ${opportunity.volume.toLocaleString('tr-TR')} | ${percent(opportunity.difficulty)} | ${rankLabel(opportunity.clientRank)} | ${opportunity.reason} |`,
+      `| ${opportunity.score} | ${opportunity.keyword} | ${opportunity.intent} | ${opportunity.volume.toLocaleString('tr-TR')} | ${percent(opportunity.difficulty)} | ${rankLabel(opportunity.clientRank)} | ${serpFeaturesLabel(opportunity.serpFeatures)} | ${opportunity.reason} |`,
     )
   }
   push()

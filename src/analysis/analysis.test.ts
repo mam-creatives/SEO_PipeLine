@@ -150,6 +150,35 @@ describe('scoreOpportunities', () => {
     ])
     expect(opportunities[0]?.keyword).toBe('b')
   })
+
+  test('AI Overview olan sorguda fırsat skoru düşer', () => {
+    const row = { ...baseRow, keyword: 'a', volume: 5000, difficulty: 0.4, clientRank: 8 }
+    const withoutAiOverview = scoreOpportunity(row, { hasAiOverview: false, hasFeaturedSnippet: false })
+    const withAiOverview = scoreOpportunity(row, { hasAiOverview: true, hasFeaturedSnippet: false })
+    expect(withAiOverview.score).toBeLessThan(withoutAiOverview.score)
+    expect(withAiOverview.reason).toContain('AI Overview')
+  })
+
+  test('featured snippet yokken informational niyet primi alır', () => {
+    const row = { ...baseRow, intent: 'informational' as const, keyword: 'a', volume: 5000, difficulty: 0.4, clientRank: 8 }
+    const withSnippet = scoreOpportunity(row, { hasAiOverview: false, hasFeaturedSnippet: true })
+    const withoutSnippet = scoreOpportunity(row, { hasAiOverview: false, hasFeaturedSnippet: false })
+    expect(withoutSnippet.score).toBeGreaterThan(withSnippet.score)
+  })
+
+  test('bayraklar yoksa skor bugünküyle aynı kalır (regresyon nöbetçisi)', () => {
+    const row = { ...baseRow, keyword: 'a', volume: 5000, difficulty: 0.4, clientRank: 8 }
+    // scoreOpportunity ikinci argümansız çağrılınca 1.5 öncesiyle bitwise aynı skoru üretmeli.
+    expect(scoreOpportunity(row).score).toBe(scoreOpportunity(row, { hasAiOverview: false, hasFeaturedSnippet: false }).score)
+  })
+
+  test('rankOpportunities SerpSnapshot verilince ilgili keyword\'ün bayraklarını uygular', () => {
+    const opportunities = rankOpportunities(
+      [{ ...baseRow, keyword: 'ayakkabı', volume: 5000, difficulty: 0.4, clientRank: 8 }],
+      [{ ...makeSerp('ayakkabı', []), hasAiOverview: true }],
+    )
+    expect(opportunities[0]?.serpFeatures.hasAiOverview).toBe(true)
+  })
 })
 
 describe('detectAiGaps', () => {

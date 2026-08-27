@@ -7,6 +7,12 @@ import { renderSeoFindingsHtml } from './seoSection.js'
 
 const percent = (rate: number): string => `%${Math.round(rate * 100)}`
 const rankLabel = (rank: number | null): string => (rank === null ? '—' : `#${rank}`)
+const serpFeaturesLabel = (features: { readonly hasAiOverview: boolean; readonly hasFeaturedSnippet: boolean }): string => {
+  const badges: string[] = []
+  if (features.hasAiOverview) badges.push('AI Overview')
+  if (features.hasFeaturedSnippet) badges.push('Featured Snippet')
+  return badges.length > 0 ? escapeHtml(badges.join(', ')) : '—'
+}
 const passBadge = (passes: boolean, label: string): string =>
   `<span class="badge ${passes ? 'ok' : 'fail'}">${escapeHtml(label)}</span>`
 
@@ -72,7 +78,7 @@ export const renderHtml = (model: ReportModel): string => {
   sections.push('<h2>Fırsatlar</h2>')
   sections.push(
     table(
-      ['Skor', 'Keyword', 'Niyet', 'Hacim/ay', 'Zorluk', 'Sıra', 'Neden'],
+      ['Skor', 'Keyword', 'Niyet', 'Hacim/ay', 'Zorluk', 'Sıra', 'SERP Özellikleri', 'Neden'],
       model.analysis.opportunities.map((opportunity) => [
         `<strong>${opportunity.score}</strong>`,
         escapeHtml(opportunity.keyword),
@@ -80,6 +86,7 @@ export const renderHtml = (model: ReportModel): string => {
         opportunity.volume.toLocaleString('tr-TR'),
         percent(opportunity.difficulty),
         rankLabel(opportunity.clientRank),
+        serpFeaturesLabel(opportunity.serpFeatures),
         escapeHtml(opportunity.reason),
       ]),
     ),
