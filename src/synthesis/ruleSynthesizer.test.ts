@@ -87,6 +87,71 @@ describe('synthesizeWithRules', () => {
     expect(synthesizeWithRules(analysis, baselineDiff)).toEqual(synthesizeWithRules(analysis, baselineDiff))
   })
 
+  test('yüksek impact\'li on-page bulgusu yönetici özetine girer', () => {
+    const withOnPageFinding = {
+      ...analysis,
+      techEvaluations: [
+        {
+          ...analysis.techEvaluations[0]!,
+          audit: {
+            ...analysis.techEvaluations[0]!.audit,
+            seoScore: 40,
+            seoFindings: [
+              {
+                category: 'onpage' as const,
+                severity: 'critical' as const,
+                url: 'https://ornek.tr/',
+                culpritSelector: null,
+                title: 'Arama motorları sayfayı taramasını engelleyen bir direktif buldu',
+                explanation: 'test',
+                evidence: 'noindex',
+                impact: 70,
+                effort: 'small' as const,
+                fixSnippet: null,
+              },
+            ],
+          },
+        },
+      ],
+    }
+    const output = synthesizeWithRules(withOnPageFinding, baselineDiff)
+    const onPageAction = output.actions.find((action) => action.category === 'on-page')
+    expect(onPageAction?.priority).toBe(1)
+    expect(onPageAction?.text).toContain('taramasını engelleyen')
+  })
+
+  test('rakip sayfaların on-page bulguları yönetici özetine girmez', () => {
+    const withCompetitorFinding = {
+      ...analysis,
+      techEvaluations: [
+        {
+          ...analysis.techEvaluations[0]!,
+          isClient: false,
+          audit: {
+            ...analysis.techEvaluations[0]!.audit,
+            seoScore: 10,
+            seoFindings: [
+              {
+                category: 'onpage' as const,
+                severity: 'critical' as const,
+                url: 'https://rakip.tr/',
+                culpritSelector: null,
+                title: 'Rakip sayfa sorunu',
+                explanation: 'test',
+                evidence: 'test',
+                impact: 70,
+                effort: 'small' as const,
+                fixSnippet: null,
+              },
+            ],
+          },
+        },
+      ],
+    }
+    const output = synthesizeWithRules(withCompetitorFinding, baselineDiff)
+    expect(output.actions.find((action) => action.category === 'on-page')).toBeUndefined()
+  })
+
   test('indeksleme bulgusu öncelik 1 aksiyona dönüşür — indekslenmeyen sayfa her şeyden önce gelir', () => {
     const withIndexingIssue = {
       ...analysis,

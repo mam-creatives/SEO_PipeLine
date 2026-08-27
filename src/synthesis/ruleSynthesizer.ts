@@ -1,8 +1,12 @@
 import type { TrendDiff } from '../analysis/diffRuns.js'
 import type { AnalysisResult } from '../analysis/runAnalysis.js'
 import { CWV_THRESHOLDS, OPPORTUNITY_TOP_COUNT } from '../config/constants.js'
+import { sortFindings } from '../core/findings.js'
 
-export type ActionCategory = 'trend' | 'fırsat' | 'teknik' | 'ai-görünürlük' | 'indeksleme'
+export type ActionCategory = 'trend' | 'fırsat' | 'teknik' | 'on-page' | 'ai-görünürlük' | 'indeksleme'
+
+/** Site genelinde en yüksek etkili on-page bulguları — hepsini listelemek yönetici özetini boğar. */
+const TOP_ONPAGE_FINDINGS = 3
 
 export interface ActionItem {
   /** 1 = acil, 2 = önemli, 3 = bilgi */
@@ -76,7 +80,22 @@ export const synthesizeWithRules = (analysis: AnalysisResult, diff: TrendDiff): 
     }
   }
 
-  // 4) İndeksleme sorunları — hepsi zaten critical (bkz. detectIndexingIssues.ts),
+  // 4) On-page SEO bulguları — Lighthouse SEO kategorisinden gelir (bkz. seoSection.ts).
+  // Müşterinin kendi sayfalarıyla sınırlı; rakip denetimleri buraya girmez.
+  // impact === estimateImpact(severity) (phaseShare'siz) olduğu için sortFindings burada
+  // severity sırasıyla aynı zamanda impact sırasıdır.
+  const onPageFindings = sortFindings(
+    analysis.techEvaluations.filter((item) => item.isClient).flatMap((item) => item.audit.seoFindings ?? []),
+  ).slice(0, TOP_ONPAGE_FINDINGS)
+  for (const finding of onPageFindings) {
+    actions.push({
+      priority: finding.severity === 'critical' ? 1 : 2,
+      category: 'on-page',
+      text: `${finding.url ?? ''} — ${finding.title}. ${finding.explanation}`,
+    })
+  }
+
+  // 5) İndeksleme sorunları — hepsi zaten critical (bkz. detectIndexingIssues.ts),
   // her zaman öncelik 1: indekslenmeyen sayfa için diğer her şey anlamsızdır.
   for (const finding of analysis.indexingFindings) {
     actions.push({
@@ -86,7 +105,7 @@ export const synthesizeWithRules = (analysis: AnalysisResult, diff: TrendDiff): 
     })
   }
 
-  // 5) AI görünürlük boşlukları — yeni nesil (GEO) cephe
+  // 6) AI görünürlük boşlukları — yeni nesil (GEO) cephe
   for (const visibility of analysis.aiVisibility.filter((item) => item.isGap)) {
     const strongest = [...visibility.competitorRates].sort((a, b) => b.rate - a.rate)[0]
     const competitorNote =

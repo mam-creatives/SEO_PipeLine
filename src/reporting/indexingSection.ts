@@ -1,6 +1,6 @@
-import type { Finding } from '../core/findings.js'
+import { sortFindings, type Finding } from '../core/findings.js'
 import { escapeHtml } from './htmlEscape.js'
-import { SEVERITY_LABEL } from './severityLabel.js'
+import { EFFORT_LABEL, SEVERITY_LABEL } from './severityLabel.js'
 
 /** url → o sayfaya ait bulgular, ilk görülme sırası korunur (URL Inspection sırayla çağrılır). */
 const groupByUrl = (findings: readonly Finding[]): ReadonlyMap<string, readonly Finding[]> => {
@@ -26,8 +26,8 @@ export const renderIndexingFindingsMarkdown = (findings: readonly Finding[]): st
 
   for (const [url, urlFindings] of groupByUrl(findings)) {
     lines.push(`#### ${url}`, '')
-    for (const finding of urlFindings) {
-      lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}**`, '')
+    for (const finding of sortFindings(urlFindings)) {
+      lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}** _(${EFFORT_LABEL[finding.effort]})_`, '')
       lines.push(finding.explanation, '')
       if (finding.fixSnippet !== null) lines.push('```', finding.fixSnippet, '```', '')
     }
@@ -40,7 +40,7 @@ export const renderIndexingFindingsHtml = (findings: readonly Finding[]): string
   if (findings.length === 0) return ''
 
   const cards = [...groupByUrl(findings)].map(([url, urlFindings]) => {
-    const cardFindings = urlFindings
+    const cardFindings = sortFindings(urlFindings)
       .map((finding) => {
         const priority = finding.severity === 'critical' ? 1 : finding.severity === 'high' ? 2 : 3
         const snippet =
@@ -48,6 +48,7 @@ export const renderIndexingFindingsHtml = (findings: readonly Finding[]): string
         return (
           `<div class="action p${priority}">` +
           `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}</strong>` +
+          ` <span class="muted">(${escapeHtml(EFFORT_LABEL[finding.effort])})</span>` +
           `<p>${escapeHtml(finding.explanation)}</p>${snippet}</div>`
         )
       })

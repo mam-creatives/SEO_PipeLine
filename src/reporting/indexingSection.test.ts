@@ -34,6 +34,17 @@ describe('renderIndexingFindingsMarkdown', () => {
     const markdown = renderIndexingFindingsMarkdown([finding, second])
     expect(markdown.match(/#### https:\/\/ornek\.com\/urun/g)).toHaveLength(1)
   })
+
+  test('emek rozeti bulgu başlığının yanında görünür', () => {
+    const markdown = renderIndexingFindingsMarkdown([finding])
+    expect(markdown).toContain('küçük emek')
+  })
+
+  test('aynı sayfadaki bulgular ciddiyete göre sıralanır', () => {
+    const lowFinding: Finding = { ...finding, severity: 'low', title: 'Düşük öncelikli bulgu' }
+    const markdown = renderIndexingFindingsMarkdown([lowFinding, finding])
+    expect(markdown.indexOf("Google canonical'ınızı reddetti")).toBeLessThan(markdown.indexOf('Düşük öncelikli bulgu'))
+  })
 })
 
 describe('renderIndexingFindingsHtml', () => {

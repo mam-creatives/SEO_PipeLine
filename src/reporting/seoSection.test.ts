@@ -48,11 +48,22 @@ describe('renderSeoFindingsMarkdown', () => {
     expect(markdown).toContain('### On-Page SEO Denetimi')
     expect(markdown).toContain('https://ornek.com/ — SEO skoru 85/100')
     expect(markdown).toContain('🔴 KRİTİK')
+    expect(markdown).toContain('küçük emek')
     expect(markdown).toContain('Bağlantılar taranabilir değil')
     expect(markdown).toContain('Suçlu element: `nav > ul > li.has-dropdown > a`')
     expect(markdown).toContain('```\n<a href="/kurumsal">Kurumsal</a>\n```')
     // seoFindings boş olan denetim ayrı bir kart açmamalı
     expect(markdown).not.toContain('hakkimizda')
+  })
+
+  test('bulgular ciddiyete göre sıralanır — critical önce gelir', () => {
+    const lowFinding: Finding = { ...finding, severity: 'low', title: 'Düşük öncelikli bulgu' }
+    const evaluation: TechEvaluation = {
+      ...evaluationWithFindings,
+      audit: { ...evaluationWithFindings.audit, seoFindings: [lowFinding, finding] },
+    }
+    const markdown = renderSeoFindingsMarkdown([evaluation])
+    expect(markdown.indexOf('Bağlantılar taranabilir değil')).toBeLessThan(markdown.indexOf('Düşük öncelikli bulgu'))
   })
 })
 
