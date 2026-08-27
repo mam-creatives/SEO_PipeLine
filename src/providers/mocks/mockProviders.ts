@@ -164,17 +164,32 @@ export const createMockSearchConsoleProvider = (config: ProjectConfig): SearchCo
     // başka bir projenin raporuna yabancı veri sızıyordu (mamcreatives raporunda
     // "örnek ayakkabı" satırları çıkmıştı) — mock veri en azından doğru domaine ait görünmeli.
     return ok(
-      config.seedKeywords.slice(0, GSC_MOCK_ROW_COUNT).map((keyword) => {
+      config.seedKeywords.slice(0, GSC_MOCK_ROW_COUNT).flatMap((keyword, index) => {
         const rng = mulberry32(hashString(normalizeTr(keyword)))
         const impressions = randomInt(rng, 200, 6000)
         const clicks = randomInt(rng, 1, Math.max(2, Math.round(impressions / 20)))
-        return {
+        const primary = {
           query: keyword,
+          page: `https://${config.domain}/${slugify(keyword)}`,
           clicks,
           impressions,
           ctr: Number((clicks / impressions).toFixed(4)),
           avgPosition: randomInt(rng, 10, 90) / 10,
         }
+        // İlk sorgu deterministik olarak yamyamlık (cannibalization) örneği taşır — aksi halde
+        // rapor bölümü mock modda hep boş kalır ve uçtan uca test asla tetiklenmez.
+        if (index !== 0) return [primary]
+        const secondaryImpressions = Math.round(impressions * 0.5)
+        const secondaryClicks = Math.max(1, Math.round(secondaryImpressions / 25))
+        const secondary = {
+          query: keyword,
+          page: `https://${config.domain}/blog/${slugify(keyword)}`,
+          clicks: secondaryClicks,
+          impressions: secondaryImpressions,
+          ctr: Number((secondaryClicks / secondaryImpressions).toFixed(4)),
+          avgPosition: randomInt(rng, 91, 150) / 10,
+        }
+        return [primary, secondary]
       }),
     )
   },

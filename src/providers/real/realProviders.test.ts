@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { dataForSeoResponseToBacklinkProfile, dataForSeoResponseToMetrics } from './dataForSeoProviders.js'
 import { geminiResponseToAnswer } from './geminiAiVisibilityProvider.js'
 import { matchSiteUrl, signServiceAccountJwt } from './gscAuth.js'
-import { buildDateRange, gscResponseToRows } from './gscProvider.js'
+import { buildDateRange, buildGscRequestBody, gscResponseToRows } from './gscProvider.js'
 import { inspectionResponseToIndexStatus } from './gscUrlInspectionProvider.js'
 import { serpApiResponseToSnapshot } from './serpApiProvider.js'
 
@@ -158,12 +158,17 @@ describe('GSC yardımcıları', () => {
   })
 
   test('gscResponseToRows alanları yeniden adlandırır ve ctr 4 haneye yuvarlanır', () => {
-    const raw = { rows: [{ keys: ['dijital ajans'], clicks: 12, impressions: 340, ctr: 0.03529411764, position: 8.4 }] }
+    const raw = {
+      rows: [
+        { keys: ['dijital ajans', '/hizmetler'], clicks: 12, impressions: 340, ctr: 0.03529411764, position: 8.4 },
+      ],
+    }
     const result = gscResponseToRows(raw)
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.value[0]).toEqual({
         query: 'dijital ajans',
+        page: '/hizmetler',
         clicks: 12,
         impressions: 340,
         ctr: 0.0353,
@@ -175,6 +180,17 @@ describe('GSC yardımcıları', () => {
   test('rows yoksa boş liste döner (veri yok, hata değil)', () => {
     const result = gscResponseToRows({})
     expect(result.ok && result.value).toEqual([])
+  })
+
+  test('keys[1] (page) yoksa satır atlanır — query eksikliğiyle aynı muamele', () => {
+    const raw = { rows: [{ keys: ['tek boyutlu sorgu'], clicks: 1, impressions: 10, ctr: 0.1, position: 5 }] }
+    const result = gscResponseToRows(raw)
+    expect(result.ok && result.value).toEqual([])
+  })
+
+  test('buildGscRequestBody query ve page boyutlarını birlikte ister', () => {
+    const body = JSON.parse(buildGscRequestBody('2026-01-01', '2026-01-28')) as { dimensions: string[] }
+    expect(body.dimensions).toEqual(['query', 'page'])
   })
 
   test('geçersiz PEM ile imzalama fırlatır — sağlayıcı bunu yakalayıp Result üretir', () => {

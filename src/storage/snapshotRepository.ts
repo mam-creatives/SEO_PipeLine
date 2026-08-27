@@ -110,11 +110,11 @@ export const insertAiSamples = (db: Db, runId: number, samples: readonly AiVisib
 
 export const insertGscRows = (db: Db, runId: number, rows: readonly GscRow[]): void => {
   const stmt = db.prepare(
-    `INSERT INTO gsc_metrics (runId, query, clicks, impressions, ctr, avgPosition) VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO gsc_metrics (runId, query, page, clicks, impressions, ctr, avgPosition) VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
   inTransaction(db, 'GSC metrikleri', () => {
     for (const row of rows) {
-      stmt.run(runId, row.query, row.clicks, row.impressions, row.ctr, row.avgPosition)
+      stmt.run(runId, row.query, row.page, row.clicks, row.impressions, row.ctr, row.avgPosition)
     }
   })
 }

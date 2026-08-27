@@ -73,6 +73,8 @@ export interface AiVisibilitySample {
 
 export interface GscRow {
   readonly query: string
+  /** Boş string = sayfa bilinmiyor (v6 öncesi göç edilmiş eski satırlar) — yamyamlık tespiti bunu eler. */
+  readonly page: string
   readonly clicks: number
   readonly impressions: number
   readonly ctr: number

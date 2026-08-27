@@ -1,13 +1,15 @@
+import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { StorageError } from '../core/errors.js'
 import type { Finding } from '../core/findings.js'
-import type { IndexStatus, KeywordSnapshotRow, SerpSnapshot, TechAudit } from '../core/types.js'
+import type { GscRow, IndexStatus, KeywordSnapshotRow, SerpSnapshot, TechAudit } from '../core/types.js'
 import { openDatabase, type Db } from './db.js'
 import { applyMigrations, MIGRATIONS } from './migrations.js'
 import { getRunSnapshot } from './queryRepository.js'
 import { createRun, finishRun, getLatestCompletedRun, getPreviousCompletedRun } from './runRepository.js'
 import {
   insertAiSamples,
+  insertGscRows,
   insertIndexStatuses,
   insertKeywordSnapshots,
   insertSerpSnapshots,
@@ -70,6 +72,15 @@ const sampleIndexStatus: IndexStatus = {
   lastCrawlTime: '2026-08-01T00:00:00Z',
 }
 
+const sampleGscRow: GscRow = {
+  query: 'spor ayakkabı',
+  page: 'https://ornek-ayakkabi.com/spor',
+  clicks: 25,
+  impressions: 800,
+  ctr: 0.0313,
+  avgPosition: 4.2,
+}
+
 describe('storage', () => {
   let db: Db
 
@@ -125,6 +136,7 @@ describe('storage', () => {
     insertSerpSnapshots(db, run.id, [sampleSerp])
     insertTechAudits(db, run.id, [sampleTechAudit])
     insertIndexStatuses(db, run.id, [sampleIndexStatus])
+    insertGscRows(db, run.id, [sampleGscRow])
     insertAiSamples(db, run.id, [
       {
         query: 'en iyi ayakkabı mağazası',
@@ -142,7 +154,37 @@ describe('storage', () => {
     expect(snapshot.techAudits).toEqual([sampleTechAudit])
     expect(snapshot.indexStatuses).toEqual([sampleIndexStatus])
     expect(snapshot.serps).toEqual([sampleSerp])
+    expect(snapshot.gscRows).toEqual([sampleGscRow])
     expect(snapshot.aiSamples[0]?.clientMentioned).toBe(true)
     expect(snapshot.aiSamples[0]?.competitorsMentioned).toEqual(['flo.com.tr'])
+  })
+
+  test('v5 veritabanı v6\'ya sorunsuz yükselir — eski gsc_metrics satırı page="" ile korunur', () => {
+    // openDatabase yerine ham Database: v5'e kadar manuel uygulamak için, `beforeEach`'in
+    // zaten tam göç ettirdiği paylaşılan `db`'yi (openDatabase → applyMigrations) kullanamayız.
+    const legacyDb = new Database(':memory:')
+    try {
+      for (const [index, migration] of MIGRATIONS.slice(0, 5).entries()) {
+        legacyDb.transaction(() => {
+          legacyDb.exec(migration)
+          legacyDb.pragma(`user_version = ${index + 1}`)
+        })()
+      }
+      const run = createRun(legacyDb, 'h', [])
+      legacyDb
+        .prepare(`INSERT INTO gsc_metrics (runId, query, clicks, impressions, ctr, avgPosition) VALUES (?, ?, ?, ?, ?, ?)`)
+        .run(run.id, 'eski sorgu', 10, 100, 0.1, 5.0)
+
+      applyMigrations(legacyDb)
+
+      expect(legacyDb.pragma('user_version', { simple: true })).toBe(MIGRATIONS.length)
+      const rows = legacyDb.prepare(`SELECT query, page FROM gsc_metrics WHERE runId = ?`).all(run.id) as {
+        query: string
+        page: string
+      }[]
+      expect(rows).toEqual([{ query: 'eski sorgu', page: '' }])
+    } finally {
+      legacyDb.close()
+    }
   })
 })

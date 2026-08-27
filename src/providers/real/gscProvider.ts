@@ -33,7 +33,7 @@ export const buildGscQueryEndpoint = (siteUrl: string): string =>
   `${SITES_ENDPOINT}/${encodeURIComponent(siteUrl)}/searchAnalytics/query`
 
 export const buildGscRequestBody = (startDate: string, endDate: string): string =>
-  JSON.stringify({ startDate, endDate, dimensions: ['query'], rowLimit: ROW_LIMIT })
+  JSON.stringify({ startDate, endDate, dimensions: ['query', 'page'], rowLimit: ROW_LIMIT })
 
 const toIsoDate = (ms: number): string => new Date(ms).toISOString().slice(0, 10)
 
@@ -54,10 +54,13 @@ export const gscResponseToRows = (raw: unknown): Result<readonly GscRow[], Provi
   return ok(
     (parsed.data.rows ?? []).flatMap((row): GscRow[] => {
       const query = row.keys[0]
-      if (query === undefined) return []
+      // page (keys[1]) beklenen ikinci boyut — yoksa satır atlanır, tıpkı query eksikliğinde olduğu gibi.
+      const page = row.keys[1]
+      if (query === undefined || page === undefined) return []
       return [
         {
           query,
+          page,
           clicks: row.clicks,
           impressions: row.impressions,
           // Mock ile aynı yuvarlama; farklı olsa diff motoru sahte delta üretirdi.

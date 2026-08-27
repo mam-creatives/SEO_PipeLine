@@ -8,6 +8,7 @@ import { buildClusters, buildKeywordRows, type KeywordCluster } from './clusterK
 import { diagnoseCwv } from './cwv/diagnose.js'
 import type { CwvDiagnosis } from './cwv/types.js'
 import { detectAiGaps, type AiQueryVisibility } from './detectAiGaps.js'
+import { detectCannibalization } from './detectCannibalization.js'
 import { detectIndexingIssues } from './detectIndexingIssues.js'
 import { discoverCompetitors, realCompetitorDomains } from './discoverCompetitors.js'
 import { rankOpportunities, type Opportunity } from './scoreOpportunities.js'
@@ -29,6 +30,7 @@ export interface AnalysisResult {
   readonly techEvaluations: readonly TechEvaluation[]
   readonly gscRows: readonly GscRow[]
   readonly indexingFindings: readonly Finding[]
+  readonly cannibalizationFindings: readonly Finding[]
 }
 
 /** Toplanan ham veriyi rapora hazır analiz sonucuna dönüştürür — tamamı saf hesap. */
@@ -55,5 +57,6 @@ export const runAnalysis = (collected: CollectedData, config: ProjectConfig): An
     })),
     gscRows: collected.gscRows,
     indexingFindings: detectIndexingIssues(collected.indexStatuses),
+    cannibalizationFindings: detectCannibalization(collected.gscRows),
   }
 }

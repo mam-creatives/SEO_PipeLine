@@ -1,4 +1,5 @@
 import { COMPETITOR_REPORT_LIMIT } from '../config/constants.js'
+import { renderCannibalizationFindingsHtml } from './cannibalizationSection.js'
 import { CWV_SECTION_STYLE, renderCwvDiagnosisHtml } from './cwvSection.js'
 import { escapeHtml } from './htmlEscape.js'
 import { renderIndexingFindingsHtml } from './indexingSection.js'
@@ -188,9 +189,10 @@ export const renderHtml = (model: ReportModel): string => {
   } else {
     sections.push(
       table(
-        ['Sorgu', 'Tıklama', 'Gösterim', 'CTR', 'Ort. Sıra'],
+        ['Sorgu', 'Sayfa', 'Tıklama', 'Gösterim', 'CTR', 'Ort. Sıra'],
         model.analysis.gscRows.map((row) => [
           escapeHtml(row.query),
+          row.page === '' ? '—' : escapeHtml(row.page),
           String(row.clicks),
           row.impressions.toLocaleString('tr-TR'),
           percent(row.ctr),
@@ -199,6 +201,9 @@ export const renderHtml = (model: ReportModel): string => {
       ),
     )
   }
+
+  const cannibalizationFindings = renderCannibalizationFindingsHtml(model.analysis.cannibalizationFindings)
+  if (cannibalizationFindings !== '') sections.push(cannibalizationFindings)
 
   sections.push('<h2>Son Çalıştırmadan Bu Yana Değişenler</h2>')
   if (model.diff.isBaseline) {

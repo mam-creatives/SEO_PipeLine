@@ -150,6 +150,32 @@ export const MIGRATIONS: readonly string[] = [
 
   CREATE INDEX idx_index_status_run ON index_status(runId);
   `,
+  // v6 — GSC 'page' boyutu: aynı sorguda birden fazla sayfanın gösterime girdiği
+  // durum (yamyamlık/cannibalization) artık görünür. UNIQUE (runId, query) →
+  // (runId, query, page) SQLite'ta ALTER ile değişmiyor, tablo yeniden kurulur.
+  // Eski satırlara page = '' verilir — "sayfa bilinmiyor" demek, detectCannibalization
+  // boş page'i eler, veri kaybolmaz (INSERT...SELECT ile önce kopyalanır).
+  `
+  CREATE TABLE gsc_metrics_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    runId INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    query TEXT NOT NULL,
+    page TEXT NOT NULL DEFAULT '',
+    clicks INTEGER NOT NULL,
+    impressions INTEGER NOT NULL,
+    ctr REAL NOT NULL,
+    avgPosition REAL NOT NULL,
+    UNIQUE (runId, query, page)
+  );
+
+  INSERT INTO gsc_metrics_new (id, runId, query, page, clicks, impressions, ctr, avgPosition)
+  SELECT id, runId, query, '', clicks, impressions, ctr, avgPosition FROM gsc_metrics;
+
+  DROP TABLE gsc_metrics;
+  ALTER TABLE gsc_metrics_new RENAME TO gsc_metrics;
+
+  CREATE INDEX idx_gsc_metrics_run ON gsc_metrics(runId);
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

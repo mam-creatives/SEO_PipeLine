@@ -30,6 +30,9 @@ const SECTION_HEADERS = [
   // Teşhis bölümü bir kez sessizce düşmüştü (import vardı, kullanım yoktu ve
   // noUnusedLocals kapalı olduğu için typecheck yakalamadı) — bu satır nöbetçi.
   '### Core Web Vitals Teşhisi',
+  // Mock GSC sağlayıcısı ilk sorgu için deterministik olarak iki sayfa üretir
+  // (mockProviders.ts) — bu satır o bölümün sessizce boş kalmadığını doğrular.
+  '### Sayfa Yamyamlığı',
 ]
 
 describe('runResearch (uçtan uca, mock mod)', () => {

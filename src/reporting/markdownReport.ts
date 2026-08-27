@@ -1,4 +1,5 @@
 import { COMPETITOR_REPORT_LIMIT } from '../config/constants.js'
+import { renderCannibalizationFindingsMarkdown } from './cannibalizationSection.js'
 import { renderCwvDiagnosisMarkdown } from './cwvSection.js'
 import { renderIndexingFindingsMarkdown } from './indexingSection.js'
 import { renderSeoFindingsMarkdown } from './seoSection.js'
@@ -150,13 +151,19 @@ export const renderMarkdown = (model: ReportModel): string => {
   if (model.analysis.gscRows.length === 0) {
     push('_GSC verisi yok._')
   } else {
-    push('| Sorgu | Tıklama | Gösterim | CTR | Ort. Sıra |')
-    push('|-------|--------:|---------:|----:|----------:|')
+    push('| Sorgu | Sayfa | Tıklama | Gösterim | CTR | Ort. Sıra |')
+    push('|-------|-------|--------:|---------:|----:|----------:|')
     for (const row of model.analysis.gscRows) {
-      push(`| ${row.query} | ${row.clicks} | ${row.impressions.toLocaleString('tr-TR')} | ${percent(row.ctr)} | ${row.avgPosition} |`)
+      push(`| ${row.query} | ${row.page || '—'} | ${row.clicks} | ${row.impressions.toLocaleString('tr-TR')} | ${percent(row.ctr)} | ${row.avgPosition} |`)
     }
   }
   push()
+
+  const cannibalizationFindings = renderCannibalizationFindingsMarkdown(model.analysis.cannibalizationFindings)
+  if (cannibalizationFindings !== '') {
+    push(cannibalizationFindings)
+    push()
+  }
 
   push('## Son Çalıştırmadan Bu Yana Değişenler')
   push()

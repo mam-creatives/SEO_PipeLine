@@ -107,7 +107,7 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
   })[]
 
   const gscRows = db
-    .prepare(`SELECT query, clicks, impressions, ctr, avgPosition FROM gsc_metrics WHERE runId = ?`)
+    .prepare(`SELECT query, page, clicks, impressions, ctr, avgPosition FROM gsc_metrics WHERE runId = ?`)
     .all(runId) as GscRow[]
 
   const competitorRows = db
