@@ -285,6 +285,15 @@ describe('cruxResponseToFieldCwv', () => {
     }
   })
 
+  // Gerçek mamcreatives.com yanıtına karşı doğrulandı: CLS'in p75'i, diğer
+  // metriklerin aksine (number), STRING gelir — ondalık hassasiyeti korumak için.
+  test('CLS p75 string gelirse (gerçek CrUX davranışı) number\'a çevrilir', () => {
+    const raw2 = { record: { metrics: { cumulative_layout_shift: { percentiles: { p75: '0.00' } } } } }
+    const result = cruxResponseToFieldCwv(raw2, 'https://ornek.com/')
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.value.cls).toBe(0)
+  })
+
   test('metrics alanı hiç yoksa hata döner', () => {
     const result = cruxResponseToFieldCwv({ record: {} }, 'https://ornek.com/')
     expect(result.ok).toBe(false)

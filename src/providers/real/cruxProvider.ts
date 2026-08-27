@@ -10,9 +10,14 @@ const REQUEST_TIMEOUT_MS = 30_000
 /** Cihaz bazlı sorgu yok — tek çağrı, toplu (ALL_FORM_FACTORS). Şema ileride kırılıma açık. */
 const FORM_FACTOR = 'ALL_FORM_FACTORS'
 
+/**
+ * `p75` çoğu metrikte number, ama `cumulative_layout_shift`'te STRING gelir
+ * (ör. "0.00") — ondalık hassasiyeti korumak için. Gerçek mamcreatives.com
+ * yanıtına karşı doğrulandı. z.coerce.number() ikisini de doğru ele alır.
+ */
 const MetricSchema = z
   .object({
-    percentiles: z.object({ p75: z.number() }).passthrough(),
+    percentiles: z.object({ p75: z.coerce.number() }).passthrough(),
   })
   .passthrough()
 
