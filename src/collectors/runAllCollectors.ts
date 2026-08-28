@@ -5,6 +5,7 @@ import { createLogger } from '../core/logger.js'
 import type {
   AiVisibilitySample,
   BacklinkProfile,
+  CrawledPage,
   FieldCwv,
   GscRow,
   IndexStatus,
@@ -23,6 +24,7 @@ import {
   collectSerps,
   collectTechAudits,
 } from './collectors.js'
+import { collectCrawl } from './crawlSite.js'
 
 const logger = createLogger('collectors')
 
@@ -49,6 +51,9 @@ export interface CollectedData {
   readonly gscRows: readonly GscRow[]
   readonly indexStatuses: readonly IndexStatus[]
   readonly fieldCwv: readonly FieldCwv[]
+  readonly crawledPages: readonly CrawledPage[]
+  /** sitemap.xml'den bulunan URL'ler — DB'ye yazılmaz (bkz. migrations.ts v8), yalnız bu run içinde detectCrawlabilityIssues için taşınır. */
+  readonly sitemapUrls: readonly string[]
   readonly failedBranches: readonly FailedBranch[]
 }
 
@@ -99,7 +104,11 @@ export const runAllCollectors = async (
   ]
   logger.info(`Teknik denetim ${techUrls.length} URL için çalışacak.`)
 
-  const [backlinkResult, techResult, aiResult, gscResult, indexResult, cruxResult] = await Promise.all([
+  // Crawler yalnız müşterinin kendi sitesini tarar (rakip crawl'ı kapsam dışı) — seed anasayfa
+  // + selectAuditUrls'in seçtiği temsilci sayfalar, BFS bunlardan iç linklerle genişler.
+  const crawlSeedUrls = [...new Set([`https://${config.domain}/`, ...clientAuditUrls])]
+
+  const [backlinkResult, techResult, aiResult, gscResult, indexResult, cruxResult, crawlResult] = await Promise.all([
     collectBacklinks(providers, backlinkDomains),
     collectTechAudits(providers, techUrls),
     collectAiVisibility(providers, config, backlinkDomains.filter((domain) => domain !== config.domain)),
@@ -109,6 +118,7 @@ export const runAllCollectors = async (
     // Aynı URL seti: müşteri denetim sayfaları + rakip anasayfaları — Lighthouse/PSI'nin
     // lab verisiyle karşılaştırılabilir gerçek kullanıcı p75'i, rakipler dahil.
     collectFieldCwv(providers, techUrls),
+    collectCrawl(providers, config, crawlSeedUrls),
   ])
 
   const failedBranches: FailedBranch[] = [...spineFailures]
@@ -119,6 +129,15 @@ export const runAllCollectors = async (
     return []
   }
 
+  // CrawlResult bir dizi değil { pages, sitemapUrls } nesnesi olduğu için takeOrEmpty'nin
+  // dizi-fallback'ine uymuyor, ayrı ele alınır.
+  const emptyCrawlResult = { pages: [] as readonly CrawledPage[], sitemapUrls: [] as readonly string[] }
+  if (!crawlResult.ok) {
+    logger.warn(`crawl dalı başarısız, boş veriyle devam: ${crawlResult.error.message}`)
+    failedBranches.push({ branch: 'crawl', message: crawlResult.error.message })
+  }
+  const crawl = crawlResult.ok ? crawlResult.value : emptyCrawlResult
+
   return {
     keywords,
     serps: serpResult.value,
@@ -127,6 +146,8 @@ export const runAllCollectors = async (
     aiSamples: takeOrEmpty('AI görünürlük', aiResult) as readonly AiVisibilitySample[],
     gscRows: takeOrEmpty('GSC', gscResult) as readonly GscRow[],
     indexStatuses: takeOrEmpty('indeksleme durumu', indexResult) as readonly IndexStatus[],
+    crawledPages: crawl.pages,
+    sitemapUrls: crawl.sitemapUrls,
     fieldCwv: takeOrEmpty('CrUX alan verisi', cruxResult) as readonly FieldCwv[],
     failedBranches,
   }

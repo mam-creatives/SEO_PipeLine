@@ -5,10 +5,12 @@ import type {
   AiVisibilitySample,
   BacklinkProfile,
   Competitor,
+  CrawledPage,
   FieldCwv,
   GscRow,
   IndexStatus,
   KeywordSnapshotRow,
+  PageLink,
   RunSnapshot,
   SerpSnapshot,
   TechAudit,
@@ -126,6 +128,24 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     .prepare(`SELECT url, formFactor, lcpMs, inpMs, cls FROM field_cwv WHERE runId = ?`)
     .all(runId) as FieldCwv[]
 
+  const pageRows = db
+    .prepare(
+      `SELECT url, statusCode, finalUrl, fetchError, title, metaDescription, canonicalUrl, h1s, headingOrder,
+        hasSchemaOrg, schemaTypes, ogComplete, imagesMissingAlt, wordCount, metaRobots, externalLinkCount
+       FROM pages WHERE runId = ?`,
+    )
+    .all(runId) as (Omit<CrawledPage, 'h1s' | 'headingOrder' | 'schemaTypes' | 'hasSchemaOrg' | 'ogComplete' | 'internalLinks'> & {
+    h1s: string
+    headingOrder: string
+    schemaTypes: string
+    hasSchemaOrg: number
+    ogComplete: number
+  })[]
+
+  const pageLinks = db
+    .prepare(`SELECT sourceUrl, targetUrl, anchorText, isInternal FROM page_links WHERE runId = ?`)
+    .all(runId) as (Omit<PageLink, 'isInternal'> & { isInternal: number })[]
+
   return {
     run,
     keywords,
@@ -146,5 +166,18 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     competitors: competitorRows.map((row) => ({ ...row, isRealCompetitor: row.isRealCompetitor === 1 })),
     indexStatuses,
     fieldCwv,
+    pages: pageRows.map((row) => ({
+      ...row,
+      h1s: JSON.parse(row.h1s) as string[],
+      headingOrder: JSON.parse(row.headingOrder) as string[],
+      schemaTypes: JSON.parse(row.schemaTypes) as string[],
+      hasSchemaOrg: row.hasSchemaOrg === 1,
+      ogComplete: row.ogComplete === 1,
+      // Bilinçli: v8 migration yorumundaki tasarım kararı — tam link grafiği page_links'te,
+      // round-trip'te sayfa içine geri gömülmüyor (mevcut run'ın bulgu tespiti DB'den değil
+      // bellekteki CollectedData'dan çalışıyor, bu alan yalnız geçmiş/diff için var).
+      internalLinks: [] as readonly PageLink[],
+    })),
+    pageLinks: pageLinks.map((row) => ({ ...row, isInternal: row.isInternal === 1 })),
   }
 }

@@ -37,6 +37,10 @@ const main = async (): Promise<void> => {
         gscRows: snapshot.gscRows,
         indexStatuses: snapshot.indexStatuses,
         fieldCwv: snapshot.fieldCwv,
+        crawledPages: snapshot.pages,
+        // sitemapUrls kalıcı değil (bkz. migrations.ts v8 yorumu) — yeniden toplamadan
+        // üretilen raporda sitemap karşılaştırması yapılamaz, "sitemap yok" olarak görünür.
+        sitemapUrls: [],
         failedBranches: [],
       }
       const analysis = runAnalysis(collected, config)

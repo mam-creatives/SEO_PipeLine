@@ -3,10 +3,12 @@ import type {
   AiVisibilitySample,
   BacklinkProfile,
   Competitor,
+  CrawledPage,
   FieldCwv,
   GscRow,
   IndexStatus,
   KeywordSnapshotRow,
+  PageLink,
   SerpSnapshot,
   TechAudit,
 } from '../core/types.js'
@@ -149,6 +151,48 @@ export const insertFieldCwv = (db: Db, runId: number, rows: readonly FieldCwv[])
   inTransaction(db, 'CrUX alan verisi', () => {
     for (const row of rows) {
       stmt.run(runId, row.url, row.formFactor, row.lcpMs, row.inpMs, row.cls)
+    }
+  })
+}
+
+export const insertPages = (db: Db, runId: number, pages: readonly CrawledPage[]): void => {
+  const stmt = db.prepare(
+    `INSERT INTO pages (runId, url, statusCode, finalUrl, fetchError, title, metaDescription, canonicalUrl,
+      h1s, headingOrder, hasSchemaOrg, schemaTypes, ogComplete, imagesMissingAlt, wordCount, metaRobots, externalLinkCount)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+  inTransaction(db, 'Crawler sayfaları', () => {
+    for (const page of pages) {
+      stmt.run(
+        runId,
+        page.url,
+        page.statusCode,
+        page.finalUrl,
+        page.fetchError,
+        page.title,
+        page.metaDescription,
+        page.canonicalUrl,
+        JSON.stringify(page.h1s),
+        JSON.stringify(page.headingOrder),
+        page.hasSchemaOrg ? 1 : 0,
+        JSON.stringify(page.schemaTypes),
+        page.ogComplete ? 1 : 0,
+        page.imagesMissingAlt,
+        page.wordCount,
+        page.metaRobots,
+        page.externalLinkCount,
+      )
+    }
+  })
+}
+
+export const insertPageLinks = (db: Db, runId: number, links: readonly PageLink[]): void => {
+  const stmt = db.prepare(
+    `INSERT INTO page_links (runId, sourceUrl, targetUrl, anchorText, isInternal) VALUES (?, ?, ?, ?, ?)`,
+  )
+  inTransaction(db, 'Crawler iç link grafiği', () => {
+    for (const link of links) {
+      stmt.run(runId, link.sourceUrl, link.targetUrl, link.anchorText, link.isInternal ? 1 : 0)
     }
   })
 }

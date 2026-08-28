@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { StorageError } from '../core/errors.js'
 import type { Finding } from '../core/findings.js'
-import type { FieldCwv, GscRow, IndexStatus, KeywordSnapshotRow, SerpSnapshot, TechAudit } from '../core/types.js'
+import type { CrawledPage, FieldCwv, GscRow, IndexStatus, KeywordSnapshotRow, PageLink, SerpSnapshot, TechAudit } from '../core/types.js'
 import { openDatabase, type Db } from './db.js'
 import { applyMigrations, MIGRATIONS } from './migrations.js'
 import { getRunSnapshot } from './queryRepository.js'
@@ -13,6 +13,8 @@ import {
   insertGscRows,
   insertIndexStatuses,
   insertKeywordSnapshots,
+  insertPageLinks,
+  insertPages,
   insertSerpSnapshots,
   insertTechAudits,
 } from './snapshotRepository.js'
@@ -90,6 +92,35 @@ const sampleFieldCwv: FieldCwv = {
   cls: 0.04,
 }
 
+const sampleCrawledPage: CrawledPage = {
+  url: 'https://ornek-ayakkabi.com/',
+  statusCode: 200,
+  finalUrl: 'https://ornek-ayakkabi.com/',
+  fetchError: null,
+  title: 'Örnek Ayakkabı',
+  metaDescription: 'Açıklama',
+  canonicalUrl: 'https://ornek-ayakkabi.com/',
+  h1s: ['Örnek Ayakkabı'],
+  headingOrder: ['h1', 'h2'],
+  hasSchemaOrg: true,
+  schemaTypes: ['LocalBusiness'],
+  ogComplete: true,
+  imagesMissingAlt: 2,
+  wordCount: 450,
+  metaRobots: null,
+  // internalLinks round-trip'te hep [] döner (bkz. migrations.ts v8 yorumu) — round-trip
+  // eşitliğinin anlamlı olması için burada da [] veriliyor.
+  internalLinks: [],
+  externalLinkCount: 3,
+}
+
+const samplePageLink: PageLink = {
+  sourceUrl: 'https://ornek-ayakkabi.com/',
+  targetUrl: 'https://ornek-ayakkabi.com/spor',
+  anchorText: 'Spor Ayakkabı',
+  isInternal: true,
+}
+
 describe('storage', () => {
   let db: Db
 
@@ -147,6 +178,8 @@ describe('storage', () => {
     insertIndexStatuses(db, run.id, [sampleIndexStatus])
     insertGscRows(db, run.id, [sampleGscRow])
     insertFieldCwv(db, run.id, [sampleFieldCwv])
+    insertPages(db, run.id, [sampleCrawledPage])
+    insertPageLinks(db, run.id, [samplePageLink])
     insertAiSamples(db, run.id, [
       {
         query: 'en iyi ayakkabı mağazası',
@@ -166,6 +199,8 @@ describe('storage', () => {
     expect(snapshot.serps).toEqual([sampleSerp])
     expect(snapshot.gscRows).toEqual([sampleGscRow])
     expect(snapshot.fieldCwv).toEqual([sampleFieldCwv])
+    expect(snapshot.pages).toEqual([sampleCrawledPage])
+    expect(snapshot.pageLinks).toEqual([samplePageLink])
     expect(snapshot.aiSamples[0]?.clientMentioned).toBe(true)
     expect(snapshot.aiSamples[0]?.competitorsMentioned).toEqual(['flo.com.tr'])
   })
@@ -194,6 +229,29 @@ describe('storage', () => {
         page: string
       }[]
       expect(rows).toEqual([{ query: 'eski sorgu', page: '' }])
+    } finally {
+      legacyDb.close()
+    }
+  })
+
+  test('v7 veritabanı v8\'e sorunsuz yükselir — pages/page_links tabloları eklenir', () => {
+    const legacyDb = new Database(':memory:')
+    try {
+      for (const [index, migration] of MIGRATIONS.slice(0, 7).entries()) {
+        legacyDb.transaction(() => {
+          legacyDb.exec(migration)
+          legacyDb.pragma(`user_version = ${index + 1}`)
+        })()
+      }
+      expect(legacyDb.pragma('user_version', { simple: true })).toBe(7)
+
+      applyMigrations(legacyDb)
+
+      expect(legacyDb.pragma('user_version', { simple: true })).toBe(MIGRATIONS.length)
+      const tables = legacyDb
+        .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name IN ('pages', 'page_links')`)
+        .all() as { name: string }[]
+      expect(new Set(tables.map((t) => t.name))).toEqual(new Set(['pages', 'page_links']))
     } finally {
       legacyDb.close()
     }

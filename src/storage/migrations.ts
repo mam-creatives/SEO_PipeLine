@@ -195,6 +195,49 @@ export const MIGRATIONS: readonly string[] = [
 
   CREATE INDEX idx_field_cwv_run ON field_cwv(runId);
   `,
+  // v8 — Faz 2 crawler: ham on-page veri (pages) + iç link grafiği kenarları (page_links).
+  // Bulgular (title/H1/canonical eksik, kırık link, öksüz sayfa vb.) BURADA saklanmaz —
+  // indexingFindings/cannibalizationFindings'le aynı felsefe: her run'da ham veriden
+  // yeniden hesaplanır (detectOnPageIssues/detectLinkIssues/detectCrawlabilityIssues).
+  // `pages.internalLinks` alanı burada YOK — round-trip'te internalLinks hep boş döner,
+  // asıl link grafiği ayrı page_links tablosunda; mevcut run'ın canlı bulgu tespiti zaten
+  // DB'den değil bellekteki CollectedData'dan çalışıyor, bu kayıp bir şey kaybettirmiyor.
+  `
+  CREATE TABLE pages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    runId INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    statusCode INTEGER,
+    finalUrl TEXT,
+    fetchError TEXT,
+    title TEXT,
+    metaDescription TEXT,
+    canonicalUrl TEXT,
+    h1s TEXT NOT NULL DEFAULT '[]',
+    headingOrder TEXT NOT NULL DEFAULT '[]',
+    hasSchemaOrg INTEGER NOT NULL,
+    schemaTypes TEXT NOT NULL DEFAULT '[]',
+    ogComplete INTEGER NOT NULL,
+    imagesMissingAlt INTEGER NOT NULL,
+    wordCount INTEGER NOT NULL,
+    metaRobots TEXT,
+    externalLinkCount INTEGER NOT NULL,
+    UNIQUE (runId, url)
+  );
+
+  CREATE TABLE page_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    runId INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    sourceUrl TEXT NOT NULL,
+    targetUrl TEXT NOT NULL,
+    anchorText TEXT NOT NULL DEFAULT '',
+    isInternal INTEGER NOT NULL,
+    UNIQUE (runId, sourceUrl, targetUrl)
+  );
+
+  CREATE INDEX idx_pages_run ON pages(runId);
+  CREATE INDEX idx_page_links_run ON page_links(runId);
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

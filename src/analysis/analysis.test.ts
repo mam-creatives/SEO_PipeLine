@@ -240,6 +240,8 @@ describe('diffRuns', () => {
     competitors: [],
     indexStatuses: [],
     fieldCwv: [],
+    pages: [],
+    pageLinks: [],
     ...overrides,
   })
 

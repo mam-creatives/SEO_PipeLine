@@ -179,6 +179,9 @@ export interface RunSnapshot {
   readonly competitors: readonly Competitor[]
   readonly indexStatuses: readonly IndexStatus[]
   readonly fieldCwv: readonly FieldCwv[]
+  /** `internalLinks` burada hep boş — DB round-trip'te taşınmaz, bkz. migrations.ts v8 yorumu. */
+  readonly pages: readonly CrawledPage[]
+  readonly pageLinks: readonly PageLink[]
 }
 
 export interface KeywordSnapshotRow extends KeywordMetric {
