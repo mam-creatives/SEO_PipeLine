@@ -17,6 +17,8 @@ export const ProjectConfigSchema = z.object({
   crawlMaxDepth: z.number().int().positive().default(3),
   /** robots.txt'e ek olarak taranmayacak path'ler, örn. ["/cart", "/wp-admin"]. */
   crawlExcludePaths: z.array(z.string().min(1)).default([]),
+  /** Faz 3 kod denetçisi — müşteri kaynak kodunun yerel yolu. Verilmezse kod denetimi atlanır. */
+  codePath: z.string().min(1).optional(),
 })
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>

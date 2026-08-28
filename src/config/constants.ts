@@ -126,6 +126,49 @@ export const META_DESCRIPTION_MAX_LENGTH = 160
 export const CRAWL_CONCURRENCY = 4
 export const CRAWL_REQUEST_DELAY_MS = 200
 
+/**
+ * Faz 3 kod denetçisi — güvenli okuma sınırları. Müşteri kaynak ağaçları binlerce dosya
+ * (mamcreatives.com'da 7344) taşıyabilir; sınırsız okuma bellek riski taşır.
+ */
+export const MAX_SOURCE_FILES = 2000
+export const MAX_SOURCE_FILE_BYTES = 300_000
+
+/** Adı bu listedeki bir dizinin altındaki hiçbir dosya okunmaz (üçüncü parti kod, derlenmiş çıktı, medya). */
+export const CODE_AUDIT_IGNORED_DIRS: readonly string[] = [
+  'vendor',
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  '.next',
+  'upload',
+  'uploads',
+  '.phpunit.cache',
+  'arsiv',
+]
+
+/**
+ * Yalnız bu uzantılar okunur (allowlist — 2960 svg + 1205 jpeg/png/pdf gibi ikili/medya
+ * dosyaları için blocklist yerine güvenli varsayılan: bilinmeyen uzantı asla okunmaz).
+ */
+export const CODE_AUDIT_TEXT_EXTENSIONS: readonly string[] = [
+  '.php',
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.html',
+  '.htm',
+  '.css',
+  '.scss',
+  '.json',
+]
+
+/** Uzantısız ama metin olan özel dosya adları (ör. Apache yönlendirme kuralları). */
+export const CODE_AUDIT_TEXT_BASENAMES: readonly string[] = ['.htaccess']
+
 /** Intent sınıflandırması için Türkçe işaret kelimeleri (normalize edilmiş halleriyle) */
 export const INTENT_MARKERS = {
   informational: ['nasıl', 'nedir', 'neden', 'ne zaman', 'kaç', 'rehber', 'temizlenir', 'ölçülür', 'yapılır'],
