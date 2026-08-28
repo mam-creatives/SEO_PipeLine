@@ -120,6 +120,44 @@ export interface FieldCwv {
   readonly cls: number | null
 }
 
+/** Bir sayfadan çıkan tek bir link — iç link grafiğinin kenarı. */
+export interface PageLink {
+  readonly sourceUrl: string
+  readonly targetUrl: string
+  readonly anchorText: string
+  readonly isInternal: boolean
+}
+
+/**
+ * Faz 2 crawler'ının tek bir URL için topladığı yapılandırılmış on-page veri.
+ * `statusCode`/`fetchError`in ikisi de null olamaz, ikisi de dolu olamaz: fetch başarılıysa
+ * `fetchError` null, tamamen başarısızsa (ağ/timeout) `statusCode` null. 4xx/5xx bir HATA
+ * DEĞİL — `statusCode` doldurulur, bulguya dönüşür (detectLinkIssues).
+ */
+export interface CrawledPage {
+  readonly url: string
+  readonly statusCode: number | null
+  /** response.url — yönlendirme zinciri sonrası nihai adres; url ile aynıysa yönlendirme yok. */
+  readonly finalUrl: string | null
+  readonly fetchError: string | null
+  readonly title: string | null
+  readonly metaDescription: string | null
+  readonly canonicalUrl: string | null
+  readonly h1s: readonly string[]
+  /** Sırayla görülen başlık seviyeleri, ör. ['h1','h2','h2','h3'] — hiyerarşi atlaması tespiti için. */
+  readonly headingOrder: readonly string[]
+  readonly hasSchemaOrg: boolean
+  readonly schemaTypes: readonly string[]
+  /** og:title + og:description + og:image üçü de doluysa true. */
+  readonly ogComplete: boolean
+  readonly imagesMissingAlt: number
+  readonly wordCount: number
+  /** meta robots içeriği, ör. "noindex,nofollow" — yoksa null. */
+  readonly metaRobots: string | null
+  readonly internalLinks: readonly PageLink[]
+  readonly externalLinkCount: number
+}
+
 export interface RunMeta {
   readonly id: number
   readonly startedAt: string

@@ -3,6 +3,7 @@ import { ProviderError } from '../core/errors.js'
 import {
   createMockAiVisibilityProvider,
   createMockBacklinkProvider,
+  createMockCrawlProvider,
   createMockCruxProvider,
   createMockIndexingProvider,
   createMockKeywordProvider,
@@ -10,6 +11,7 @@ import {
   createMockSerpProvider,
   createMockTechAuditProvider,
 } from './mocks/mockProviders.js'
+import { createCrawlProvider } from './real/crawlProvider.js'
 import { createCruxProvider } from './real/cruxProvider.js'
 import { createDataForSeoBacklinkProvider, createDataForSeoKeywordProvider } from './real/dataForSeoProviders.js'
 import { createGeminiAiVisibilityProvider } from './real/geminiAiVisibilityProvider.js'
@@ -80,6 +82,14 @@ const selectCrux = (env: Env): Selection<ProviderSet['crux']> =>
   env.CRUX_API_KEY !== undefined ? real(createCruxProvider(env.CRUX_API_KEY)) : mock(createMockCruxProvider())
 
 /**
+ * Crawler anahtar gerektirmez (yalnız fetch) — TECH_AUDIT_PROVIDER=lighthouse ile aynı
+ * gerekçeyle açık env bayrağı ister: müşterinin canlı sitesine gerçek istek atar,
+ * "anahtarsız = otomatik gerçek" hiçbir yerde yok, burada da olmamalı.
+ */
+const selectCrawl = (env: Env, config: ProjectConfig): Selection<ProviderSet['crawl']> =>
+  env.CRAWL_PROVIDER === 'live' ? real(createCrawlProvider()) : mock(createMockCrawlProvider(config))
+
+/**
  * Kategori başına mock/gerçek sağlayıcı seçiminin yapıldığı TEK yer.
  * `mockCategories` sabit bir listeden değil, fiilen yapılan seçimlerden türetilir —
  * rapordaki MOCK banner'ı ve `RunMeta.mockCategories` bunu kullanıyor.
@@ -126,6 +136,7 @@ export const selectProviders = (env: Env, config: ProjectConfig): ProviderSet =>
   const tech = selectTech(env, config)
   const aiVisibility = selectAiVisibility(env, config)
   const crux = selectCrux(env)
+  const crawl = selectCrawl(env, config)
 
   const selections: readonly (readonly [ProviderCategory, boolean])[] = [
     ['keyword', keyword.isMock],
@@ -136,6 +147,7 @@ export const selectProviders = (env: Env, config: ProjectConfig): ProviderSet =>
     ['searchConsole', searchConsole.isMock],
     ['indexing', indexing.isMock],
     ['crux', crux.isMock],
+    ['crawl', crawl.isMock],
   ]
 
   return {
@@ -147,6 +159,7 @@ export const selectProviders = (env: Env, config: ProjectConfig): ProviderSet =>
     searchConsole: searchConsole.provider,
     indexing: indexing.provider,
     crux: crux.provider,
+    crawl: crawl.provider,
     mockCategories: selections.flatMap(([category, isMock]) => (isMock ? [category] : [])),
   }
 }

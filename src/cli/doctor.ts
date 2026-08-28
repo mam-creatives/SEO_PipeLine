@@ -16,6 +16,7 @@ const CATEGORY_LABELS: Readonly<Record<ProviderCategory, string>> = {
   searchConsole: 'Search Console',
   indexing: 'İndeksleme durumu (URL Inspection)',
   crux: 'CrUX alan verisi (gerçek kullanıcı)',
+  crawl: 'Crawler (on-page + iç link grafiği)',
 }
 
 const printSelection = (providers: ProviderSet): void => {
@@ -107,6 +108,28 @@ const checkCrux = async (providers: ProviderSet, auditUrls: readonly string[]): 
 }
 
 /**
+ * Crawler CRAWL_PROVIDER=live olmadıkça mock — açık opt-in gerektirir (bkz. registry.ts).
+ * Live ise müşterinin ANASAYFASINA gerçek bir istek atar; auditUrls boşsa domain'e düşer.
+ */
+const checkCrawl = async (providers: ProviderSet, auditUrls: readonly string[], domain: string): Promise<void> => {
+  if (providers.crawl.isMock) {
+    console.log('  ⊘ Crawler mock — CRAWL_PROVIDER=live verilmedi, canlı deneme atlandı.')
+    return
+  }
+  const url = auditUrls[0] ?? `https://${domain}/`
+  const result = await providers.crawl.fetchPage(url)
+  if (result.ok) {
+    const page = result.value
+    console.log(
+      `  ✓ Crawler çalışıyor — ${url} · statusCode ${page.statusCode ?? '?'} · ` +
+        `title: "${page.title ?? '(yok)'}" · h1 sayısı: ${page.h1s.length} · iç link: ${page.internalLinks.length}`,
+    )
+  } else {
+    console.log(`  ✗ Crawler başarısız: ${result.error.message}`)
+  }
+}
+
+/**
  * Yapılandırma tanılaması: hangi kategorinin gerçek sağlayıcıya bağlandığını gösterir
  * ve ÜCRETSİZ olanları canlı dener. Ücretli/kotalı çağrılar (SerpApi, DataForSEO)
  * bilerek denenmez — tanı için kota harcamak mantıksız olurdu.
@@ -132,6 +155,7 @@ const main = async (): Promise<void> => {
     await checkIndexing(providers, config.auditUrls)
     await checkTechAudit(providers, config.auditUrls)
     await checkCrux(providers, config.auditUrls)
+    await checkCrawl(providers, config.auditUrls, config.domain)
 
     console.log('\nDENENMEYENLER (kota/ücret harcamamak için)')
     console.log('─'.repeat(64))

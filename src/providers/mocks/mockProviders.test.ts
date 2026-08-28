@@ -5,6 +5,7 @@ import { selectProviders } from '../registry.js'
 import {
   createMockAiVisibilityProvider,
   createMockBacklinkProvider,
+  createMockCrawlProvider,
   createMockCruxProvider,
   createMockKeywordProvider,
   createMockSearchConsoleProvider,
@@ -128,11 +129,49 @@ describe('mockCruxProvider', () => {
   })
 })
 
+describe('mockCrawlProvider', () => {
+  test('müşteri anasayfası bilinçli olarak kusurlu döner (title/h1/schema yok)', async () => {
+    const provider = createMockCrawlProvider(config)
+    const result = await provider.fetchPage('https://ornekayakkabi.com.tr/')
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value.title).toBeNull()
+      expect(result.value.h1s).toEqual([])
+      expect(result.value.hasSchemaOrg).toBe(false)
+    }
+  })
+
+  test('diğer URL\'ler sağlıklı deterministik veri döner', async () => {
+    const provider = createMockCrawlProvider(config)
+    const first = await provider.fetchPage('https://ornekayakkabi.com.tr/urun/bot')
+    const second = await provider.fetchPage('https://ornekayakkabi.com.tr/urun/bot')
+    expect(first).toEqual(second)
+    if (first.ok) {
+      expect(first.value.title).not.toBeNull()
+      expect(first.value.h1s.length).toBeGreaterThan(0)
+    }
+  })
+
+  test('robots.txt her zaman izin verir, sitemap boş döner', async () => {
+    const provider = createMockCrawlProvider(config)
+    const robots = await provider.fetchRobotsRules('https://ornekayakkabi.com.tr')
+    const sitemap = await provider.fetchSitemapUrls('https://ornekayakkabi.com.tr/sitemap.xml')
+    expect(robots.ok && robots.value.isAllowed('https://ornekayakkabi.com.tr/herhangi')).toBe(true)
+    expect(sitemap.ok && sitemap.value).toEqual([])
+  })
+})
+
 describe('registry.selectProviders', () => {
-  test('hiç anahtar yoksa 8 kategori de mock seçilir', () => {
+  test('hiç anahtar yoksa 9 kategori de mock seçilir', () => {
     const providers = selectProviders({}, config)
-    expect(providers.mockCategories).toHaveLength(8)
+    expect(providers.mockCategories).toHaveLength(9)
     expect(providers.keyword.isMock).toBe(true)
+  })
+
+  test('CRAWL_PROVIDER=live crawler\'ı gerçekleştirir', () => {
+    const providers = selectProviders({ CRAWL_PROVIDER: 'live' }, config)
+    expect(providers.crawl.isMock).toBe(false)
+    expect(providers.mockCategories).not.toContain('crawl')
   })
 
   test('CRUX_API_KEY verilince crux gerçek sağlayıcıya geçer', () => {

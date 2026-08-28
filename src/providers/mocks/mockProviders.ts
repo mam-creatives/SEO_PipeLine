@@ -16,6 +16,7 @@ import {
 import type {
   AiVisibilityProvider,
   BacklinkProvider,
+  CrawlProvider,
   CruxProvider,
   IndexingProvider,
   KeywordProvider,
@@ -235,4 +236,66 @@ export const createMockCruxProvider = (): CruxProvider => ({
       cls: randomInt(rng, 2, 18) / 100,
     })
   },
+})
+
+/**
+ * Müşterinin anasayfası BİLİNÇLİ olarak kusurlu döner (title/h1/schema yok) —
+ * `mockSearchConsoleProvider`'daki yamyamlık örneğiyle aynı gerekçe: aksi halde
+ * crawlFindings mock/e2e testte hep boş çıkar ve rapor bölümü sessizce ölü kalır.
+ * Ayrıca gerçek mamcreatives.com'da fiilen var olan kusurları yansıtır (bkz.
+ * crawlHtmlParser fixture'ı) — mock uydurma değil, bilinen gerçek bir örüntüyü taklit ediyor.
+ */
+export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider => ({
+  name: 'mock-crawl',
+  isMock: true,
+  fetchPage: async (url) => {
+    if (extractRootDomain(url) === config.domain && new URL(url).pathname === '/') {
+      return ok({
+        url,
+        statusCode: 200,
+        finalUrl: url,
+        fetchError: null,
+        title: null,
+        metaDescription: '',
+        canonicalUrl: url,
+        h1s: [],
+        headingOrder: ['h3', 'h2'],
+        hasSchemaOrg: false,
+        schemaTypes: [],
+        ogComplete: false,
+        imagesMissingAlt: 1,
+        wordCount: 120,
+        metaRobots: null,
+        internalLinks: ['hakkimizda', 'hizmetlerimiz'].map((path) => ({
+          sourceUrl: url,
+          targetUrl: `https://${config.domain}/${path}`,
+          anchorText: path,
+          isInternal: true,
+        })),
+        externalLinkCount: 2,
+      })
+    }
+    const rng = mulberry32(hashString(url))
+    return ok({
+      url,
+      statusCode: 200,
+      finalUrl: url,
+      fetchError: null,
+      title: `Sayfa — ${url}`,
+      metaDescription: 'Örnek açıklama metni.',
+      canonicalUrl: url,
+      h1s: ['Ana Başlık'],
+      headingOrder: ['h1', 'h2'],
+      hasSchemaOrg: true,
+      schemaTypes: ['WebPage'],
+      ogComplete: true,
+      imagesMissingAlt: 0,
+      wordCount: randomInt(rng, 150, 600),
+      metaRobots: null,
+      internalLinks: [],
+      externalLinkCount: 0,
+    })
+  },
+  fetchRobotsRules: async () => ok({ isAllowed: () => true, sitemaps: [] }),
+  fetchSitemapUrls: async () => ok([]),
 })

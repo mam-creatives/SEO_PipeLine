@@ -3,6 +3,7 @@ import type { Result } from '../core/result.js'
 import type {
   AiAnswer,
   BacklinkProfile,
+  CrawledPage,
   FieldCwv,
   GscRow,
   IndexStatus,
@@ -20,6 +21,7 @@ export type ProviderCategory =
   | 'searchConsole'
   | 'indexing'
   | 'crux'
+  | 'crawl'
 
 interface ProviderBase {
   readonly name: string
@@ -62,6 +64,21 @@ export interface CruxProvider extends ProviderBase {
   readonly fetchFieldCwv: (url: string) => Promise<Result<FieldCwv | null, ProviderError>>
 }
 
+/** robots.txt'ten türetilen kurallar — site walker kuyruğa eklemeden önce her URL'i buna sorar. */
+export interface RobotsRules {
+  readonly isAllowed: (path: string) => boolean
+  readonly sitemaps: readonly string[]
+}
+
+export interface CrawlProvider extends ProviderBase {
+  /** 4xx/5xx hata değil — CrawledPage.statusCode'a yazılır, bulguya dönüşür. Yalnız ağ/timeout hatası err() döner. */
+  readonly fetchPage: (url: string) => Promise<Result<CrawledPage, ProviderError>>
+  /** robots.txt yoksa (404) her şeye izin veren kurallar döner — "yasak yok" demektir, hata değil. */
+  readonly fetchRobotsRules: (origin: string) => Promise<Result<RobotsRules, ProviderError>>
+  /** sitemap.xml yoksa boş dizi döner — hata değil. */
+  readonly fetchSitemapUrls: (sitemapUrl: string) => Promise<Result<readonly string[], ProviderError>>
+}
+
 export interface ProviderSet {
   readonly keyword: KeywordProvider
   readonly serp: SerpProvider
@@ -71,6 +88,7 @@ export interface ProviderSet {
   readonly searchConsole: SearchConsoleProvider
   readonly indexing: IndexingProvider
   readonly crux: CruxProvider
+  readonly crawl: CrawlProvider
   /** Mock çalışan kategoriler — boş değilse raporlarda "MOCK MODE" banner'ı gösterilir. */
   readonly mockCategories: readonly ProviderCategory[]
 }
