@@ -92,6 +92,19 @@ const queryOnce = async (
 }
 
 /**
+ * Origin-fallback sonucu, `queryOnce`'un içinde `cruxResponseToFieldCwv`'ye ORIGIN string'i
+ * `url` olarak geçtiği için `FieldCwv.url = origin` döner (bkz. queryOnce çağrısı: `value` =
+ * origin). Aynı origin'e (aynı sitedeki farklı sayfalar) düşen birden fazla `fetchFieldCwv`
+ * çağrısı bu yüzden AYNI `(url, formFactor)` çiftini üretir — `field_cwv` tablosunun
+ * `UNIQUE(runId, url, formFactor)` kısıtını ihlal eder (fiilen yaşandı: 3 auditUrls'in
+ * üçü de sayfa-seviyeli veri taşımayınca hepsi origin'e düştü, ikinci INSERT patladı).
+ * Bu fonksiyon `url`'i İSTENEN SAYFA URL'ine geri yazar — veri origin-seviyeli kalır
+ * (yalnız site geneli p75), ama depolama anahtarı sayfa başına benzersiz kalır.
+ */
+export const withRequestedUrl = (result: Result<FieldCwv, ProviderError>, requestedUrl: string): Result<FieldCwv, ProviderError> =>
+  result.ok ? ok({ ...result.value, url: requestedUrl }) : result
+
+/**
  * CrUX (Chrome UX Report) sağlayıcısı — gerçek kullanıcı p75 alan verisi, rakipler dahil.
  * Sayfa (`url` anahtarı) yeterli trafiğe sahip değilse origin (`origin` anahtarı) ile
  * tekrar denenir — daha az trafikli tek sayfalar yerine site geneli genelde veri taşır.
@@ -108,6 +121,6 @@ export const createCruxProvider = (apiKey: string): CruxProvider => ({
     const origin = new URL(url).origin
     const originAttempt = await queryOnce(apiKey, 'origin', origin)
     if (originAttempt === 'not-found') return ok(null)
-    return originAttempt
+    return withRequestedUrl(originAttempt, url)
   },
 })

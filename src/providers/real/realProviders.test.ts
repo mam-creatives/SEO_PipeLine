@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest'
-import { buildCruxRequestBody, cruxResponseToFieldCwv } from './cruxProvider.js'
+import { ProviderError } from '../../core/errors.js'
+import { err, ok } from '../../core/result.js'
+import { buildCruxRequestBody, cruxResponseToFieldCwv, withRequestedUrl } from './cruxProvider.js'
 import { dataForSeoResponseToBacklinkProfile, dataForSeoResponseToMetrics } from './dataForSeoProviders.js'
 import { geminiResponseToAnswer } from './geminiAiVisibilityProvider.js'
 import { matchSiteUrl, signServiceAccountJwt } from './gscAuth.js'
@@ -303,5 +305,40 @@ describe('cruxResponseToFieldCwv', () => {
   test('buildCruxRequestBody url ve origin anahtarlarını doğru üretir', () => {
     expect(JSON.parse(buildCruxRequestBody('url', 'https://ornek.com/x'))).toEqual({ url: 'https://ornek.com/x' })
     expect(JSON.parse(buildCruxRequestBody('origin', 'https://ornek.com'))).toEqual({ origin: 'https://ornek.com' })
+  })
+})
+
+describe('withRequestedUrl', () => {
+  // Regresyon: origin-fallback sonucu ham haliyle `url: origin` taşıyordu — aynı origin'e
+  // düşen farklı sayfalar aynı (url, formFactor) anahtarını paylaşıp field_cwv'nin
+  // UNIQUE(runId, url, formFactor) kısıtını ihlal ediyordu (gerçek bir çalıştırmada fiilen oldu).
+  test('origin-fallback sonucunun url alanını istenen sayfa URL\'ine geri yazar', () => {
+    const originResult = ok({ url: 'https://ornek.com', formFactor: 'ALL_FORM_FACTORS' as const, lcpMs: 2000, inpMs: 150, cls: 0.05 })
+    const fixed = withRequestedUrl(originResult, 'https://ornek.com/hizmetlerimiz')
+    expect(fixed.ok).toBe(true)
+    if (fixed.ok) expect(fixed.value.url).toBe('https://ornek.com/hizmetlerimiz')
+  })
+
+  test('metrik değerlerine dokunmaz, yalnız url değişir', () => {
+    const originResult = ok({ url: 'https://ornek.com', formFactor: 'ALL_FORM_FACTORS' as const, lcpMs: 2000, inpMs: 150, cls: 0.05 })
+    const fixed = withRequestedUrl(originResult, 'https://ornek.com/blog/yazi')
+    if (fixed.ok) {
+      expect(fixed.value.lcpMs).toBe(2000)
+      expect(fixed.value.inpMs).toBe(150)
+      expect(fixed.value.cls).toBe(0.05)
+    }
+  })
+
+  test('hata sonucunu olduğu gibi geçirir, dokunmaz', () => {
+    const errorResult = err(new ProviderError('crux', 'test hatası'))
+    const passed = withRequestedUrl(errorResult, 'https://ornek.com/x')
+    expect(passed).toBe(errorResult)
+  })
+
+  test('iki farklı sayfa aynı origin\'e düşse bile artık farklı url taşır (UNIQUE ihlalinin kök nedeni düzeldi)', () => {
+    const originResult = ok({ url: 'https://ornek.com', formFactor: 'ALL_FORM_FACTORS' as const, lcpMs: 2000, inpMs: 150, cls: 0.05 })
+    const page1 = withRequestedUrl(originResult, 'https://ornek.com/')
+    const page2 = withRequestedUrl(originResult, 'https://ornek.com/hizmetlerimiz')
+    expect(page1.ok && page2.ok && page1.value.url !== page2.value.url).toBe(true)
   })
 })
