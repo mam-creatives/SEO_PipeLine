@@ -30,6 +30,7 @@ export const renderCrawlFindingsMarkdown = (findings: readonly Finding[]): strin
       lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}** _(${EFFORT_LABEL[finding.effort]})_`, '')
       lines.push(finding.explanation, '')
       lines.push(`_${finding.evidence}_`, '')
+      if (finding.codeLocation != null) lines.push(`Kaynak: \`${finding.codeLocation.file}${finding.codeLocation.line === null ? '' : `:${finding.codeLocation.line}`}\``, '')
       if (finding.fixSnippet !== null) lines.push('```', finding.fixSnippet, '```', '')
     }
   }
@@ -46,11 +47,15 @@ export const renderCrawlFindingsHtml = (findings: readonly Finding[]): string =>
         const priority = finding.severity === 'critical' ? 1 : finding.severity === 'high' ? 2 : 3
         const snippet =
           finding.fixSnippet === null ? '' : `<pre><code>${escapeHtml(finding.fixSnippet)}</code></pre>`
+        const codeLocationLine =
+          finding.codeLocation == null
+            ? ''
+            : `<p class="muted">Kaynak: <code>${escapeHtml(finding.codeLocation.file)}${finding.codeLocation.line === null ? '' : `:${finding.codeLocation.line}`}</code></p>`
         return (
           `<div class="action p${priority}">` +
           `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}</strong>` +
           ` <span class="muted">(${escapeHtml(EFFORT_LABEL[finding.effort])})</span>` +
-          `<p>${escapeHtml(finding.explanation)}</p><p class="muted">${escapeHtml(finding.evidence)}</p>${snippet}</div>`
+          `<p>${escapeHtml(finding.explanation)}</p><p class="muted">${escapeHtml(finding.evidence)}</p>${codeLocationLine}${snippet}</div>`
         )
       })
       .join('\n')

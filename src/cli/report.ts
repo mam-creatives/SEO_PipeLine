@@ -43,6 +43,10 @@ const main = async (): Promise<void> => {
         // uygulanamaz (boş seed = hiçbir sayfa istisna almaz, en kötü ihtimalle fazladan uyarı).
         sitemapUrls: [],
         crawlSeedUrls: [],
+        // sourceFiles/detectedStacks de kalıcı değil (bkz. runAllCollectors.ts yorumu) — yeniden
+        // toplamadan üretilen raporda kod denetimi bölümü boş çıkar, bu beklenen davranış.
+        sourceFiles: [],
+        detectedStacks: [],
         failedBranches: [],
       }
       const analysis = runAnalysis(collected, config)

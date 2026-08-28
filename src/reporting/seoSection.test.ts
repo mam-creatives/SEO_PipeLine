@@ -67,6 +67,41 @@ describe('renderSeoFindingsMarkdown', () => {
   })
 })
 
+describe('codeLocation gösterimi', () => {
+  const evaluationWithCodeLocation: TechEvaluation = {
+    ...evaluationWithFindings,
+    audit: {
+      ...evaluationWithFindings.audit,
+      seoFindings: [{ ...finding, codeLocation: { file: 'inc/hizmet.php', line: 45 } }],
+    },
+  }
+
+  test('markdown: codeLocation doluysa dosya:satır gösterir', () => {
+    const markdown = renderSeoFindingsMarkdown([evaluationWithCodeLocation])
+    expect(markdown).toContain('Kaynak: `inc/hizmet.php:45`')
+  })
+
+  test('markdown: codeLocation yoksa (undefined) Kaynak satırı basılmaz', () => {
+    const markdown = renderSeoFindingsMarkdown([evaluationWithFindings])
+    expect(markdown).not.toContain('Kaynak:')
+  })
+
+  test('html: codeLocation doluysa dosya:satır gösterir, kaçışlıdır', () => {
+    const html = renderSeoFindingsHtml([evaluationWithCodeLocation])
+    expect(html).toContain('Kaynak: <code>inc/hizmet.php:45</code>')
+  })
+
+  test('line null ise yalnız dosya adı gösterilir', () => {
+    const evaluation: TechEvaluation = {
+      ...evaluationWithFindings,
+      audit: { ...evaluationWithFindings.audit, seoFindings: [{ ...finding, codeLocation: { file: 'a.php', line: null } }] },
+    }
+    const markdown = renderSeoFindingsMarkdown([evaluation])
+    expect(markdown).toContain('Kaynak: `a.php`')
+    expect(markdown).not.toContain('Kaynak: `a.php:')
+  })
+})
+
 describe('renderSeoFindingsHtml', () => {
   test('hiç SEO bulgusu yoksa boş string döner', () => {
     expect(renderSeoFindingsHtml([evaluationWithoutFindings])).toBe('')

@@ -47,8 +47,12 @@ const findInSource = (token: string, files: readonly SourceFile[]): SourceMatch 
  * `culpritSelector` aranabilir bir sınıf/id'ye indirgenemiyorsa `codeLocation: null` —
  * `diagnoseCwv`'nin "isabetsizse null döner, uydurmaz" felsefesiyle aynı. Yeni `Finding`
  * kopyaları döner, girdiyi mutate etmez.
+ *
+ * `sortFindings` (core/findings.ts) ile aynı generic desen: `T extends Finding` girip aynı
+ * alt tiple çıkar — `CwvFinding[]` verilince `CwvFinding[]` döner, `metric`/`phase` zorunluluğu
+ * kaybolmaz (yalnız `codeLocation` eklenir/değişir, diğer alanlara dokunulmaz).
  */
-export const linkFindingsToCode = (findings: readonly Finding[], files: readonly SourceFile[]): readonly Finding[] =>
+export const linkFindingsToCode = <T extends Finding>(findings: readonly T[], files: readonly SourceFile[]): readonly T[] =>
   findings.map((finding) => {
     if (finding.codeLocation !== undefined) return finding
     if (finding.culpritSelector === null) return { ...finding, codeLocation: null }

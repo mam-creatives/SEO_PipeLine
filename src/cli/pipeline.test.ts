@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
@@ -106,5 +106,53 @@ describe('runResearch (uçtan uca, mock mod)', () => {
     const markdown = readFileSync(outcome.markdownPath, 'utf-8')
     expect(markdown).toContain('Karşılaştırma: #1')
     expect(markdown).not.toContain('İlk çalıştırma — karşılaştırma yok')
+  }, 20000)
+
+  test('codePath yapılandırılmışsa Kod Denetimi bölümü dolu gelir (Faz 3)', async () => {
+    // Faz 1.3/2.11'deki dersle aynı: sağlayıcı/dosya kategorisi mock modda hiç tetiklenmezse
+    // rapor bölümü sessizce boş kalabilir. config/project.json'daki gerçek codePath'i
+    // kullanmak yerine (taşınabilirlik: bu path yalnız bu makinede var) kendi kusurlu
+    // fixture'ını üretip ayrı bir config dosyasıyla çalıştırıyoruz.
+    const codeDir = join(scratchDir, 'kod-fixture')
+    mkdirSync(codeDir, { recursive: true })
+    writeFileSync(codeDir + '/.htaccess', 'RewriteEngine On')
+    writeFileSync(
+      codeDir + '/index.php',
+      [
+        '<head>',
+        '<meta name="robots" content="all" />',
+        '<meta name="robots" content="index, follow" />',
+        '<meta name="googlebot" content="all" />',
+        '</head>',
+      ].join('\n'),
+    )
+
+    const configPath = join(scratchDir, 'kod-project.json')
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        domain: 'kod-ornek.com',
+        brandName: 'Kod Örnek',
+        brandTokens: ['kod ornek'],
+        seedKeywords: ['örnek keyword'],
+        codePath: codeDir,
+      }),
+    )
+
+    const codeScratchDir = mkdtempSync(join(tmpdir(), 'seo-pipeline-code-test-'))
+    try {
+      const outcome = await runResearch({
+        configPath,
+        dbPath: join(codeScratchDir, 'seo.db'),
+        reportsDir: join(codeScratchDir, 'reports'),
+        envFilePath: join(codeScratchDir, 'yok.env'),
+      })
+      const markdown = readFileSync(outcome.markdownPath, 'utf-8')
+      expect(markdown).toContain('### Kod Denetimi')
+      expect(markdown).toContain('çakışan/yinelenen robots direktifi')
+      expect(markdown).toContain('index.php')
+    } finally {
+      rmSync(codeScratchDir, { recursive: true, force: true })
+    }
   }, 20000)
 })

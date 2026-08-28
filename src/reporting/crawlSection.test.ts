@@ -71,6 +71,24 @@ describe('renderCrawlFindingsMarkdown', () => {
   })
 })
 
+describe('codeLocation gösterimi', () => {
+  const findingWithCodeLocation: Finding = { ...onPageFinding, codeLocation: { file: 'inc/hizmet.php', line: 45 } }
+
+  test('markdown: codeLocation doluysa dosya:satır gösterir', () => {
+    const markdown = renderCrawlFindingsMarkdown([findingWithCodeLocation])
+    expect(markdown).toContain('Kaynak: `inc/hizmet.php:45`')
+  })
+
+  test('markdown: codeLocation yoksa Kaynak satırı basılmaz', () => {
+    expect(renderCrawlFindingsMarkdown([onPageFinding])).not.toContain('Kaynak:')
+  })
+
+  test('html: codeLocation doluysa dosya:satır gösterir', () => {
+    const html = renderCrawlFindingsHtml([findingWithCodeLocation])
+    expect(html).toContain('Kaynak: <code>inc/hizmet.php:45</code>')
+  })
+})
+
 describe('renderCrawlFindingsHtml', () => {
   test('bulgu yoksa boş string döner', () => {
     expect(renderCrawlFindingsHtml([])).toBe('')

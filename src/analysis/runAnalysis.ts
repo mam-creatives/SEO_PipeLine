@@ -1,4 +1,16 @@
 import type { CollectedData } from '../collectors/runAllCollectors.js'
+import { linkFindingsToCode } from '../codeaudit/linkFindingsToCode.js'
+import { detectHeavyAssets } from '../codeaudit/rules/agnostic/heavyAssets.js'
+import { detectPublicDeadHtml } from '../codeaudit/rules/agnostic/publicDeadHtml.js'
+import { detectServerConfigIssues } from '../codeaudit/rules/agnostic/serverConfig.js'
+import { detectThirdPartyScripts } from '../codeaudit/rules/agnostic/thirdPartyScripts.js'
+import { detectAssetIssues } from '../codeaudit/rules/nextjs/assets.js'
+import { detectMetadataIssues } from '../codeaudit/rules/nextjs/metadata.js'
+import { detectRenderStrategyIssues } from '../codeaudit/rules/nextjs/renderStrategy.js'
+import { detectHeadMetaIssues } from '../codeaudit/rules/php/headMetaIssues.js'
+import { detectMissingHreflang } from '../codeaudit/rules/php/missingHreflang.js'
+import { detectCommentedOutHeadings } from '../codeaudit/rules/php/templateStructure.js'
+import type { SourceFile, StackKind } from '../codeaudit/types.js'
 import { CWV_THRESHOLDS } from '../config/constants.js'
 import type { ProjectConfig } from '../config/schema.js'
 import { extractRootDomain } from '../core/text.js'
@@ -37,6 +49,49 @@ export interface AnalysisResult {
   readonly fieldCwv: readonly FieldCwv[]
   /** onpage + links + taranabilirlik bulguları birleşik — tek bölümde, sortFindings ile sıralanmış render edilir. */
   readonly crawlFindings: readonly Finding[]
+  /** Faz 3 kod denetçisi — config.codePath yapılandırılmamışsa boş dizi. */
+  readonly codeAuditFindings: readonly Finding[]
+}
+
+/**
+ * Agnostik kurallar her stack'te çalışır; PHP/Next.js kuralları yalnız `detectStack`
+ * ilgili imzayı bulduysa çalışır — yanlış stack'in kurallarını (ör. bir Next.js projesinde
+ * .htaccess kontrolü) sessizce atlamak yerine hiç çağırmamak daha doğru.
+ */
+const computeCodeAuditFindings = (sourceFiles: readonly SourceFile[], detectedStacks: readonly StackKind[]): readonly Finding[] => {
+  if (sourceFiles.length === 0) return []
+
+  const agnosticFindings = [
+    ...detectHeavyAssets(sourceFiles),
+    ...detectPublicDeadHtml(sourceFiles),
+    ...detectThirdPartyScripts(sourceFiles),
+    ...detectServerConfigIssues(sourceFiles),
+  ]
+  const phpFindings = detectedStacks.some((stack) => stack === 'php-custom' || stack === 'wordpress')
+    ? [...detectHeadMetaIssues(sourceFiles), ...detectMissingHreflang(sourceFiles), ...detectCommentedOutHeadings(sourceFiles)]
+    : []
+  const nextjsFindings = detectedStacks.includes('nextjs')
+    ? [...detectRenderStrategyIssues(sourceFiles), ...detectMetadataIssues(sourceFiles), ...detectAssetIssues(sourceFiles)]
+    : []
+
+  return [...agnosticFindings, ...phpFindings, ...nextjsFindings]
+}
+
+/**
+ * CWV/on-page bulgularının `culpritSelector`'ını kaynak kodda arayıp `codeLocation` doldurur
+ * (Faz 3.5). Yalnız MÜŞTERİNİN kendi denetimleri zenginleştirilir — rakip sitelerin kaynak
+ * kodu elimizde yok, `linkFindingsToCode`'u rakip bulgularına uygulamak anlamsız arama yapardı.
+ */
+const enrichWithCodeLocation = (evaluation: TechEvaluation, sourceFiles: readonly SourceFile[]): TechEvaluation => {
+  if (!evaluation.isClient || sourceFiles.length === 0) return evaluation
+  return {
+    ...evaluation,
+    audit: { ...evaluation.audit, seoFindings: linkFindingsToCode(evaluation.audit.seoFindings ?? [], sourceFiles) },
+    diagnosis:
+      evaluation.diagnosis === null
+        ? null
+        : { ...evaluation.diagnosis, findings: linkFindingsToCode(evaluation.diagnosis.findings, sourceFiles) },
+  }
 }
 
 /** Toplanan ham veriyi rapora hazır analiz sonucuna dönüştürür — tamamı saf hesap. */
@@ -51,16 +106,18 @@ export const runAnalysis = (collected: CollectedData, config: ProjectConfig): An
     competitors,
     opportunities: rankOpportunities(rows, collected.serps),
     aiVisibility: detectAiGaps(collected.aiSamples, reals),
-    techEvaluations: collected.techAudits.map((audit) => ({
-      audit,
-      passes: {
-        lcp: audit.lcpMs <= CWV_THRESHOLDS.lcpMs,
-        inp: audit.inpMs <= CWV_THRESHOLDS.inpMs,
-        cls: audit.cls <= CWV_THRESHOLDS.cls,
-      },
-      isClient: extractRootDomain(audit.url) === config.domain,
-      diagnosis: diagnoseCwv(audit),
-    })),
+    techEvaluations: collected.techAudits
+      .map((audit) => ({
+        audit,
+        passes: {
+          lcp: audit.lcpMs <= CWV_THRESHOLDS.lcpMs,
+          inp: audit.inpMs <= CWV_THRESHOLDS.inpMs,
+          cls: audit.cls <= CWV_THRESHOLDS.cls,
+        },
+        isClient: extractRootDomain(audit.url) === config.domain,
+        diagnosis: diagnoseCwv(audit),
+      }))
+      .map((evaluation) => enrichWithCodeLocation(evaluation, collected.sourceFiles)),
     gscRows: collected.gscRows,
     indexingFindings: detectIndexingIssues(collected.indexStatuses),
     cannibalizationFindings: detectCannibalization(collected.gscRows),
@@ -70,5 +127,6 @@ export const runAnalysis = (collected: CollectedData, config: ProjectConfig): An
       ...detectLinkIssues(collected.crawledPages, collected.crawlSeedUrls),
       ...detectCrawlabilityIssues(collected.crawledPages, collected.sitemapUrls),
     ],
+    codeAuditFindings: computeCodeAuditFindings(collected.sourceFiles, collected.detectedStacks),
   }
 }

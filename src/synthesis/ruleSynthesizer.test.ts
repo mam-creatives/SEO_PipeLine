@@ -58,6 +58,7 @@ const analysis: AnalysisResult = {
   cannibalizationFindings: [],
   fieldCwv: [],
   crawlFindings: [],
+  codeAuditFindings: [],
 }
 
 describe('synthesizeWithRules', () => {
@@ -177,6 +178,31 @@ describe('synthesizeWithRules', () => {
     }
     const output = synthesizeWithRules(withCompetitorFinding, baselineDiff)
     expect(output.actions.find((action) => action.category === 'on-page')).toBeUndefined()
+  })
+
+  test('yüksek impact\'li kod denetimi bulgusu (kod kategorisi) yönetici özetine dosya:satır ile girer', () => {
+    const withCodeFinding = {
+      ...analysis,
+      codeAuditFindings: [
+        {
+          category: 'onpage' as const,
+          severity: 'high' as const,
+          url: null,
+          culpritSelector: null,
+          title: '<h1> yalnız bir HTML yorumu içinde bulundu',
+          explanation: 'test',
+          evidence: 'test',
+          impact: 60,
+          effort: 'small' as const,
+          fixSnippet: null,
+          codeLocation: { file: 'inc/hizmet.php', line: 45 },
+        },
+      ],
+    }
+    const output = synthesizeWithRules(withCodeFinding, baselineDiff)
+    const codeAction = output.actions.find((action) => action.category === 'kod')
+    expect(codeAction?.text).toContain('yalnız bir HTML yorumu içinde bulundu')
+    expect(codeAction?.text).toContain('[inc/hizmet.php:45]')
   })
 
   test('indeksleme bulgusu öncelik 1 aksiyona dönüşür — indekslenmeyen sayfa her şeyden önce gelir', () => {

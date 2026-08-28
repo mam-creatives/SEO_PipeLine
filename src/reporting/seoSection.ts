@@ -26,6 +26,7 @@ export const renderSeoFindingsMarkdown = (evaluations: readonly TechEvaluation[]
       lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}** _(${EFFORT_LABEL[finding.effort]})_`, '')
       lines.push(finding.explanation, '')
       if (finding.culpritSelector !== null) lines.push(`Suçlu element: \`${finding.culpritSelector}\``, '')
+      if (finding.codeLocation != null) lines.push(`Kaynak: \`${finding.codeLocation.file}${finding.codeLocation.line === null ? '' : `:${finding.codeLocation.line}`}\``, '')
       if (finding.fixSnippet !== null) lines.push('```', finding.fixSnippet, '```', '')
     }
   }
@@ -47,13 +48,17 @@ export const renderSeoFindingsHtml = (evaluations: readonly TechEvaluation[]): s
           finding.culpritSelector === null
             ? ''
             : `<p class="muted">Suçlu element: <code>${escapeHtml(finding.culpritSelector)}</code></p>`
+        const codeLocationLine =
+          finding.codeLocation == null
+            ? ''
+            : `<p class="muted">Kaynak: <code>${escapeHtml(finding.codeLocation.file)}${finding.codeLocation.line === null ? '' : `:${finding.codeLocation.line}`}</code></p>`
         const snippet =
           finding.fixSnippet === null ? '' : `<pre><code>${escapeHtml(finding.fixSnippet)}</code></pre>`
         return (
           `<div class="action p${priority}">` +
           `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}</strong>` +
           ` <span class="muted">(${escapeHtml(EFFORT_LABEL[finding.effort])})</span>` +
-          `<p>${escapeHtml(finding.explanation)}</p>${culprit}${snippet}</div>`
+          `<p>${escapeHtml(finding.explanation)}</p>${culprit}${codeLocationLine}${snippet}</div>`
         )
       })
       .join('\n')

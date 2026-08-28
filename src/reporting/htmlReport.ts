@@ -1,5 +1,6 @@
 import { COMPETITOR_REPORT_LIMIT } from '../config/constants.js'
 import { renderCannibalizationFindingsHtml } from './cannibalizationSection.js'
+import { renderCodeAuditFindingsHtml } from './codeAuditSection.js'
 import { renderCrawlFindingsHtml } from './crawlSection.js'
 import { CWV_SECTION_STYLE, renderCwvDiagnosisHtml, renderFieldCwvComparisonHtml } from './cwvSection.js'
 import { escapeHtml } from './htmlEscape.js'
@@ -167,6 +168,9 @@ export const renderHtml = (model: ReportModel): string => {
 
   const crawlFindings = renderCrawlFindingsHtml(model.analysis.crawlFindings)
   if (crawlFindings !== '') sections.push(crawlFindings)
+
+  const codeAuditFindings = renderCodeAuditFindingsHtml(model.analysis.codeAuditFindings)
+  if (codeAuditFindings !== '') sections.push(codeAuditFindings)
 
   sections.push('<h2>AI Görünürlüğü (GEO)</h2>')
   if (model.analysis.aiVisibility.length === 0) {

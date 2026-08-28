@@ -1,3 +1,5 @@
+import { collectSourceCode } from '../codeaudit/collectSourceCode.js'
+import type { SourceFile, StackKind } from '../codeaudit/types.js'
 import { TECH_AUDIT_COMPETITOR_COUNT } from '../config/constants.js'
 import type { ProjectConfig } from '../config/schema.js'
 import { AppError } from '../core/errors.js'
@@ -56,6 +58,9 @@ export interface CollectedData {
   readonly sitemapUrls: readonly string[]
   /** collectCrawl'a verilen gerçek seed URL'ler — detectLinkIssues'ın öksüz-sayfa istisnası bunları kullanır. */
   readonly crawlSeedUrls: readonly string[]
+  /** Faz 3 kod denetçisi — config.codePath yapılandırılmamışsa boş dizi. */
+  readonly sourceFiles: readonly SourceFile[]
+  readonly detectedStacks: readonly StackKind[]
   readonly failedBranches: readonly FailedBranch[]
 }
 
@@ -140,6 +145,9 @@ export const runAllCollectors = async (
   }
   const crawl = crawlResult.ok ? crawlResult.value : emptyCrawlResult
 
+  // Yerel dosya sistemi okuması — ağ I/O'su yok, Promise.all'a girmesi gerekmez.
+  const { sourceFiles, detectedStacks } = collectSourceCode(config.codePath)
+
   return {
     keywords,
     serps: serpResult.value,
@@ -152,6 +160,8 @@ export const runAllCollectors = async (
     sitemapUrls: crawl.sitemapUrls,
     crawlSeedUrls,
     fieldCwv: takeOrEmpty('CrUX alan verisi', cruxResult) as readonly FieldCwv[],
+    sourceFiles,
+    detectedStacks,
     failedBranches,
   }
 }

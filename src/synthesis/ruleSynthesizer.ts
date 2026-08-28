@@ -3,12 +3,14 @@ import type { AnalysisResult } from '../analysis/runAnalysis.js'
 import { CWV_THRESHOLDS, OPPORTUNITY_TOP_COUNT } from '../config/constants.js'
 import { sortFindings, type Finding } from '../core/findings.js'
 
-export type ActionCategory = 'trend' | 'fırsat' | 'teknik' | 'on-page' | 'links' | 'ai-görünürlük' | 'indeksleme'
+export type ActionCategory = 'trend' | 'fırsat' | 'teknik' | 'on-page' | 'links' | 'ai-görünürlük' | 'indeksleme' | 'kod'
 
 /** Site genelinde en yüksek etkili on-page bulguları — hepsini listelemek yönetici özetini boğar. */
 const TOP_ONPAGE_FINDINGS = 3
 /** Crawler onlarca sayfa/bulgu üretebilir — yönetici özetine yalnız en yüksek etkili N tanesi girer. */
 const TOP_CRAWL_FINDINGS = 5
+/** Kod denetimi (Faz 3) onlarca dosya/bulgu üretebilir — aynı gerekçeyle sınırlanır. */
+const TOP_CODE_FINDINGS = 5
 
 /** Finding.category (İngilizce) → ActionCategory (Türkçe) — crawlFindings üç kategoriyi karıştırır. */
 const crawlActionCategory = (category: Finding['category']): ActionCategory => {
@@ -126,7 +128,22 @@ export const synthesizeWithRules = (analysis: AnalysisResult, diff: TrendDiff): 
     })
   }
 
-  // 7) AI görünürlük boşlukları — yeni nesil (GEO) cephe
+  // 7) Kod denetimi bulguları (Faz 3) — en yüksek etkili N tanesi. codeLocation varsa metne
+  // dosya:satır eklenir, bu bloğun tek farkı: doğrudan "nereyi değiştireceğim" cevabı verir.
+  const topCodeFindings = sortFindings(analysis.codeAuditFindings).slice(0, TOP_CODE_FINDINGS)
+  for (const finding of topCodeFindings) {
+    const location =
+      finding.codeLocation == null
+        ? ''
+        : ` [${finding.codeLocation.file}${finding.codeLocation.line === null ? '' : `:${finding.codeLocation.line}`}]`
+    actions.push({
+      priority: finding.severity === 'critical' ? 1 : 2,
+      category: 'kod',
+      text: `${finding.title}${location}. ${finding.explanation}`,
+    })
+  }
+
+  // 8) AI görünürlük boşlukları — yeni nesil (GEO) cephe
   for (const visibility of analysis.aiVisibility.filter((item) => item.isGap)) {
     const strongest = [...visibility.competitorRates].sort((a, b) => b.rate - a.rate)[0]
     const competitorNote =
