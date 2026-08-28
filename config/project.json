@@ -31,5 +31,21 @@
     "https://www.mamcreatives.com/blog/google-aramalarinda-ust-siraya-cikmak-icin-neler-yapilmali"
   ],
   "locale": "tr-TR",
-  "mockSeed": 42
+  "mockSeed": 42,
+  "crawlExcludePaths": [
+    "/admin",
+    "/template",
+    "/influencer",
+    "/vendor",
+    "/iyzipay-php-master",
+    "/cv",
+    "/sepet",
+    "/hesabim",
+    "/siparislerim",
+    "/yorumlarim",
+    "/iyzico-sonuc",
+    "/paytr-sonuc",
+    "/stripe-sonuc",
+    "/xml"
+  ]
 }
