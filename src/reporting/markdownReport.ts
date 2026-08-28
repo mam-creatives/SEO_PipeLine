@@ -1,5 +1,6 @@
 import { COMPETITOR_REPORT_LIMIT } from '../config/constants.js'
 import { renderCannibalizationFindingsMarkdown } from './cannibalizationSection.js'
+import { renderCrawlFindingsMarkdown } from './crawlSection.js'
 import { renderCwvDiagnosisMarkdown, renderFieldCwvComparisonMarkdown } from './cwvSection.js'
 import { renderIndexingFindingsMarkdown } from './indexingSection.js'
 import { renderSeoFindingsMarkdown } from './seoSection.js'
@@ -132,6 +133,12 @@ export const renderMarkdown = (model: ReportModel): string => {
   const indexingFindings = renderIndexingFindingsMarkdown(model.analysis.indexingFindings)
   if (indexingFindings !== '') {
     push(indexingFindings)
+    push()
+  }
+
+  const crawlFindings = renderCrawlFindingsMarkdown(model.analysis.crawlFindings)
+  if (crawlFindings !== '') {
+    push(crawlFindings)
     push()
   }
 

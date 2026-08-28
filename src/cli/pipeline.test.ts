@@ -35,6 +35,9 @@ const SECTION_HEADERS = [
   // (mockProviders.ts) — bu satır o bölümün sessizce boş kalmadığını doğrular.
   '### Sayfa Yamyamlığı',
   '### Gerçek Kullanıcı Verisi (CrUX)',
+  // Mock crawl sağlayıcısı müşteri anasayfasını bilinçli kusurlu üretir (title/h1/schema
+  // yok) — bu satır o bölümün sessizce boş kalmadığını doğrular (Faz 1.3'teki dersle aynı).
+  '### Site Denetimi (Crawler)',
 ]
 
 describe('runResearch (uçtan uca, mock mod)', () => {
@@ -69,6 +72,10 @@ describe('runResearch (uçtan uca, mock mod)', () => {
     // Teşhis yalnız başlık atmakla kalmamalı: suçlu element ve kopyalanabilir düzeltme de gelmeli
     expect(markdown).toContain('Suçlu element')
     expect(markdown).toContain('fetchpriority="high"')
+
+    // Crawler bölümü de boş kalmamalı: mock müşteri anasayfasını title/h1'siz üretiyor
+    expect(markdown).toContain('<title> etiketi eksik')
+    expect(markdown).toContain('hiç <h1> yok')
 
     const html = readFileSync(outcome.htmlPath, 'utf-8')
     expect(html).toContain('MOCK MODE')
