@@ -117,59 +117,52 @@ cevabı almak" değil, sıradan bir kullanıcının aldığı cevabı görmek.
 
 ---
 
-## Faz 2 — Ortak `Finding` modeli + crawler (Mod 1'in temeli)
+## Faz 2 — Ortak `Finding` modeli + crawler (Mod 1'in temeli) ✅ TAMAMLANDI
 
-Faz 1'in birden fazla kalemi bulgu üretiyor (Lighthouse SEO, indeksleme, yamyamlık). Bunlar
-`CwvFinding`'e sığmıyor. Önce genelleştirme, sonra crawler.
+**Durum notu (uygulama sırasında iki düzeltme):**
 
-### 2.1 `CwvFinding` → genel `Finding`
+1. **2.1 (`CwvFinding` → genel `Finding`) planlanmadan önce zaten yapılmıştı** — Faz 1.0/1.1'de
+   (commit `f12a93d`) `Finding` genel tipi `src/core/findings.ts`'e taşınmış,
+   `CwvFinding` bunun daraltılmış alt tipi olarak kurulmuştu. `category` bu fazda yalnız
+   `'links'` aldı (`'structured-data'` ayrı bir kategori açmadı — schema.org/OG `onpage`'e,
+   robots.txt/sitemap uyuşmazlıkları `indexing`'e girdi; `'code'` Faz 3'e bırakıldı).
+2. **"`findings` tablosu" (eski satır 172) mimariyle çelişiyordu, açılmadı.** `Finding` hiçbir
+   yerde kalıcı bir tabloya yazılmıyor — `indexingFindings`/`cannibalizationFindings`'le aynı
+   desen: yalnız ham `pages`/`page_links` DB'ye yazılır (migration v8), bulgular her run'da
+   `detectOnPageIssues`/`detectLinkIssues`/`detectCrawlabilityIssues` ile ham veriden
+   yeniden hesaplanır (`src/analysis/crawl/`).
 
-`src/analysis/cwv/types.ts` içindeki tasarım zaten doğru; eksik olan üç alan:
+**Uygulanan crawler kapsamı:** `src/providers/real/crawlProvider.ts` (fetchPage/fetchRobotsRules/
+fetchSitemapUrls — CrUX'un domain-şekilli, ham metin sızdırmayan deseniyle), HTML/robots.txt/
+sitemap ayrıştırması `cheerio` + `robots-parser` ile (yeni bağımlılıklar — dürüstçe eklendi,
+elle yazmak robots.txt eşleştirmesinde risk taşırdı). `src/collectors/crawlSite.ts`: robots.txt +
+sitemap.xml bir kez çekilir, seed URL'lerden (anasayfa + `auditUrls`) BFS ile dalga dalga taranır;
+`crawlMaxPages`/`crawlMaxDepth`/`crawlExcludePaths` (`config/project.json`) ile sınırlanır. Tek
+sayfa hatası (4xx/5xx/ağ) tüm taramayı düşürmez.
 
-```ts
-interface Finding {
-  category: 'cwv' | 'onpage' | 'indexing' | 'structured-data' | 'links' | 'content' | 'code'
-  severity: 'critical' | 'high' | 'medium' | 'low'
-  scope: { url: string | null; selector: string | null; codeLocation: CodeLocation | null }
-  impact: number   // 0..100 — trafik/dönüşüm etkisi tahmini
-  effort: 'trivial' | 'small' | 'medium' | 'large'
-  title: string; explanation: string
-  evidence: string          // ölçülen ham değer — iddianın dayanağı
-  fixSnippet: string | null
-}
-```
+**Kapsam dışı bırakılanlar (bilinçli):**
+- **JS-render geçişi** (ham HTML vs render edilmiş DOM) — repo'da programatik Chromium kontrolü
+  yok (Lighthouse CLI alt süreç, ham DOM vermiyor), `playwright`/`puppeteer` gibi yeni ve ağır
+  bir bağımlılık ister. Kullanıcı kararı: önce ham HTML — bu adım ileride ayrı planlanacak.
+- **Rakip site crawl'ı** — yalnız `config.domain` taranıyor, rakip karşılaştırması (CWV/CrUX'ta
+  zaten var) crawler'a genişletilmedi.
+- `hreflang`, `Cache-Control`, `lastmod` tazeliği gibi ikincil sinyaller ilk sürüme girmedi —
+  getiri/emek oranı daha düşük, ileride eklenebilir.
 
-`impact × effort` ikilisi raporu "50 sorun var" listesinden "önce şu üçünü yap" listesine
-çevirir. `codeLocation` Mod 2'nin bağlanma noktası — Faz 2'de `null` kalır.
+---
 
-`sortFindings()` ve `SEVERITY_ORDER` aynen taşınır; CWV kuralları (`lcpRules.ts`, `inpRules.ts`,
-`clsRules.ts`) `Finding` döndürecek şekilde uyarlanır, mantık değişmez.
+## Faz X — Operasyonel: VPS dağıtımı + zamanlayıcı + çoklu müşteri orkestrasyonu (planlanacak)
 
-### 2.2 Crawler — yeni sağlayıcı kategorisi `crawl`
+Kullanıcı isteği: proje VPS üzerinde sürekli veri toplayan, birden fazla sitenin işini
+yapabilen bir hizmete dönüşebilmeli. Sıklık kararı: **günlük/haftalık zamanlanmış çalıştırma**
+(neredeyse gerçek-zamanlı değil) — cron benzeri, her client için ayrı
+`npm run research --config <yol>` tetiklemesi.
 
-Node + `undici` ile basit, saygılı bir tarayıcı (robots.txt'e uyar, eşzamanlılık sınırlı,
-`TECH_AUDIT_CONCURRENCY` yorumundaki ders geçerli). JS render gereken sayfalar için Chromium
-(zaten Lighthouse için kurulu) ile ikinci geçiş — **ham HTML vs render edilmiş DOM farkı**
-başlı başına kritik bir bulgu.
-
-Toplanacaklar ve üretilecek bulgular:
-
-| Alan | Bulgu örneği |
-|---|---|
-| title / meta description | eksik, çok uzun/kısa, sayfalar arası tekrar |
-| H1-H6 | H1 yok / birden fazla / hiyerarşi atlaması |
-| canonical | eksik, çapraz domain, çelişkili, `<head>` dışında |
-| meta robots / X-Robots-Tag | istemeden `noindex` |
-| hreflang | karşılıklılık hatası, `x-default` yok |
-| schema.org (JSON-LD) | eksik `Organization`/`LocalBusiness`/`Service`/`BreadcrumbList`, geçersiz alan |
-| OG / Twitter card | eksik — paylaşım ve AI özetleri için |
-| görseller | `alt` yok, boyut bildirilmemiş (CLS'e bağlanır) |
-| iç link grafiği | öksüz sayfa, tıklama derinliği > 3, anchor metin dağılımı |
-| HTTP | 4xx/5xx iç link, yönlendirme zinciri, karışık içerik, `Cache-Control` |
-| robots.txt / sitemap.xml | sitemap'te olup linklenmemiş, linklenip sitemap'te olmayan, `lastmod` bayat |
-
-`src/analysis/crawl/` altında saf kural fonksiyonları — mevcut `analysis` deseniyle birebir aynı.
-Depolama: `pages`, `page_links`, `findings` tabloları (`migrations.ts` v7+).
+Mevcut mimari buna **zaten uygun**: Faz 1.6'daki `--config` → müşteri başına ayrı
+`data/<slug>.db` + `reports/<tarih>_<slug>/`, izolasyon hazır. Büyük bir yeniden tasarım
+beklenmiyor. Detaylandırma (systemd/cron seçimi, log toplama, hata/robots-block izleme, VPS
+kaynak sınırları, crawler'ın eşzamanlılık bütçesinin client'lar arası paylaşımı gerekip
+gerekmediği) **Faz 2'den sonra, ayrı bir plan turunda** yapılacak — şimdilik yalnız karar notu.
 
 ---
 

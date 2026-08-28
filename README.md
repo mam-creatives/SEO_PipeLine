@@ -1,6 +1,10 @@
 # SEO Komuta Merkezi
 
-Türkiye pazarı için otomatik SEO araştırma pipeline'ı. Dört veri dalını (keyword/SERP, backlink, teknik denetim, AI görünürlük/GEO) toplar, rakipleri otomatik keşfeder, her çalıştırmayı SQLite'a timestamp'li snapshot olarak kaydeder ve "geçen çalıştırmaya göre ne değişti" analiziyle Markdown + HTML rapor üretir.
+Türkiye pazarı için otomatik SEO araştırma pipeline'ı. Keyword/SERP, backlink, teknik denetim
+(CWV), arama performansı (GSC), indeksleme durumu, gerçek kullanıcı verisi (CrUX), AI görünürlük
+(GEO) ve site içi denetim (crawler: on-page + iç link grafiği) dallarını toplar, rakipleri otomatik
+keşfeder, her çalıştırmayı SQLite'a timestamp'li snapshot olarak kaydeder ve "geçen çalıştırmaya
+göre ne değişti" analiziyle Markdown + HTML rapor üretir.
 
 ## Hızlı Başlangıç
 
@@ -10,7 +14,7 @@ npm run research        # tam araştırma → data/seo.db + reports/ altına rap
 npm run research        # ikinci çalıştırmada "Değişenler" bölümü dolar
 npm run report          # son snapshot'tan raporu yeniden üret (veri toplamadan)
 npm run discover-competitors   # yalnız rakip keşfi, konsol tablosu
-npm test                # 118 birim + uçtan uca test
+npm test                # birim + uçtan uca test
 npm run typecheck
 ```
 
@@ -102,6 +106,22 @@ gömülmesi ve beacon'ların bir endpoint'e gitmesi gerekir (`npm run rum -- sni
 daha büyük bir iş; ilk kurulumda atlanabilir — `CRUX_API_KEY` eklenirse INP zaten (toplu,
 28 günlük) geliyor olur, RUM sonradan eklenebilir.
 
+### Site denetimi (crawler) — on-page + iç link grafiği
+
+Anahtar gerektirmez, yalnız müşterinin **kendi** sitesini tarar (rakip crawl'ı yok). Varsayılan
+olarak **mock** — canlı siteye gerçek istek atmak için `.env`'de `CRAWL_PROVIDER=live` açık
+olarak verilmeli (bkz. aşağıdaki tablo). robots.txt'e uyar, sitemap.xml'i okur, seed URL'lerden
+(anasayfa + `auditUrls`) başlayıp iç linkleri dalga dalga (derinlik sınırlı) takip eder.
+
+Tespit ettiği bulgular: eksik/uzun title, boş/uzun meta description, H1 yok/birden fazla,
+canonical yok, schema.org (JSON-LD) yok, eksik Open Graph, alt'sız görsel, kırık iç link (4xx/5xx
+ya da ağ hatası), yönlendirmeye giden link, öksüz sayfa, sitemap yok/uyumsuz, noindex+sitemap
+çelişkisi. Tarama bütçesi `config/project.json`'daki `crawlMaxPages`/`crawlMaxDepth`/
+`crawlExcludePaths` ile ayarlanır.
+
+**JS render karşılaştırması henüz yok** — yalnız ham HTML taranır (bilinçli bir sıralama kararı:
+önce ham HTML, render sonra). Client-side render edilen içerik crawler'a görünmez.
+
 ### Bilinen sınır: şu an yalnız Türkiye pazarı
 
 `locale` alanı fiilen dekoratif. SerpApi çağrısı `google.com.tr` / `gl=tr` / `hl=tr`,
@@ -123,6 +143,7 @@ için bu üç yerin config'ten okunacak şekilde açılması gerekir.
 | İndeksleme durumu | *aynı GSC anahtarları* | Search Console URL Inspection | ücretsiz, ek anahtar gerekmez |
 | CrUX alan verisi (rakipler dahil) | `CRUX_API_KEY` | Chrome UX Report | ücretsiz |
 | AI görünürlük (GEO) | `GEMINI_API_KEY` | Gemini API | token başına |
+| Site denetimi (crawler) | *anahtar yok* → `CRAWL_PROVIDER=live` | Kendi sitenize `fetch` | **ücretsiz** |
 
 Gemini birincil AI motoru çünkü Google AI Overviews'ı besleyen model odur — oradaki
 görünürlük doğrudan arama sonuç sayfasına yansır. `ANTHROPIC_API_KEY` tanınır ama
@@ -163,7 +184,8 @@ src/collectors  ← 2 aşama: (1) keyword+SERP omurga, (2) SERP'ten türetilen
 src/analysis    ← saf fonksiyonlar: intent sınıflandırma (TR marker'lar),
         ↓          kümeleme, rakip keşfi (frekans %15 eşiği + pazaryeri/haber filtresi),
         ↓          fırsat skoru (hacim × kolaylık × vuruş-mesafesi), AI boşluk tespiti,
-        ↓          diffRuns (sıra/rakip/CWV/AI-oran değişimleri + alert'ler)
+        ↓          crawl/ → on-page + link grafiği + taranabilirlik bulgu tespiti,
+        ↓          diffRuns (sıra/rakip/CWV/AI-oran/sayfa sayısı değişimleri + alert'ler)
 src/storage     ← better-sqlite3; her run immutable snapshot (yalnız INSERT),
         ↓          diff = iki runId okuması, UNIQUE(runId, doğalAnahtar)
 src/synthesis   ← kural tabanlı deterministik sentez (anahtarsız çalışır)
