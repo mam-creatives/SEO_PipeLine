@@ -12,6 +12,7 @@ const main = async (): Promise<void> => {
       configPath: paths.configPath,
       dbPath: paths.dbPath,
       reportsDir: 'reports',
+      ...(paths.codePathOverride === undefined ? {} : { codePathOverride: paths.codePathOverride }),
     })
     logger.info(outcome.headline)
     logger.info(`Markdown: ${outcome.markdownPath}`)

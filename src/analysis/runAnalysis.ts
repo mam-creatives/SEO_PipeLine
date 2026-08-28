@@ -1,16 +1,7 @@
 import type { CollectedData } from '../collectors/runAllCollectors.js'
+import { computeCodeAuditFindings } from '../codeaudit/computeCodeAuditFindings.js'
 import { linkFindingsToCode } from '../codeaudit/linkFindingsToCode.js'
-import { detectHeavyAssets } from '../codeaudit/rules/agnostic/heavyAssets.js'
-import { detectPublicDeadHtml } from '../codeaudit/rules/agnostic/publicDeadHtml.js'
-import { detectServerConfigIssues } from '../codeaudit/rules/agnostic/serverConfig.js'
-import { detectThirdPartyScripts } from '../codeaudit/rules/agnostic/thirdPartyScripts.js'
-import { detectAssetIssues } from '../codeaudit/rules/nextjs/assets.js'
-import { detectMetadataIssues } from '../codeaudit/rules/nextjs/metadata.js'
-import { detectRenderStrategyIssues } from '../codeaudit/rules/nextjs/renderStrategy.js'
-import { detectHeadMetaIssues } from '../codeaudit/rules/php/headMetaIssues.js'
-import { detectMissingHreflang } from '../codeaudit/rules/php/missingHreflang.js'
-import { detectCommentedOutHeadings } from '../codeaudit/rules/php/templateStructure.js'
-import type { SourceFile, StackKind } from '../codeaudit/types.js'
+import type { SourceFile } from '../codeaudit/types.js'
 import { CWV_THRESHOLDS } from '../config/constants.js'
 import type { ProjectConfig } from '../config/schema.js'
 import { extractRootDomain } from '../core/text.js'
@@ -51,30 +42,6 @@ export interface AnalysisResult {
   readonly crawlFindings: readonly Finding[]
   /** Faz 3 kod denetçisi — config.codePath yapılandırılmamışsa boş dizi. */
   readonly codeAuditFindings: readonly Finding[]
-}
-
-/**
- * Agnostik kurallar her stack'te çalışır; PHP/Next.js kuralları yalnız `detectStack`
- * ilgili imzayı bulduysa çalışır — yanlış stack'in kurallarını (ör. bir Next.js projesinde
- * .htaccess kontrolü) sessizce atlamak yerine hiç çağırmamak daha doğru.
- */
-const computeCodeAuditFindings = (sourceFiles: readonly SourceFile[], detectedStacks: readonly StackKind[]): readonly Finding[] => {
-  if (sourceFiles.length === 0) return []
-
-  const agnosticFindings = [
-    ...detectHeavyAssets(sourceFiles),
-    ...detectPublicDeadHtml(sourceFiles),
-    ...detectThirdPartyScripts(sourceFiles),
-    ...detectServerConfigIssues(sourceFiles),
-  ]
-  const phpFindings = detectedStacks.some((stack) => stack === 'php-custom' || stack === 'wordpress')
-    ? [...detectHeadMetaIssues(sourceFiles), ...detectMissingHreflang(sourceFiles), ...detectCommentedOutHeadings(sourceFiles)]
-    : []
-  const nextjsFindings = detectedStacks.includes('nextjs')
-    ? [...detectRenderStrategyIssues(sourceFiles), ...detectMetadataIssues(sourceFiles), ...detectAssetIssues(sourceFiles)]
-    : []
-
-  return [...agnosticFindings, ...phpFindings, ...nextjsFindings]
 }
 
 /**

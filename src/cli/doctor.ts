@@ -1,3 +1,4 @@
+import { collectSourceCode } from '../codeaudit/collectSourceCode.js'
 import { loadEnv } from '../config/env.js'
 import { loadProjectConfig } from '../config/loadConfig.js'
 import { createLogger } from '../core/logger.js'
@@ -130,6 +131,27 @@ const checkCrawl = async (providers: ProviderSet, auditUrls: readonly string[], 
 }
 
 /**
+ * Kod denetimi bir SAĞLAYICI değil (bkz. codeaudit/collectSourceCode.ts yorumu — mock/gerçek
+ * ikiliği yok, yerel dosya okuma), bu yüzden `printSelection`'ın MOCK/GERÇEK rozetiyle değil
+ * ayrı bir bloktayla raporlanır: yol yapılandırılmış mı, kaç dosya okunabildi, hangi stack.
+ */
+const checkCodeAudit = (codePath: string | undefined): void => {
+  console.log('\nKOD DENETİMİ')
+  console.log('─'.repeat(64))
+  if (codePath === undefined) {
+    console.log('  ⊘ codePath yapılandırılmamış — config/project.json\'a "codePath" ekleyin ya da --code <yol> verin.')
+    return
+  }
+  const { sourceFiles, detectedStacks, truncated } = collectSourceCode(codePath)
+  if (sourceFiles.length === 0) {
+    console.log(`  ✗ ${codePath} — okunabilir dosya bulunamadı (yol yanlış olabilir ya da izin yok).`)
+    return
+  }
+  const stackLabel = detectedStacks.length === 0 ? '(tanınmadı)' : detectedStacks.join(', ')
+  console.log(`  ✓ ${codePath} — ${sourceFiles.length} dosya okundu, stack: ${stackLabel}${truncated ? ' (SINIRA ULAŞILDI)' : ''}`)
+}
+
+/**
  * Yapılandırma tanılaması: hangi kategorinin gerçek sağlayıcıya bağlandığını gösterir
  * ve ÜCRETSİZ olanları canlı dener. Ücretli/kotalı çağrılar (SerpApi, DataForSEO)
  * bilerek denenmez — tanı için kota harcamak mantıksız olurdu.
@@ -156,6 +178,7 @@ const main = async (): Promise<void> => {
     await checkTechAudit(providers, config.auditUrls)
     await checkCrux(providers, config.auditUrls)
     await checkCrawl(providers, config.auditUrls, config.domain)
+    checkCodeAudit(paths.codePathOverride ?? config.codePath)
 
     console.log('\nDENENMEYENLER (kota/ücret harcamamak için)')
     console.log('─'.repeat(64))

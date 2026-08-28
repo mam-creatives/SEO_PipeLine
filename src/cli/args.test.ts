@@ -33,4 +33,28 @@ describe('resolveCliPaths', () => {
   test('bilinmeyen argüman --config\'ten sonra gelse bile yakalanır', () => {
     expect(() => resolveCliPaths(['--config', 'x.json', '--bar'], () => 'x.com')).toThrow(ConfigError)
   })
+
+  test('--code <yol> verilince codePathOverride dolar', () => {
+    const paths = resolveCliPaths(['--code', '/Users/x/site'], failIfCalled)
+    expect(paths.codePathOverride).toBe('/Users/x/site')
+  })
+
+  test('--code=<yol> biçimi de kabul edilir', () => {
+    const paths = resolveCliPaths(['--code=/Users/x/site'], failIfCalled)
+    expect(paths.codePathOverride).toBe('/Users/x/site')
+  })
+
+  test('--code verilmezse codePathOverride undefined olur', () => {
+    const paths = resolveCliPaths([], failIfCalled)
+    expect(paths.codePathOverride).toBeUndefined()
+  })
+
+  test('--config ve --code birlikte kullanılabilir', () => {
+    const paths = resolveCliPaths(['--config', 'config/musteri.json', '--code', '/Users/x/site'], () => 'musteri.com')
+    expect(paths).toEqual({ configPath: 'config/musteri.json', dbPath: 'data/musteri-com.db', codePathOverride: '/Users/x/site' })
+  })
+
+  test('--code değeri eksikse ConfigError fırlatır', () => {
+    expect(() => resolveCliPaths(['--code'], failIfCalled)).toThrow(ConfigError)
+  })
 })

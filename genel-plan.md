@@ -166,44 +166,45 @@ gerekmediği) **Faz 2'den sonra, ayrı bir plan turunda** yapılacak — şimdil
 
 ---
 
-## Faz 3 — Kod erişimli denetçi (Mod 2)
+## Faz 3 — Kod erişimli denetçi (Mod 2) ✅ TAMAMLANDI
 
-### 3.1 Mimarî: framework tespiti + eklenti kural setleri
+**Durum notu (planlanandan iki fark):**
 
-Stack karışık olduğu için tek bir kural seti yazılamaz. Sıra:
+1. **Kapsam sırası ters çevrildi.** Bu bölümün ilk hali tamamen Next.js/React'e yazılmıştı, ama
+   yapılandırılmış tek gerçek müşteri (mamcreatives.com) framework'süz özel PHP: 1205 PHP
+   dosyası, `.htaccess` front-controller. Uygulama sırası: **agnostik → PHP → Next.js** (kullanıcı
+   kararıyla üçü de yapıldı, ama PHP gerçek kanıtla önce doğrulandı).
+2. **`ts-morph` kullanılmadı.** Next.js kurallarının (render stratejisi, metadata, assets) tamamı
+   dosya-konvansiyonu + satır-çapalı regex ile bulunabiliyor — tam TypeScript derleyicisini
+   bağımlılık yapmak tek bir kural için haklı değildi.
 
-1. `src/codeaudit/detectStack.ts` — `package.json`, `next.config.*`, `nuxt.config.*`,
-   `astro.config.*`, `wp-config.php`, `composer.json`, `Gemfile` imzalarından tespit
-2. `src/codeaudit/rules/<framework>/` — her framework kendi kural modülü, ortak `Finding` döner
-3. Framework-bağımsız katman (her zaman çalışır): `public/` içindeki ağır görseller, CSS'te
-   `aspect-ratio` olmayan medya, üçüncü parti script envanteri, `.htaccess`/`vercel.json`/
-   `next.config` header ve redirect zincirleri
+**Uygulanan mimari:** `src/codeaudit/` sağlayıcı DEĞİL — `registry.ts`'e dokunulmadı, mock/gerçek
+ikiliği yok (yerel dosya: yol varsa okunur, yoksa dal atlanır). `readSourceTree` (allowlist +
+boyut/dosya-sayısı sınırlı, `redactSecrets` ile kimlik bilgisi zorunlu maskeli) → `detectStack`
+(`index.php`+`.htaccess` / `wp-config.php` / `next.config.*` / `nuxt.config.*` / `astro.config.*`
+imzalarından) → `rules/agnostic` (her stack'te: legacy görsel formatı, terk edilmiş statik
+`.html`, render-blokan 3. parti script, `.htaccess`'te eksik önbellek/HTTPS) + `rules/php`
+(çakışan robots meta, eksik OG, no-cache pragma, `<base href>`, JSON-LD yokluğu, hreflang
+yokluğu, HTML yorumu içindeki ölü `<h1>`) + `rules/nextjs` (stack'e göre koşullu).
 
-Ayrıştırma: TypeScript/JS için `ts-morph` (TS derleyici API'sinin kullanılabilir sarmalayıcısı),
-HTML için mevcut crawler parser'ı, PHP için regex + hedefli desen eşleme (tam AST aşırı maliyetli).
+**Ölçüm → kod satırı köprüsü (asıl farklılaştırıcı, planlandığı gibi çalışıyor):**
+`linkFindingsToCode` — herhangi bir `Finding`'in (CWV dahil) `culpritSelector`'ını kaynakta
+class/id üzerinden arar, bulursa `codeLocation` doldurur, isabetsizse `null` döner (uydurmaz,
+`diagnoseCwv` felsefesiyle aynı). `sortFindings` gibi generic — `CwvFinding[]` verilince
+`CwvFinding[]` döner.
 
-### 3.2 En yüksek getirili kurallar (Next.js/React örneği)
+**Gerçek kanıtla doğrulandı** (`~/Downloads/mamcreatives.com/public_html`, 1090 okunabilir
+dosya, `php-custom` tespit edildi): `index.php`'de altı bulgu birebir tuttu (108: çakışan
+robots meta, 105: no-cache pragma, 103: eksik OG, 107: 4 ölü meta, 99: `<base href>`, 97: JSON-LD
+yok) + `.htaccess`'te çok dilli routing'e rağmen hreflang yokluğu + crawler'ın "H1 yok"
+bulgusunun kök nedeni: `inc/hizmet.php:45` ve `partial/banner.php:3`'teki `<h1>`'ler HTML yorumu
+içinde, hiç render edilmiyor. Next.js kuralları ajansın `online-his-front` (Next.js 16) projesine
+karşı duman testiyle doğrulandı — SEO aracına müşteri olarak tanımlı değil, yalnız kural testi
+kaynağı.
 
-- **Render stratejisi**: `'use client'` ağacın çok yukarısında, `dynamic(..., {ssr:false})`
-  ana içeriği sarıyor, `force-dynamic` gereksiz, `generateStaticParams` eksik → indekslenebilir
-  içerik istemcide üretiliyor. Modern kod tabanlarında en büyük tek SEO kaybı budur.
-- **Metadata**: `generateMetadata` / `metadata` export'u olmayan route'lar, `alternates.canonical`
-  eksik, `robots.ts` / `sitemap.ts` dosya konvansiyonu hiç kullanılmamış
-- **Görsel**: `<img>` yerine `next/image`, LCP görselinde `priority` yok, üstteki görselde
-  `loading="lazy"`, `sizes` eksik
-- **Font**: `next/font` yerine `<link>`, `font-display` yok
-- **Script**: `next/script` `beforeInteractive` yanlış kullanımı — doğrudan INP/TBT bulgularına bağlanır
-
-### 3.3 Asıl farklılaştırıcı: ölçüm → kod satırı köprüsü
-
-Bugün CWV teşhisi "Suçlu element: `.hero-title`" diyor. Mod 2'nin en değerli işi bu seçiciyi
-onu render eden bileşen dosyasına geri eşlemek — `Finding.scope.codeLocation` doluyor ve rapor
-"LCP'nin %62'si sunucu yanıtında" demek yerine "`app/(site)/page.tsx:34`'teki `<h1>` şu sebeple
-geç boyanıyor, işte diff" diyor.
-
-Eşleme yolu: class adı / `data-*` özniteliği / metin içeriği üzerinden kaynak taraması, CSS
-Modules ve Tailwind için ayrı stratejiler. Kesin değil ama isabetli — ve isabetsiz olduğunda
-`null` döner, uydurmaz (mevcut `diagnoseCwv` felsefesiyle aynı).
+**Kapsam dışı bırakılanlar (bilinçli):** WordPress kural seti (aktif proje yok), otomatik patch
+uygulama (`fixSnippet` üretilir, dosyaya yazılmaz), LLM katmanı (Katman 1/2 — aşağıdaki bölüm,
+ayrı bir plan turu).
 
 ---
 

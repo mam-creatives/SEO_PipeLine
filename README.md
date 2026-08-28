@@ -2,9 +2,10 @@
 
 Türkiye pazarı için otomatik SEO araştırma pipeline'ı. Keyword/SERP, backlink, teknik denetim
 (CWV), arama performansı (GSC), indeksleme durumu, gerçek kullanıcı verisi (CrUX), AI görünürlük
-(GEO) ve site içi denetim (crawler: on-page + iç link grafiği) dallarını toplar, rakipleri otomatik
-keşfeder, her çalıştırmayı SQLite'a timestamp'li snapshot olarak kaydeder ve "geçen çalıştırmaya
-göre ne değişti" analiziyle Markdown + HTML rapor üretir.
+(GEO), site içi denetim (crawler: on-page + iç link grafiği) ve kod erişimli denetim (kaynak
+kodundan doğrudan bulgu, satır numarasıyla) dallarını toplar, rakipleri otomatik keşfeder, her
+çalıştırmayı SQLite'a timestamp'li snapshot olarak kaydeder ve "geçen çalıştırmaya göre ne
+değişti" analiziyle Markdown + HTML rapor üretir.
 
 ## Hızlı Başlangıç
 
@@ -14,6 +15,7 @@ npm run research        # tam araştırma → data/seo.db + reports/ altına rap
 npm run research        # ikinci çalıştırmada "Değişenler" bölümü dolar
 npm run report          # son snapshot'tan raporu yeniden üret (veri toplamadan)
 npm run discover-competitors   # yalnız rakip keşfi, konsol tablosu
+npm run codeaudit -- --code /yol/kaynak-kodu   # yalnız kod denetimi, anahtarsız, tek başına
 npm test                # birim + uçtan uca test
 npm run typecheck
 ```
@@ -62,6 +64,7 @@ zod ile doğrulanır — hatalı config açık Türkçe mesajla reddedilir.
 | `seedCompetitors` | — | Bildiğin gerçek rakipler; boş bırakılırsa sistem SERP'ten kendisi bulur |
 | `aiQueries` | — | GEO ölçümü için müşteri ağzından sorular |
 | `auditUrls` | — | CWV denetlenecek temsilci sayfalar |
+| `codePath` | — | Kaynak kodun yerel yolu — verilirse "Kod Denetimi" bölümü çalışır (aşağıya bakın) |
 
 ### Doldururken dikkat edilecekler
 
@@ -122,6 +125,34 @@ ya da ağ hatası), yönlendirmeye giden link, öksüz sayfa, sitemap yok/uyumsu
 **JS render karşılaştırması henüz yok** — yalnız ham HTML taranır (bilinçli bir sıralama kararı:
 önce ham HTML, render sonra). Client-side render edilen içerik crawler'a görünmez.
 
+### Kod erişimli denetim — kaynak koddan doğrudan bulgu, satır numarasıyla
+
+Anahtar gerektirmez, `config/project.json`'daki `codePath` (ya da `--code <yol>`) yapılandırılmışsa
+çalışır. Crawler canlı HTML'den "bu sorun var" der; kod denetimi kaynak dosyayı okuyup "şurada,
+şu satırda" der — bazı bulgularda (`culpritSelector`'ı olan CWV bulguları dahil) doğrudan
+`dosya:satır` eşleşmesi üretir.
+
+Desteklenen stack'ler: framework-bağımsız kurallar (legacy görsel formatı, terk edilmiş statik
+`.html` yığını, render'ı blokan 3. parti script, `.htaccess`'te eksik önbellek/HTTPS direktifi)
+her stack'te çalışır; özel PHP siteleri (`index.php` + `.htaccess` imzası) için ayrıca çakışan
+robots meta, eksik Open Graph, no-cache pragma meta, `<base href>` riski, JSON-LD yokluğu,
+HTML yorumu içinde ölü `<h1>`, çok dilli routing'e rağmen hreflang yokluğu; Next.js (App Router)
+için `'use client'`in layout kökünde olması, `dynamic(...,{ssr:false})`, `force-dynamic`, eksik
+`generateStaticParams`, eksik `metadata`/`generateMetadata`, `<img>` yerine `next/image` yokluğu,
+`next/font`/`next/script` kullanılmaması.
+
+**Neden `ts-morph` yok:** yukarıdaki kuralların tamamı dosya-konvansiyonu + satır-çapalı regex ile
+bulunabiliyor. Tam TypeScript derleyicisini bağımlılık yapmak tek bir kural için haklı değildi —
+gerçekten kapsam/tip çözümü isteyen bir kural çıkarsa eklenir.
+
+WordPress kural seti henüz yok (ajansın aktif projelerinin hiçbiri WP değil). Bulgular asla
+otomatik uygulanmaz — `fixSnippet` üretilir, dosyaya yazılmaz.
+
+```bash
+npm run codeaudit -- --code /yol/kaynak-kodu   # tek başına, hızlı bakış
+npm run doctor -- --code /yol/kaynak-kodu      # kaç dosya okundu + tespit edilen stack
+```
+
 ### Bilinen sınır: şu an yalnız Türkiye pazarı
 
 `locale` alanı fiilen dekoratif. SerpApi çağrısı `google.com.tr` / `gl=tr` / `hl=tr`,
@@ -144,6 +175,7 @@ için bu üç yerin config'ten okunacak şekilde açılması gerekir.
 | CrUX alan verisi (rakipler dahil) | `CRUX_API_KEY` | Chrome UX Report | ücretsiz |
 | AI görünürlük (GEO) | `GEMINI_API_KEY` | Gemini API | token başına |
 | Site denetimi (crawler) | *anahtar yok* → `CRAWL_PROVIDER=live` | Kendi sitenize `fetch` | **ücretsiz** |
+| Kod erişimli denetim | *anahtar yok* → `codePath` / `--code` | Yerel dosya okuma | **ücretsiz** |
 
 Gemini birincil AI motoru çünkü Google AI Overviews'ı besleyen model odur — oradaki
 görünürlük doğrudan arama sonuç sayfasına yansır. `ANTHROPIC_API_KEY` tanınır ama
@@ -186,6 +218,10 @@ src/analysis    ← saf fonksiyonlar: intent sınıflandırma (TR marker'lar),
         ↓          fırsat skoru (hacim × kolaylık × vuruş-mesafesi), AI boşluk tespiti,
         ↓          crawl/ → on-page + link grafiği + taranabilirlik bulgu tespiti,
         ↓          diffRuns (sıra/rakip/CWV/AI-oran/sayfa sayısı değişimleri + alert'ler)
+src/codeaudit   ← readSourceTree (güvenli okuma + redactSecrets) → detectStack →
+        ↓          rules/agnostic + rules/php + rules/nextjs (stack'e göre koşullu) →
+        ↓          linkFindingsToCode (CWV bulgularını culpritSelector'dan kaynağa bağlar).
+        ↓          Sağlayıcı DEĞİL — mock/gerçek ikiliği yok, config.codePath varsa çalışır.
 src/storage     ← better-sqlite3; her run immutable snapshot (yalnız INSERT),
         ↓          diff = iki runId okuması, UNIQUE(runId, doğalAnahtar)
 src/synthesis   ← kural tabanlı deterministik sentez (anahtarsız çalışır)
