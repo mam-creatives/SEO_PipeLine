@@ -1,3 +1,4 @@
+import Database from 'better-sqlite3'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -73,6 +74,17 @@ describe('runResearch (uçtan uca, mock mod)', () => {
     expect(html).toContain('MOCK MODE')
     expect(html).toContain('<title>')
     expect(html).toContain('cwv-card')
+
+    // Regresyon nöbetçisi: collectFieldCwv veri üretiyor ama insertFieldCwv çağrılmazsa
+    // (Faz 1.4'te fiilen olan hata) rapor yine de dolu görünür çünkü o run'ın KENDİ
+    // collected verisinden render edilir — bug yalnız DB round-trip'inde görünür.
+    const db = new Database(join(scratchDir, 'seo.db'), { readonly: true })
+    try {
+      const row = db.prepare('SELECT COUNT(*) AS n FROM field_cwv WHERE runId = 1').get() as { n: number }
+      expect(row.n).toBeGreaterThan(0)
+    } finally {
+      db.close()
+    }
   }, 20000)
 
   test('ikinci çalıştırma: diff bölümü karşılaştırma yapar', async () => {
