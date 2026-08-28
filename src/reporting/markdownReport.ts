@@ -210,6 +210,10 @@ export const renderMarkdown = (model: ReportModel): string => {
       }
       push()
     }
+    if (model.diff.crawlDelta.pageCountDelta !== 0) {
+      const delta = model.diff.crawlDelta.pageCountDelta
+      push(`Taranan sayfa sayısı: ${delta > 0 ? `+${delta}` : delta} (önceki çalıştırmaya göre)`)
+    }
     if (model.diff.competitorEntries.length > 0) push(`Yeni rakipler: ${model.diff.competitorEntries.join(', ')}`)
     if (model.diff.competitorExits.length > 0) push(`Listeden çıkan rakipler: ${model.diff.competitorExits.join(', ')}`)
     if (model.diff.aiRateDeltas.length > 0) {

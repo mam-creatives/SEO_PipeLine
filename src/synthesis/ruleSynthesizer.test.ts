@@ -11,6 +11,7 @@ const baselineDiff: TrendDiff = {
   competitorExits: [],
   cwvDeltas: [],
   aiRateDeltas: [],
+  crawlDelta: { pageCountDelta: 0 },
   alerts: [],
 }
 

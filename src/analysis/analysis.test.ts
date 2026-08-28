@@ -302,4 +302,34 @@ describe('diffRuns', () => {
     expect(diff.cwvDeltas[0]?.lcpDeltaMs).toBe(800)
     expect(diff.alerts.some((alert) => alert.message.includes('LCP'))).toBe(true)
   })
+
+  test('crawlDelta.pageCountDelta taranan sayfa sayısı farkını yansıtır', () => {
+    const page = (url: string) => ({
+      url,
+      statusCode: 200,
+      finalUrl: url,
+      fetchError: null,
+      title: 't',
+      metaDescription: 'd',
+      canonicalUrl: url,
+      h1s: ['h'],
+      headingOrder: ['h1'],
+      hasSchemaOrg: false,
+      schemaTypes: [],
+      ogComplete: false,
+      imagesMissingAlt: 0,
+      wordCount: 10,
+      metaRobots: null,
+      internalLinks: [],
+      externalLinkCount: 0,
+    })
+    const prev = makeSnapshot({ pages: [page('https://x.tr/')] })
+    const curr = makeSnapshot({ pages: [page('https://x.tr/'), page('https://x.tr/yeni')] })
+    expect(diffRuns(prev, curr).crawlDelta).toEqual({ pageCountDelta: 1 })
+  })
+
+  test('baseline (ilk çalıştırma) crawlDelta.pageCountDelta 0 döner', () => {
+    const curr = makeSnapshot({})
+    expect(diffRuns(null, curr).crawlDelta).toEqual({ pageCountDelta: 0 })
+  })
 })

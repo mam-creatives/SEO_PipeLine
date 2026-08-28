@@ -27,6 +27,16 @@ export interface AiRateDelta {
   readonly currentRate: number
 }
 
+/**
+ * Sayfa-bazlı tam diff (hangi sayfa yeni kırıldı) bu fazın kapsamında değil — yalnız toplam
+ * sayı karşılaştırması. `findingCountDelta` yok: bulgular RunSnapshot'ta değil CollectedData'da
+ * yaşıyor (bkz. runAnalysis.ts), diffRuns yalnız DB'den okunan ham veriyi karşılaştırıyor —
+ * diğer tüm delta'lar (cwvDeltas dahil) da türetilmiş bulgu değil ham değer karşılaştırıyor.
+ */
+export interface CrawlDelta {
+  readonly pageCountDelta: number
+}
+
 export interface TrendDiff {
   readonly isBaseline: boolean
   readonly configMismatch: boolean
@@ -35,6 +45,7 @@ export interface TrendDiff {
   readonly competitorExits: readonly string[]
   readonly cwvDeltas: readonly CwvDelta[]
   readonly aiRateDeltas: readonly AiRateDelta[]
+  readonly crawlDelta: CrawlDelta
   readonly alerts: readonly Alert[]
 }
 
@@ -46,6 +57,7 @@ const EMPTY_BASELINE: TrendDiff = {
   competitorExits: [],
   cwvDeltas: [],
   aiRateDeltas: [],
+  crawlDelta: { pageCountDelta: 0 },
   alerts: [],
 }
 
@@ -171,6 +183,9 @@ export const diffRuns = (prev: RunSnapshot | null, curr: RunSnapshot): TrendDiff
     }
   }
 
+  // Crawler sayfa sayısı deltası — ham karşılaştırma, ham cwvDeltas ile aynı seviyede.
+  const crawlDelta: CrawlDelta = { pageCountDelta: curr.pages.length - prev.pages.length }
+
   return {
     isBaseline: false,
     configMismatch,
@@ -179,6 +194,7 @@ export const diffRuns = (prev: RunSnapshot | null, curr: RunSnapshot): TrendDiff
     competitorExits,
     cwvDeltas,
     aiRateDeltas,
+    crawlDelta,
     alerts,
   }
 }
