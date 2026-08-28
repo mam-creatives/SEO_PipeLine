@@ -118,6 +118,14 @@ export const EXCLUDED_DOMAIN_PATTERNS: readonly {
   { pattern: 'renderforest.com', classification: 'aggregator' },
 ]
 
+/** Google SERP'te title/description bu uzunluktan sonra genelde kırpılır (piksel bazlı yaklaşık karakter sınırı). */
+export const TITLE_MAX_LENGTH = 60
+export const META_DESCRIPTION_MAX_LENGTH = 160
+
+/** Faz 2 crawler bulgu eşikleri. */
+export const CRAWL_CONCURRENCY = 4
+export const CRAWL_REQUEST_DELAY_MS = 200
+
 /** Intent sınıflandırması için Türkçe işaret kelimeleri (normalize edilmiş halleriyle) */
 export const INTENT_MARKERS = {
   informational: ['nasıl', 'nedir', 'neden', 'ne zaman', 'kaç', 'rehber', 'temizlenir', 'ölçülür', 'yapılır'],
