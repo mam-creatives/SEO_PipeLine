@@ -123,6 +123,29 @@ describe('synthesizeWithRules', () => {
     expect(onPageAction?.text).toContain('taramasını engelleyen')
   })
 
+  test('yüksek impact\'li crawl bulgusu (links kategorisi) yönetici özetine girer', () => {
+    const withCrawlFinding = {
+      ...analysis,
+      crawlFindings: [
+        {
+          category: 'links' as const,
+          severity: 'high' as const,
+          url: 'https://ornek.tr/',
+          culpritSelector: null,
+          title: 'Kırık iç link (404)',
+          explanation: 'test',
+          evidence: 'https://ornek.tr/eski → HTTP 404',
+          impact: 45,
+          effort: 'trivial' as const,
+          fixSnippet: null,
+        },
+      ],
+    }
+    const output = synthesizeWithRules(withCrawlFinding, baselineDiff)
+    const linksAction = output.actions.find((action) => action.category === 'links')
+    expect(linksAction?.text).toContain('Kırık iç link')
+  })
+
   test('rakip sayfaların on-page bulguları yönetici özetine girmez', () => {
     const withCompetitorFinding = {
       ...analysis,
