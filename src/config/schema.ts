@@ -12,6 +12,11 @@ export const ProjectConfigSchema = z.object({
   auditUrls: z.array(z.string().url('auditUrls geçerli URL olmalı')).default([]),
   locale: z.string().default('tr-TR'),
   mockSeed: z.number().int().default(DEFAULT_MOCK_SEED),
+  /** Faz 2 crawler bütçesi — client başına, tek bir çalıştırmada taranacak üst sınır. */
+  crawlMaxPages: z.number().int().positive().default(60),
+  crawlMaxDepth: z.number().int().positive().default(3),
+  /** robots.txt'e ek olarak taranmayacak path'ler, örn. ["/cart", "/wp-admin"]. */
+  crawlExcludePaths: z.array(z.string().min(1)).default([]),
 })
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>
@@ -42,6 +47,12 @@ export const EnvSchema = z.object({
    * ama Chrome kurulu olmalı ve yavaştır, bu yüzden açık tercih olarak istenir.
    */
   TECH_AUDIT_PROVIDER: z.preprocess(emptyToUndefined, z.enum(['mock', 'lighthouse']).optional()),
+  /**
+   * Crawler anahtar gerektirmez (yalnız fetch) ama müşterinin canlı sitesine gerçek istek
+   * atar — TECH_AUDIT_PROVIDER=lighthouse ile aynı gerekçeyle açık opt-in ister, sessizce
+   * gerçeğe düşmez.
+   */
+  CRAWL_PROVIDER: z.preprocess(emptyToUndefined, z.enum(['mock', 'live']).optional()),
 })
 
 export type Env = z.infer<typeof EnvSchema>

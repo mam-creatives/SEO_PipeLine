@@ -37,6 +37,21 @@ describe('ProjectConfigSchema', () => {
     const result = ProjectConfigSchema.safeParse({ ...validConfig, auditUrls: ['not-a-url'] })
     expect(result.success).toBe(false)
   })
+
+  test('crawl alanları varsayılanlarla dolar', () => {
+    const result = ProjectConfigSchema.safeParse(validConfig)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.crawlMaxPages).toBe(60)
+      expect(result.data.crawlMaxDepth).toBe(3)
+      expect(result.data.crawlExcludePaths).toEqual([])
+    }
+  })
+
+  test('crawlMaxPages sıfır veya negatifse reddedilir', () => {
+    const result = ProjectConfigSchema.safeParse({ ...validConfig, crawlMaxPages: 0 })
+    expect(result.success).toBe(false)
+  })
 })
 
 describe('EnvSchema', () => {
@@ -48,5 +63,20 @@ describe('EnvSchema', () => {
   test('dolu anahtar korunur', () => {
     const result = EnvSchema.parse({ ANTHROPIC_API_KEY: 'test-key' })
     expect(result.ANTHROPIC_API_KEY).toBe('test-key')
+  })
+
+  test('CRAWL_PROVIDER boşsa "yok" sayılır', () => {
+    const result = EnvSchema.parse({ CRAWL_PROVIDER: '' })
+    expect(result.CRAWL_PROVIDER).toBeUndefined()
+  })
+
+  test('CRAWL_PROVIDER=live kabul edilir', () => {
+    const result = EnvSchema.parse({ CRAWL_PROVIDER: 'live' })
+    expect(result.CRAWL_PROVIDER).toBe('live')
+  })
+
+  test('CRAWL_PROVIDER geçersiz değerde reddedilir', () => {
+    const result = EnvSchema.safeParse({ CRAWL_PROVIDER: 'canli' })
+    expect(result.success).toBe(false)
   })
 })
