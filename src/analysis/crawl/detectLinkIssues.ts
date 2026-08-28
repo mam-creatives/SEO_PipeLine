@@ -10,24 +10,31 @@ const targetLookup = (pages: readonly CrawledPage[]): Map<string, CrawledPage> =
   return byUrl
 }
 
-/** Yalnız TARANMIŞ hedefler değerlendirilir — link keşfedildi ama tarama bütçesi yüzünden çekilmediyse "kırık" demek iddialı olurdu. */
+/**
+ * Yalnız TARANMIŞ hedefler değerlendirilir — link keşfedildi ama tarama bütçesi yüzünden
+ * çekilmediyse "kırık" demek iddialı olurdu. `fetchError` (ağ/timeout) de statusCode>=400 ile
+ * aynı kefede: ikisi de "bu link kullanıcıyı bir yere ulaştırmıyor" demek.
+ */
 const brokenLinkFindings = (pages: readonly CrawledPage[]): readonly Finding[] => {
   const byUrl = targetLookup(pages)
   return pages.flatMap((source) =>
     source.internalLinks.flatMap((link): readonly Finding[] => {
       const target = byUrl.get(link.targetUrl)
-      if (target === undefined || target.statusCode === null || target.statusCode < 400) return []
+      if (target === undefined) return []
+      const isBroken = target.fetchError !== null || (target.statusCode !== null && target.statusCode >= 400)
+      if (!isBroken) return []
+      const statusLabel = target.fetchError ?? `HTTP ${target.statusCode}`
       return [
         {
           category: 'links',
           severity: 'high',
           url: source.url,
           culpritSelector: `a[href="${link.targetUrl}"]`,
-          title: `Kırık iç link (${target.statusCode})`,
+          title: `Kırık iç link (${statusLabel})`,
           explanation:
             `Bu sayfa "${link.anchorText || link.targetUrl}" anchor metniyle "${link.targetUrl}" adresine ` +
-            `link veriyor ama o adres ${target.statusCode} döndürüyor. Kullanıcı ve Googlebot çıkmaz sokağa girer.`,
-          evidence: `${link.targetUrl} → HTTP ${target.statusCode}`,
+            `link veriyor ama o adres ${statusLabel} ile sonuçlanıyor. Kullanıcı ve Googlebot çıkmaz sokağa girer.`,
+          evidence: `${link.targetUrl} → ${statusLabel}`,
           impact: estimateImpact('high'),
           effort: 'trivial',
           fixSnippet: null,

@@ -1,3 +1,5 @@
+import { setTimeout as delay } from 'node:timers/promises'
+import { CRAWL_REQUEST_DELAY_MS } from '../../config/constants.js'
 import { ProviderError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
 import type { CrawledPage } from '../../core/types.js'
@@ -40,6 +42,9 @@ export const createCrawlProvider = (): CrawlProvider => ({
   isMock: false,
 
   fetchPage: async (url: string): Promise<Result<CrawledPage, ProviderError>> => {
+    // Nezaket gecikmesi: yalnız GERÇEK sunucuya karşı anlamlı, bu yüzden orkestrasyon
+    // katmanında (crawlSite.ts) değil burada — mock/fake sağlayıcılarla testler yavaşlamaz.
+    await delay(CRAWL_REQUEST_DELAY_MS)
     const fetched = await fetchText(url)
     if (!fetched.ok) return fetched
     return ok(parseHtmlPage(fetched.value.body, url, fetched.value.status, fetched.value.finalUrl))

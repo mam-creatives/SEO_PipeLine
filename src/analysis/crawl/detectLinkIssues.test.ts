@@ -48,6 +48,13 @@ describe('detectLinkIssues', () => {
     expect(detectLinkIssues([home], ['https://ornek.com/'])).toEqual([])
   })
 
+  test('ağ hatasıyla (fetchError) başarısız hedefe link veren sayfa için de kırık link bulgusu üretir', () => {
+    const home = page({ url: 'https://ornek.com/', internalLinks: [link({ targetUrl: 'https://ornek.com/zaman-asimi' })] })
+    const failed = page({ url: 'https://ornek.com/zaman-asimi', statusCode: null, fetchError: 'timeout' })
+    const findings = detectLinkIssues([home, failed], ['https://ornek.com/'])
+    expect(findings.some((f) => f.category === 'links' && f.evidence.includes('timeout'))).toBe(true)
+  })
+
   test('yönlendirmeye giden linki tespit eder', () => {
     const home = page({ url: 'https://ornek.com/', internalLinks: [link({ targetUrl: 'https://ornek.com/eski' })] })
     const redirected = page({ url: 'https://ornek.com/eski', finalUrl: 'https://ornek.com/yeni' })
