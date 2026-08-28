@@ -4,11 +4,13 @@ import type { CwvMetricName } from './cwv.js'
  * Tüm denetim kategorilerinin ortak bulgu şekli.
  *
  * `CwvFinding` (src/analysis/cwv/types.ts) bunun bir alt tipidir — CWV kuralları
- * `metric`/`phase`/`phaseShare`'i zorunlu doldurur. Faz 2/3'te `category` yeni değerler
- * alacak ('links' | 'code'), `codeLocation` doldurulacak; bu tip o zaman değişmez, yalnız
- * kullanılmaya başlar.
+ * `metric`/`phase`/`phaseShare`'i zorunlu doldurur. `links` Faz 2 crawler'ının iç link
+ * grafiği bulguları için eklendi (kırık link, öksüz sayfa, tıklama derinliği); schema.org/OG
+ * gibi sayfa-içi işaretleme bulguları ayrı bir kategori açmadan `onpage`'e, robots.txt/sitemap
+ * uyuşmazlıkları `indexing`'e giriyor. Faz 3'te `'code'` eklenecek, `codeLocation` doldurulacak;
+ * bu tip o zaman da değişmez, yalnız kullanılmaya başlar.
  */
-export type FindingCategory = 'cwv' | 'onpage' | 'indexing' | 'content'
+export type FindingCategory = 'cwv' | 'onpage' | 'indexing' | 'content' | 'links'
 
 /** critical = eşik "poor" bandında, high = "needs-improvement", medium = faz bütçesi aşıldı, low = bilgi amaçlı */
 export type FindingSeverity = 'critical' | 'high' | 'medium' | 'low'
