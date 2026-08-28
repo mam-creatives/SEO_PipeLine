@@ -56,6 +56,7 @@ const analysis: AnalysisResult = {
   indexingFindings: [],
   cannibalizationFindings: [],
   fieldCwv: [],
+  crawlFindings: [],
 }
 
 describe('synthesizeWithRules', () => {

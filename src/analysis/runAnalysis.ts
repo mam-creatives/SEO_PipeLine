@@ -7,6 +7,9 @@ import type { Finding } from '../core/findings.js'
 import { buildClusters, buildKeywordRows, type KeywordCluster } from './clusterKeywords.js'
 import { diagnoseCwv } from './cwv/diagnose.js'
 import type { CwvDiagnosis } from './cwv/types.js'
+import { detectCrawlabilityIssues } from './crawl/detectCrawlabilityIssues.js'
+import { detectLinkIssues } from './crawl/detectLinkIssues.js'
+import { detectOnPageIssues } from './crawl/detectOnPageIssues.js'
 import { detectAiGaps, type AiQueryVisibility } from './detectAiGaps.js'
 import { detectCannibalization } from './detectCannibalization.js'
 import { detectIndexingIssues } from './detectIndexingIssues.js'
@@ -32,6 +35,8 @@ export interface AnalysisResult {
   readonly indexingFindings: readonly Finding[]
   readonly cannibalizationFindings: readonly Finding[]
   readonly fieldCwv: readonly FieldCwv[]
+  /** onpage + links + taranabilirlik bulguları birleşik — tek bölümde, sortFindings ile sıralanmış render edilir. */
+  readonly crawlFindings: readonly Finding[]
 }
 
 /** Toplanan ham veriyi rapora hazır analiz sonucuna dönüştürür — tamamı saf hesap. */
@@ -60,5 +65,10 @@ export const runAnalysis = (collected: CollectedData, config: ProjectConfig): An
     indexingFindings: detectIndexingIssues(collected.indexStatuses),
     cannibalizationFindings: detectCannibalization(collected.gscRows),
     fieldCwv: collected.fieldCwv,
+    crawlFindings: [
+      ...detectOnPageIssues(collected.crawledPages),
+      ...detectLinkIssues(collected.crawledPages, collected.crawlSeedUrls),
+      ...detectCrawlabilityIssues(collected.crawledPages, collected.sitemapUrls),
+    ],
   }
 }

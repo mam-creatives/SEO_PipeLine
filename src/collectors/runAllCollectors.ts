@@ -54,6 +54,8 @@ export interface CollectedData {
   readonly crawledPages: readonly CrawledPage[]
   /** sitemap.xml'den bulunan URL'ler — DB'ye yazılmaz (bkz. migrations.ts v8), yalnız bu run içinde detectCrawlabilityIssues için taşınır. */
   readonly sitemapUrls: readonly string[]
+  /** collectCrawl'a verilen gerçek seed URL'ler — detectLinkIssues'ın öksüz-sayfa istisnası bunları kullanır. */
+  readonly crawlSeedUrls: readonly string[]
   readonly failedBranches: readonly FailedBranch[]
 }
 
@@ -148,6 +150,7 @@ export const runAllCollectors = async (
     indexStatuses: takeOrEmpty('indeksleme durumu', indexResult) as readonly IndexStatus[],
     crawledPages: crawl.pages,
     sitemapUrls: crawl.sitemapUrls,
+    crawlSeedUrls,
     fieldCwv: takeOrEmpty('CrUX alan verisi', cruxResult) as readonly FieldCwv[],
     failedBranches,
   }

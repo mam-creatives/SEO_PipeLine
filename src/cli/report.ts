@@ -38,9 +38,11 @@ const main = async (): Promise<void> => {
         indexStatuses: snapshot.indexStatuses,
         fieldCwv: snapshot.fieldCwv,
         crawledPages: snapshot.pages,
-        // sitemapUrls kalıcı değil (bkz. migrations.ts v8 yorumu) — yeniden toplamadan
-        // üretilen raporda sitemap karşılaştırması yapılamaz, "sitemap yok" olarak görünür.
+        // sitemapUrls/crawlSeedUrls kalıcı değil (bkz. migrations.ts v8 yorumu) — yeniden
+        // toplamadan üretilen raporda sitemap karşılaştırması yapılamaz, öksüz-sayfa istisnası
+        // uygulanamaz (boş seed = hiçbir sayfa istisna almaz, en kötü ihtimalle fazladan uyarı).
         sitemapUrls: [],
+        crawlSeedUrls: [],
         failedBranches: [],
       }
       const analysis = runAnalysis(collected, config)
