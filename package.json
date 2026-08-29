@@ -6,6 +6,7 @@
   "description": "Türkiye pazarı için otomatik SEO araştırma pipeline'ı — keyword/SERP, backlink, teknik denetim, AI görünürlük (GEO), trend takibi",
   "scripts": {
     "research": "tsx src/cli/research.ts",
+    "research-all": "tsx src/cli/researchAll.ts",
     "audit": "tsx src/cli/auditUrl.ts",
     "codeaudit": "tsx src/cli/codeaudit.ts",
     "doctor": "tsx src/cli/doctor.ts",

@@ -2,6 +2,7 @@ node_modules/
 data/
 reports/
 coverage/
+logs/
 # Gerçek anahtarlar. .env.example BİLEREK izlenir — o boş şablondur.
 .env
 .env.local
