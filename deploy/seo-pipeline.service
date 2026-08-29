@@ -1,0 +1,33 @@
+# systemd servis birimi — SEO Komuta Merkezi çoklu müşteri araştırma koşusu.
+#
+# Kurulum: bu dosyayı /etc/systemd/system/seo-pipeline.service olarak kopyalayın,
+# User/WorkingDirectory/ExecStart'ı kendi VPS yoluna göre düzenleyin, sonra:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now seo-pipeline.timer   (bu servisi DEĞİL, .timer'ı etkinleştirin)
+#
+# Bu servis DOĞRUDAN başlatılmaz — seo-pipeline.timer tetikler. Elle bir kez
+# denemek için: sudo systemctl start seo-pipeline.service
+#
+# EnvironmentFile= BİLEREK kullanılmıyor: uygulama .env'i kendi ayrıştırıcısıyla
+# (src/config/env.ts) WorkingDirectory'ye göre okuyor. systemd'nin EnvironmentFile
+# biçimi GSC_PRIVATE_KEY'in çift-tırnaklı `\n` kaçışını uygulamanın ayrıştırıcısı
+# gibi çözmez — PEM tek satıra düşer ve RS256 imzalama sessizce bozulur.
+
+[Unit]
+Description=SEO Komuta Merkezi - coklu musteri arastirma kosusu
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=seo
+WorkingDirectory=/opt/seo-komuta-merkezi
+ExecStart=/usr/bin/npm run research-all
+# research-all herhangi bir musteri basarisiz olursa sifir-olmayan cikis kodu doner
+# (bkz. src/cli/researchAll.ts) - systemd bu calismayi 'failed' isaretler,
+# journalctl -u seo-pipeline.service'te gorunur. Diger musteriler yine de calisir.
+StandardOutput=journal
+StandardError=journal
+# Cok musterili + Lighthouse denetimli bir kosu uzun surebilir; asili kalirsa
+# systemd'nin sonsuza kadar beklemesini onler.
+TimeoutStartSec=3600

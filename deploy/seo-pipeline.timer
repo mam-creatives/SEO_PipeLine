@@ -1,0 +1,23 @@
+# systemd zamanlayıcı birimi — seo-pipeline.service'i günlük tetikler.
+# Kurulum: /etc/systemd/system/seo-pipeline.timer olarak kopyalayın (yanında
+# seo-pipeline.service de aynı dizinde olmalı), sonra:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now seo-pipeline.timer
+#   systemctl list-timers seo-pipeline.timer   (bir sonraki tetiklenme zamanını gösterir)
+#
+# Haftalık çalıştırmak isterseniz OnCalendar'ı örn. "Mon *-*-* 03:00:00" yapın.
+
+[Unit]
+Description=SEO Komuta Merkezi - gunluk arastirma tetikleyicisi
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+# VPS bu saatte kapalıysa (bakım, yeniden başlatma) kaçan koşu açılışta telafi
+# edilir — sessizce bir günün atlanması yerine.
+Persistent=true
+# Ayni anda ayaga kalkan birden fazla sunucu tam 03:00:00'da ayni SerpApi/DataForSEO
+# ucuna carpmasin diye kucuk bir jitter.
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target
