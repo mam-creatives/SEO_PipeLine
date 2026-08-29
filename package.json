@@ -7,6 +7,7 @@
   "scripts": {
     "research": "tsx src/cli/research.ts",
     "research-all": "tsx src/cli/researchAll.ts",
+    "status": "tsx src/cli/status.ts",
     "audit": "tsx src/cli/auditUrl.ts",
     "codeaudit": "tsx src/cli/codeaudit.ts",
     "doctor": "tsx src/cli/doctor.ts",

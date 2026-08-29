@@ -6,7 +6,7 @@ import type { CrawledPage, FieldCwv, GscRow, IndexStatus, KeywordSnapshotRow, Pa
 import { openDatabase, type Db } from './db.js'
 import { applyMigrations, MIGRATIONS } from './migrations.js'
 import { getRunSnapshot } from './queryRepository.js'
-import { createRun, finishRun, getLatestCompletedRun, getPreviousCompletedRun } from './runRepository.js'
+import { createRun, finishRun, getLatestCompletedRun, getLatestRun, getPreviousCompletedRun } from './runRepository.js'
 import {
   insertAiSamples,
   insertFieldCwv,
@@ -146,6 +146,17 @@ describe('storage', () => {
     const latest = getLatestCompletedRun(db)
     expect(latest?.id).toBe(run.id)
     expect(latest?.mockCategories).toEqual(['keyword'])
+  })
+
+  test('getLatestRun status\'e bakmaksızın en son run\'ı döner (getLatestCompletedRun\'ın aksine)', () => {
+    expect(getLatestRun(db)).toBeNull()
+
+    const run = createRun(db, 'hash123', [])
+    expect(getLatestRun(db)?.status).toBe('running')
+
+    finishRun(db, run.id, 'failed')
+    expect(getLatestRun(db)?.status).toBe('failed')
+    expect(getLatestCompletedRun(db)).toBeNull()
   })
 
   test('kapalı run tekrar kapatılamaz', () => {

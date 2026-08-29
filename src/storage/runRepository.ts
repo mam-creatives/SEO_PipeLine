@@ -47,6 +47,16 @@ export const finishRun = (db: Db, runId: number, status: 'completed' | 'failed')
   }
 }
 
+/**
+ * Son run — durumu ne olursa olsun (running/completed/failed). "Son koşu başarısız
+ * mıydı?" sorusunun cevabı tam olarak `failed` satırında; `getLatestCompletedRun`
+ * bunu asla göremez çünkü status'e göre filtreler. İkisi yan yana durur (Faz X.3 — status).
+ */
+export const getLatestRun = (db: Db): RunMeta | null => {
+  const row = db.prepare(`SELECT * FROM runs ORDER BY id DESC LIMIT 1`).get() as RunRow | undefined
+  return row === undefined ? null : rowToRunMeta(row)
+}
+
 export const getLatestCompletedRun = (db: Db): RunMeta | null => {
   const row = db
     .prepare(`SELECT * FROM runs WHERE status = 'completed' ORDER BY id DESC LIMIT 1`)
