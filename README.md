@@ -11,8 +11,10 @@ değişti" analiziyle Markdown + HTML rapor üretir.
 
 ```bash
 npm install
-npm run research        # tam araştırma → data/seo.db + reports/ altına rapor
+npm run research        # tam araştırma → data/seo.db + reports/ altına rapor (--config verilmezse varsayılan tek müşteri)
 npm run research        # ikinci çalıştırmada "Değişenler" bölümü dolar
+npm run research-all    # config/ altındaki HER müşteriyi ayrı ayrı çalıştırır (bkz. Operasyonel bölümü)
+npm run status           # her müşterinin son koşu durumunu tek tabloda gösterir
 npm run report          # son snapshot'tan raporu yeniden üret (veri toplamadan)
 npm run discover-competitors   # yalnız rakip keşfi, konsol tablosu
 npm run codeaudit -- --code /yol/kaynak-kodu   # yalnız kod denetimi, anahtarsız, tek başına
@@ -176,6 +178,7 @@ için bu üç yerin config'ten okunacak şekilde açılması gerekir.
 | AI görünürlük (GEO) | `GEMINI_API_KEY` | Gemini API | token başına |
 | Site denetimi (crawler) | *anahtar yok* → `CRAWL_PROVIDER=live` | Kendi sitenize `fetch` | **ücretsiz** |
 | Kod erişimli denetim | *anahtar yok* → `codePath` / `--code` | Yerel dosya okuma | **ücretsiz** |
+| Bildirim (yalnız başarısızlıkta) | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Telegram Bot API | ücretsiz |
 
 Gemini birincil AI motoru çünkü Google AI Overviews'ı besleyen model odur — oradaki
 görünürlük doğrudan arama sonuç sayfasına yansır. `ANTHROPIC_API_KEY` tanınır ama
@@ -202,6 +205,31 @@ dokümantasyonundan yazıldı, henüz **canlı bir GSC servis hesabına karşı 
 (bu depoda GSC anahtarları henüz yok). GSC anahtarlarını ekledikten sonra `npm run doctor`
 çalıştırıp "İndeksleme durumu" satırının ✓ verdiğini kontrol edin — repodaki diğer tüm
 sağlayıcılar gerçek yanıta karşı doğrulanmış durumda, bu tek istisna.
+
+## Operasyonel: VPS + çoklu müşteri
+
+Araç elle tetiklemenin ötesine geçip kendi kendine çalışabilir: `config/` dizinine
+her müşteri için bir `*.json` dosyası koyduğunuzda, `npm run research-all` hepsini
+sırayla (nezaket + Lighthouse maliyeti gerekçesiyle paralel değil) ayrı birer çocuk
+süreç olarak çalıştırır. Bir müşterinin başarısız olması diğerlerini durdurmaz.
+
+- `npm run research-all` — her müşteriyi çalıştırır, çıktıyı `logs/<tarih>_<slug>.log`'a yazar.
+- `npm run status` — her müşterinin son koşu zamanı/durumu/rapor yolunu tek tabloda gösterir.
+- `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` verilirse, **yalnız en az bir müşteri
+  başarısız olduğunda** Telegram'a bildirim gider (her koşuda "her şey yolunda"
+  mesajı yok — `status` zaten bunu sorulduğunda söylüyor). İkisinden yalnız biri
+  verilirse pipeline yüksek sesle hata verir; yarım yapılandırmayla sessizce atlanmaz.
+
+Bir Linux VPS'te `systemd` zamanlayıcısıyla günlük otomatik çalıştırma için
+[`deploy/README.md`](deploy/README.md)'ye bakın (Node/Chrome kurulumu, systemd
+birimleri, `journalctl` ile izleme, log rotasyonu).
+
+**Not:** `npm run research` (`--config` VERMEDEN) hâlâ eski varsayılan yola
+(`data/seo.db`) yazar — bu bilerek korunan bir geriye dönük uyumluluk. Çoklu
+müşteri kurulumunda alışkanlıkla bare `npm run research` çalıştırmayın; bu,
+`research-all`'ın kullandığı `data/<müşteri-slug>.db` geçmişinden AYRI, boş bir
+geçmiş başlatır. Standart kullanım `npm run research-all` ya da
+`npm run research -- --config config/<müşteri>.json`.
 
 ## Mimari
 

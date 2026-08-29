@@ -151,18 +151,54 @@ sayfa hatası (4xx/5xx/ağ) tüm taramayı düşürmez.
 
 ---
 
-## Faz X — Operasyonel: VPS dağıtımı + zamanlayıcı + çoklu müşteri orkestrasyonu (planlanacak)
+## Faz X — Operasyonel: VPS dağıtımı + zamanlayıcı + çoklu müşteri orkestrasyonu ✅ TAMAMLANDI
 
 Kullanıcı isteği: proje VPS üzerinde sürekli veri toplayan, birden fazla sitenin işini
-yapabilen bir hizmete dönüşebilmeli. Sıklık kararı: **günlük/haftalık zamanlanmış çalıştırma**
-(neredeyse gerçek-zamanlı değil) — cron benzeri, her client için ayrı
-`npm run research --config <yol>` tetiklemesi.
+yapabilen bir hizmete dönüşebilmeli. Kullanıcı kararları: **Linux VPS + systemd timer**,
+bildirim = **dosya log + durum özeti + Telegram**.
 
-Mevcut mimari buna **zaten uygun**: Faz 1.6'daki `--config` → müşteri başına ayrı
-`data/<slug>.db` + `reports/<tarih>_<slug>/`, izolasyon hazır. Büyük bir yeniden tasarım
-beklenmiyor. Detaylandırma (systemd/cron seçimi, log toplama, hata/robots-block izleme, VPS
-kaynak sınırları, crawler'ın eşzamanlılık bütçesinin client'lar arası paylaşımı gerekip
-gerekmediği) **Faz 2'den sonra, ayrı bir plan turunda** yapılacak — şimdilik yalnız karar notu.
+**Mimari karar: müşteri başına ayrı çocuk süreç (in-process döngü değil).**
+`npm run research-all` (`src/cli/researchAll.ts`), `discoverClients`'ın bulduğu her
+müşteriyi `tsx src/cli/research.ts --config <yol>` olarak ayrı bir alt süreçte, SIRALI
+çalıştırır (paralel değil — nezaket + Lighthouse maliyeti). Üç şeyi bedavaya verdi:
+`src/core/logger.ts`'e HİÇ dokunulmadı (çocuğun stdout/stderr'ı doğrudan
+`logs/<tarih>_<slug>.log`'a yönlendirilir), süreç izolasyonu (bir müşterinin çökmesi
+diğerlerini düşürmez), Lighthouse'un süreç-global `performance.mark()` kilidinin doğal
+olarak aşılması (`constants.ts`'teki "ayrı süreçlerde sorunsuz" notunun fiili kullanımı).
+
+**Üretim hatası → mimari desen:** ilk sürümde orkestrasyon mantığı ve `void main()`
+aynı dosyadaydı; bu dosyayı test etmek için import etmek `main()`'i de tetikledi ve
+GERÇEK bir araştırma koşusu (canlı SerpApi çağrısı dahil) başlattı. Düzeltme kalıcı bir
+desen oldu: her CLI komutu artık ince bir giriş noktasına (`research.ts`/`researchAll.ts`/
+`status.ts` — yalnız `main()`, hiçbir testten import edilmez) ve test edilebilir bir
+mantık dosyasına (`researchPipeline.ts`/`researchAllPipeline.ts`/`statusPipeline.ts`)
+ayrılıyor.
+
+**Durum özeti:** `npm run status` (`src/storage/runRepository.ts`'e eklenen `getLatestRun`
+— `getLatestCompletedRun`'ın aksine status'e bakmaksızın en son run'ı döner) her müşterinin
+DB'sini salt-okunur açar (yoksa yaratmaz, "hiç çalıştırılmamış" der — hata değil), tek
+satırda müşteri · son koşu zamanı · durum · mock kategoriler · son rapor yolunu basar.
+
+**Bildirim:** `src/notify/telegram.ts` sağlayıcı kategorisi DEĞİL (`registry.ts`'in
+mock/gerçek ikiliğine dahil değil) — `codePath` deseniyle aynı, yapılandırılmışsa çalışır.
+`TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` `requireAllOrNone` politikasıyla doğrulanır (yarım
+yapılandırma sessizce atlanmaz). Bildirim **yalnız en az bir müşteri başarısızsa** gider —
+her koşuda "her şey yolunda" mesajı bildirim körlüğü yaratır, `status` bunu zaten sorulduğunda
+söylüyor. Gönderim başarısız olursa batch 'başarısız' sayılmaz, yalnız loglanır.
+
+**VPS dağıtımı:** `deploy/seo-pipeline.service` + `.timer` (oneshot, `User=` root değil,
+`Persistent=true`) + `deploy/README.md` (Node 22, Chrome kurulumu/`PAGESPEED_API_KEY`
+yedeği, `journalctl`/`status` ile izleme, logrotate örneği — rotasyon kodu YAZILMADI,
+işletim sistemine bırakıldı). `EnvironmentFile=` bilerek KULLANILMADI: uygulama `.env`'i
+kendi ayrıştırıcısıyla okuyor, systemd'ninki `GSC_PRIVATE_KEY`'in kaçışlı `\n`'ini bozar.
+
+**DB geçmişi taşındı (kullanıcı onayıyla):** `data/seo.db` (mamcreatives.com'un 12
+run'lık geçmişi) → `data/mamcreatives-com.db`, `research-all`/`status`'ün türettiği
+yolla eşleşmesi için. Taşıma sonrası `status` ile doğrulandı: geçmiş korundu.
+
+**Kapsam dışı bırakılanlar (bilinçli):** paralel müşteri koşusu (sıralı yeterli, müşteri
+sayısı büyürse ayrıca ele alınır), log rotasyon kodu, Docker (systemd seçildi),
+e-posta bildirimi (Telegram seçildi).
 
 ---
 
