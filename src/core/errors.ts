@@ -30,6 +30,13 @@ export class StorageError extends AppError {
   }
 }
 
+/** Bildirim kanalı hatası (ör. Telegram). Bir bildirimin gönderilememesi asla veri toplamayı 'başarısız' yapmamalı — bkz. notify/telegram.ts. */
+export class NotifyError extends AppError {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super('NOTIFY_ERROR', message, options)
+  }
+}
+
 /**
  * Zod hatasını tek satırlık okunabilir özete indirger.
  *

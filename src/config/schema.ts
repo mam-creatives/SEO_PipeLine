@@ -55,6 +55,14 @@ export const EnvSchema = z.object({
    * gerçeğe düşmez.
    */
   CRAWL_PROVIDER: z.preprocess(emptyToUndefined, z.enum(['mock', 'live']).optional()),
+  /**
+   * Faz X — yalnız araştırma koşusunda en az bir müşteri başarısız olursa bildirim
+   * gönderilir. requireAllOrNone politikası notify/telegram.ts'te uygulanır (bu
+   * şema, provider registry'deki gibi ikisi birden mi yoksa hiçbiri mi kontrolünü
+   * YAPMAZ — yalnız tek tek anahtarların biçimini doğrular).
+   */
+  TELEGRAM_BOT_TOKEN: optionalKey,
+  TELEGRAM_CHAT_ID: optionalKey,
 })
 
 export type Env = z.infer<typeof EnvSchema>
