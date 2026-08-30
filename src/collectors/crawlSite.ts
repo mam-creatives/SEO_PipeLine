@@ -34,6 +34,7 @@ const degradedPage = (url: string, message: string): CrawledPage => ({
   ogComplete: false,
   imagesMissingAlt: 0,
   wordCount: 0,
+  bodyText: '',
   metaRobots: null,
   internalLinks: [],
   externalLinkCount: 0,

@@ -173,8 +173,8 @@ export const insertPages = (db: Db, runId: number, pages: readonly CrawledPage[]
     `INSERT INTO pages (runId, url, statusCode, finalUrl, fetchError, title, metaDescription, canonicalUrl,
       h1s, headingOrder, hasSchemaOrg, schemaTypes, ogComplete, imagesMissingAlt, wordCount, metaRobots,
       externalLinkCount, likelyClientRendered, depth, hreflangs, xRobotsTag, contentType, headerHreflangs,
-      securityHeaders, redirectChain, redirectLoop, schemaFields)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      securityHeaders, redirectChain, redirectLoop, schemaFields, bodyText)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
   inTransaction(db, 'Crawler sayfaları', () => {
     for (const page of pages) {
@@ -206,6 +206,7 @@ export const insertPages = (db: Db, runId: number, pages: readonly CrawledPage[]
         JSON.stringify(page.redirectChain),
         page.redirectLoop ? 1 : 0,
         JSON.stringify(page.schemaFields),
+        page.bodyText,
       )
     }
   })

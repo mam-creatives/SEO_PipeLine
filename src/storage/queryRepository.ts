@@ -140,7 +140,7 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
       `SELECT url, statusCode, finalUrl, fetchError, title, metaDescription, canonicalUrl, h1s, headingOrder,
         hasSchemaOrg, schemaTypes, ogComplete, imagesMissingAlt, wordCount, metaRobots, externalLinkCount,
         likelyClientRendered, depth, hreflangs, xRobotsTag, contentType, headerHreflangs, securityHeaders,
-        redirectChain, redirectLoop, schemaFields
+        redirectChain, redirectLoop, schemaFields, bodyText
        FROM pages WHERE runId = ?`,
     )
     .all(runId) as (Omit<

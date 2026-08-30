@@ -58,6 +58,7 @@ const analysis: AnalysisResult = {
   cannibalizationFindings: [],
   fieldCwv: [],
   keywordGaps: [],
+  keywordPageMatches: [],
   crawlFindings: [],
   codeAuditFindings: [],
 }

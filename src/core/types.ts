@@ -183,6 +183,12 @@ export interface CrawledPage {
   readonly ogComplete: boolean
   readonly imagesMissingAlt: number
   readonly wordCount: number
+  /**
+   * Faz 5.4 — `<body>` görünür metni (boşluklar tekilleştirilmiş, `MAX_BODY_TEXT_LENGTH`'te
+   * kırpılmış). `wordCount` yalnız SAYIYI tutuyordu, "hedef keyword bu sayfada geçiyor mu"
+   * sorusu cevaplanamıyordu — keyword↔içerik köprüsü (`keywordPageMatch.ts`) bunu kullanır.
+   */
+  readonly bodyText: string
   /** meta robots içeriği, ör. "noindex,nofollow" — yoksa null. */
   readonly metaRobots: string | null
   readonly internalLinks: readonly PageLink[]
@@ -245,6 +251,21 @@ export interface RunSnapshot {
   readonly pageLinks: readonly PageLink[]
   /** Faz 4.4 — "rakipte var, sende yok" keyword'leri. */
   readonly keywordGaps: readonly KeywordGap[]
+}
+
+/**
+ * Faz 5.4 — bir keyword'ü hedeflediği düşünülen sayfa + o sayfada keyword'ün nerede geçtiği.
+ * Eşleme kanıta dayalı, uydurma değil: önce GSC (Google'ın gerçekte hangi sayfayı gösterdiği,
+ * en güvenilir), sonra SERP (müşterinin top-10'daki URL'i), ikisi de yoksa `url: null`.
+ */
+export interface KeywordPageMatch {
+  readonly keyword: string
+  readonly volume: number
+  readonly url: string | null
+  readonly inTitle: boolean
+  readonly inH1: boolean
+  readonly inBody: boolean
+  readonly matchSource: 'gsc' | 'serp' | 'none'
 }
 
 export interface KeywordSnapshotRow extends KeywordMetric {

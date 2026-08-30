@@ -5,6 +5,7 @@ import { renderCrawlFindingsMarkdown } from './crawlSection.js'
 import { renderCwvDiagnosisMarkdown, renderFieldCwvComparisonMarkdown } from './cwvSection.js'
 import { renderIndexingFindingsMarkdown } from './indexingSection.js'
 import { renderKeywordGapsMarkdown } from './keywordGapSection.js'
+import { renderKeywordPageMatchesMarkdown } from './keywordPageSection.js'
 import { renderSeoFindingsMarkdown } from './seoSection.js'
 import type { ReportModel } from './reportModel.js'
 
@@ -153,6 +154,12 @@ export const renderMarkdown = (model: ReportModel): string => {
   const keywordGaps = renderKeywordGapsMarkdown(model.analysis.keywordGaps)
   if (keywordGaps !== '') {
     push(keywordGaps)
+    push()
+  }
+
+  const keywordPageMatches = renderKeywordPageMatchesMarkdown(model.analysis.keywordPageMatches)
+  if (keywordPageMatches !== '') {
+    push(keywordPageMatches)
     push()
   }
 

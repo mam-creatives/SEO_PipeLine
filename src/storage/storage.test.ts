@@ -116,6 +116,7 @@ const sampleCrawledPage: CrawledPage = {
   ogComplete: true,
   imagesMissingAlt: 2,
   wordCount: 450,
+  bodyText: 'Örnek Ayakkabı için ürün açıklaması burada yer alır.',
   metaRobots: null,
   // internalLinks round-trip'te hep [] döner (bkz. migrations.ts v8 yorumu) — round-trip
   // eşitliğinin anlamlı olması için burada da [] veriliyor.

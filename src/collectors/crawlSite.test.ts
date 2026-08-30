@@ -31,6 +31,7 @@ const emptyPage = (url: string, overrides: Partial<CrawledPage> = {}): CrawledPa
   ogComplete: false,
   imagesMissingAlt: 0,
   wordCount: 10,
+  bodyText: '',
   metaRobots: null,
   internalLinks: [],
   externalLinkCount: 0,

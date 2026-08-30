@@ -287,6 +287,12 @@ export const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE pages ADD COLUMN schemaFields TEXT NOT NULL DEFAULT '[]';
   `,
+  // Faz 5.4 — keyword ↔ içerik köprüsü: sayfanın görünür body metni (kırpılmış, bkz.
+  // config/constants.ts MAX_BODY_TEXT_LENGTH). wordCount yalnız SAYIYI tutuyordu; "hedef
+  // keyword bu sayfada geçiyor mu" sorusu ham metin olmadan cevaplanamaz.
+  `
+  ALTER TABLE pages ADD COLUMN bodyText TEXT NOT NULL DEFAULT '';
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

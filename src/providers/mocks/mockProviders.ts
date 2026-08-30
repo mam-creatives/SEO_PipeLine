@@ -294,6 +294,7 @@ export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider =>
         ogComplete: false,
         imagesMissingAlt: 1,
         wordCount: 120,
+        bodyText: 'Genel içerik metni burada yer alıyor, hedef keyword genelde geçmez.',
         metaRobots: null,
         internalLinks: ['hakkimizda', 'hizmetlerimiz'].map((path) => ({
           sourceUrl: url,
@@ -330,6 +331,7 @@ export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider =>
       ogComplete: true,
       imagesMissingAlt: 0,
       wordCount: randomInt(rng, 150, 600),
+      bodyText: `Ana Başlık ile ilgili örnek içerik. ${url} sayfasının açıklaması ve detayları burada yer alır.`,
       metaRobots: null,
       internalLinks: [],
       externalLinkCount: 0,

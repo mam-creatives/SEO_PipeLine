@@ -18,6 +18,7 @@ const page = (url: string, overrides: Partial<CrawledPage> = {}): CrawledPage =>
   ogComplete: false,
   imagesMissingAlt: 0,
   wordCount: 300,
+  bodyText: '',
   metaRobots: null,
   internalLinks: [],
   externalLinkCount: 0,

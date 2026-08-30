@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio'
-import { CSR_SUSPECT_MIN_SCRIPT_TAGS, CSR_SUSPECT_TEXT_RATIO } from '../../config/constants.js'
+import { CSR_SUSPECT_MIN_SCRIPT_TAGS, CSR_SUSPECT_TEXT_RATIO, MAX_BODY_TEXT_LENGTH } from '../../config/constants.js'
 import type { CrawledPage, PageLink, RedirectHop, SchemaBlock } from '../../core/types.js'
 import { parseContentType, parseLinkHreflangs, pickSecurityHeaders, parseXRobotsTag } from './crawlHeaderParser.js'
 
@@ -103,11 +103,10 @@ const hreflangsOf = ($: cheerio.CheerioAPI): readonly string[] => {
   return codes
 }
 
-const wordCountOf = ($: cheerio.CheerioAPI): number => {
-  const text = $('body').text().trim()
-  if (text === '') return 0
-  return text.split(/\s+/).length
-}
+const wordCountOf = (bodyText: string): number => (bodyText === '' ? 0 : bodyText.split(/\s+/).length)
+
+/** Görünür body metni, boşlukları tekilleştirilmiş — Faz 5.4, `MAX_BODY_TEXT_LENGTH`'te kırpılır. */
+const bodyTextOf = ($: cheerio.CheerioAPI): string => $('body').text().replace(/\s+/g, ' ').trim().slice(0, MAX_BODY_TEXT_LENGTH)
 
 /**
  * Ucuz CSR (istemci-taraflı render) sezgisi — Faz 4.1. İstemci tarafında render edilen bir
@@ -170,6 +169,7 @@ export const parseHtmlPage = (
   const ogComplete = ogTitle !== undefined && ogDescription !== undefined && ogImage !== undefined
 
   const { internalLinks, externalLinkCount } = resolveLinks($, finalUrl)
+  const bodyText = bodyTextOf($)
 
   return {
     url,
@@ -186,7 +186,8 @@ export const parseHtmlPage = (
     schemaFields: schemaObjects,
     ogComplete,
     imagesMissingAlt,
-    wordCount: wordCountOf($),
+    wordCount: wordCountOf(bodyText),
+    bodyText,
     metaRobots,
     internalLinks,
     externalLinkCount,

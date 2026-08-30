@@ -173,6 +173,18 @@ export const SCHEMA_REQUIRED_FIELDS: Readonly<Record<string, readonly string[]>>
 }
 
 /**
+ * Faz 5.4 — keyword ↔ içerik köprüsü. `bodyText` DB'ye persist edilir (immutable-snapshot
+ * felsefesi: `npm run report` yeniden toplamadan bulguyu yeniden hesaplayabilmeli) — bu yüzden
+ * pathological bir sayfa (yanlışlıkla HTML olarak sunulan dev bir JSON/log dosyası gibi)
+ * tabloyu şişirmesin diye savunmacı bir üst sınır var. Gerçek içerik sayfaları için bağlayıcı
+ * olması BEKLENMEZ (tipik sayfa gövdesi birkaç bin karakter).
+ */
+export const MAX_BODY_TEXT_LENGTH = 20_000
+
+/** Bu hacmin altındaki keyword'ler için "hiçbir sayfa hedeflemiyor" bulgusu üretilmez — gürültü olurdu. */
+export const MIN_TARGETABLE_KEYWORD_VOLUME = 500
+
+/**
  * Faz 3 kod denetçisi — güvenli okuma sınırları. Müşteri kaynak ağaçları binlerce dosya
  * (mamcreatives.com'da 7344) taşıyabilir; sınırsız okuma bellek riski taşır.
  */

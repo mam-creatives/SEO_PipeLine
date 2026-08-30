@@ -6,6 +6,7 @@ import { CWV_SECTION_STYLE, renderCwvDiagnosisHtml, renderFieldCwvComparisonHtml
 import { escapeHtml } from './htmlEscape.js'
 import { renderIndexingFindingsHtml } from './indexingSection.js'
 import { renderKeywordGapsHtml } from './keywordGapSection.js'
+import { renderKeywordPageMatchesHtml } from './keywordPageSection.js'
 import type { ReportModel } from './reportModel.js'
 import { renderSeoFindingsHtml } from './seoSection.js'
 
@@ -175,6 +176,9 @@ export const renderHtml = (model: ReportModel): string => {
 
   const keywordGaps = renderKeywordGapsHtml(model.analysis.keywordGaps)
   if (keywordGaps !== '') sections.push(keywordGaps)
+
+  const keywordPageMatches = renderKeywordPageMatchesHtml(model.analysis.keywordPageMatches)
+  if (keywordPageMatches !== '') sections.push(keywordPageMatches)
 
   sections.push('<h2>AI Görünürlüğü (GEO)</h2>')
   if (model.analysis.aiVisibility.length === 0) {

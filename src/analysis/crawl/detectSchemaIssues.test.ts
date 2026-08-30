@@ -18,6 +18,7 @@ const page = (schemaFields: readonly SchemaBlock[], overrides: Partial<CrawledPa
   ogComplete: false,
   imagesMissingAlt: 0,
   wordCount: 300,
+  bodyText: '',
   metaRobots: null,
   internalLinks: [],
   externalLinkCount: 0,
