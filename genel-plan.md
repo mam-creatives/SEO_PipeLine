@@ -275,6 +275,54 @@ karşılaştırması, yurt dışı pazar desteği (ayrı, bilinen bir sınır).
 
 ---
 
+## Faz 5 — Denetim doğruluğu: güven açıkları, ölü veri, keyword↔içerik köprüsü ✅ TAMAMLANDI
+
+Kullanıcının "bir SEO uzmanı bununla dalga geçer mi?" sorusu üzerine kod tabanı sıfırdan
+tarandı (3 paralel envanter + doğrulama). Sonuç: üç yerde bir denetim aracının yapmaması
+gereken hata vardı (yanlış-temiz raporu riski, ölü veri, yüzeysel doğrulama). Altı alt fazda,
+risk sırasıyla ele alındı.
+
+**5.1 — HTTP yanıt başlıkları:** crawler yalnız HTML gövdesine bakıyordu; `X-Robots-Tag:
+noindex` ile engellenmiş bir sayfayı "sağlıklı" raporluyordu (HTML'de hiçbir izi yok). Yeni
+`crawlHeaderParser.ts` — `X-Robots-Tag`, `Content-Type`, `Link` header hreflang'ları, güvenlik
+başlıklarının adları. `X-Robots-Tag` noindex → critical bulgu (CSR bastırmasından etkilenmez).
+
+**5.2 — Redirect zinciri + canonical doğrulaması:** `fetch()`'in otomatik yönlendirme takibi
+kapatılıp elle izleniyor (`redirect:'manual'`, `MAX_REDIRECT_HOPS=5`, döngü tespiti). Yeni
+`detectCanonicalIssues.ts` (6 kural): hedef erişilemiyor/yönlendiriyor/noindex, canonical
+zinciri, farklı domain. **Bilinçli plan sapması:** orijinal "canonical kendine işaret etmiyor"
+kuralı YAZILMADI — bu çok yaygın kasıtlı bir kullanım (Google'ın kendi rehberliği de
+destekliyor), yazılsaydı gürültülü/yanlış bulgu üretirdi.
+
+**5.3 — Schema.org alan doğrulaması:** `schemaTypes` toplanıyordu ama hiçbir kuralda
+kullanılmıyordu (ölü veri). Yeni `schemaFields` (her JSON-LD bloğunun var olan alan adları,
+`offers.price` gibi bir seviye iç içe dahil) + `SCHEMA_REQUIRED_FIELDS` tablosu (Product/
+Article/LocalBusiness/BreadcrumbList/Organization/FAQPage) + `detectSchemaIssues.ts`.
+
+**5.4 — Keyword ↔ içerik köprüsü:** en çok vurgulanan boşluk — araç hedef keyword'leri VE
+sayfa içeriklerini biliyordu, ikisini hiç birleştirmiyordu. Yeni `CrawledPage.bodyText`
+(persist edilir — `npm run report` yeniden toplamadan köprüyü yeniden kurabilsin diye). Yeni
+`keywordPageMatch.ts` (kanıt sırası: GSC → SERP → yok) + `detectKeywordContentIssues.ts`
+(title/H1/body'de yok → bulgu, yalnız eşleşen sayfa gerçekten taranmış VE güvenilirse).
+
+**5.5 — Tarama yüzeyi ve ölçek:** sitemap URL'leri artık crawl kuyruğuna da giriyor (önceden
+yalnız karşılaştırma için taşınıyordu). Yeni alanlar: `viewportMeta`, `langAttribute`,
+`mixedContentCount`, `imagesMissingDimensions`. Ters yön sitemap kuralı (taranan ama
+sitemap'te olmayan). `crawlMaxPages` 60→300, `crawlMaxDepth` 3→5.
+
+**5.6 — Yorum derinliği:** `impact` skoru hesaplanıyordu, hiç basılmıyordu — artık her bulgu
+başlığının yanında. Bulgu-bazlı diff (yeni `snapshotToCollectedData.ts`, DRY): önceki run'ın
+bulguları ham veriden yeniden hesaplanıp "düzeldi/yeni açıldı" karşılaştırması yapılıyor.
+HTML/Markdown parite farkı giderildi (CWV delta tablosu, rakip giriş/çıkışları). İçindekiler
+(MD + HTML sticky nav) — bir GitHub-anchor uyumluluk hatası (Türkçe locale "AI"→"aı" yapıyordu)
+uygulama sırasında bulunup düzeltildi.
+
+**Kapsam dışı bırakılanlar (bilinçli):** headless/JS render crawl, backlink derinliği
+(tekil link listesi/anchor dağılımı), SERP zenginliği (PAA/local pack), müşteri teslimi/
+abonelik (kullanıcının kendi kararı — önce iç araç olgunlaşsın), uluslararası pazar desteği.
+
+---
+
 ## LLM katmanı kararı
 
 **Kling ilgisiz** — video üretim modeli, kod analizi yapmaz.

@@ -115,14 +115,18 @@ daha büyük bir iş; ilk kurulumda atlanabilir — `CRUX_API_KEY` eklenirse INP
 
 Anahtar gerektirmez, yalnız müşterinin **kendi** sitesini tarar (rakip crawl'ı yok). Varsayılan
 olarak **mock** — canlı siteye gerçek istek atmak için `.env`'de `CRAWL_PROVIDER=live` açık
-olarak verilmeli (bkz. aşağıdaki tablo). robots.txt'e uyar, sitemap.xml'i okur, seed URL'lerden
-(anasayfa + `auditUrls`) başlayıp iç linkleri dalga dalga (derinlik sınırlı) takip eder.
+olarak verilmeli (bkz. aşağıdaki tablo). robots.txt'e uyar, sitemap.xml'i okur ve sitemap
+URL'lerini de crawl kuyruğuna ekler (Faz 5.5) — seed URL'lerden (anasayfa + `auditUrls`)
+başlayıp iç linkleri dalga dalga (derinlik sınırlı) takip eder.
 
 Tespit ettiği bulgular: eksik/uzun title, boş/uzun meta description, H1 yok/birden fazla,
-canonical yok, schema.org (JSON-LD) yok, eksik Open Graph, alt'sız görsel, kırık iç link (4xx/5xx
-ya da ağ hatası), yönlendirmeye giden link, öksüz sayfa, sitemap yok/uyumsuz, noindex+sitemap
-çelişkisi. Tarama bütçesi `config/project.json`'daki `crawlMaxPages`/`crawlMaxDepth`/
-`crawlExcludePaths` ile ayarlanır.
+canonical yok/erişilemiyor/yönlendiriyor/zincirli/noindex hedefli, schema.org (JSON-LD) yok ya
+da zorunlu alan eksik, eksik Open Graph, alt'sız/boyutsuz görsel, kırık iç link (4xx/5xx ya da
+ağ hatası), yönlendirme zinciri/döngüsü, öksüz sayfa, sitemap yok/uyumsuz (iki yönlü), noindex+
+sitemap çelişkisi (meta VEYA `X-Robots-Tag` başlığı), karma içerik (mixed content), viewport/
+`lang` eksik, hedef keyword title/H1/gövdede geçmiyor (Faz 5.4). Tarama bütçesi
+`config/project.json`'daki `crawlMaxPages`/`crawlMaxDepth`/`crawlExcludePaths` ile ayarlanır
+(varsayılan 300 sayfa / derinlik 5).
 
 **JS render karşılaştırması henüz yok** — yalnız ham HTML taranır (bilinçli bir sıralama kararı:
 önce ham HTML, render sonra). Client-side render edilen içerik crawler'a görünmez.
