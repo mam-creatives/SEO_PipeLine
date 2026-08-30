@@ -21,6 +21,7 @@ const page = (overrides: Partial<CrawledPage>): CrawledPage => ({
   internalLinks: [],
   externalLinkCount: 0,
   likelyClientRendered: false,
+  depth: 0,
   ...overrides,
 })
 
@@ -109,5 +110,27 @@ describe('detectOnPageIssues', () => {
   test('Faz 4.1 — likelyClientRendered false ise uyarı bulgusu hiç üretilmez', () => {
     const findings = detectOnPageIssues([page({})])
     expect(findings.some((f) => f.title === 'Sayfa muhtemelen istemci tarafında render ediliyor')).toBe(false)
+  })
+
+  test('Faz 4.2 — depth eşiği aşılınca "anasayfadan N tıklama uzakta" bulgusu üretir', () => {
+    const findings = detectOnPageIssues([page({ depth: 4 })])
+    expect(findings.some((f) => f.title.includes('4 tıklama uzakta'))).toBe(true)
+  })
+
+  test('Faz 4.2 — depth eşik altındaysa derinlik bulgusu üretilmez', () => {
+    const findings = detectOnPageIssues([page({ depth: 3 })])
+    expect(findings.some((f) => f.title.includes('tıklama uzakta'))).toBe(false)
+  })
+
+  test('Faz 4.2 — wordCount eşiğin altındaysa ince içerik bulgusu üretir', () => {
+    const findings = detectOnPageIssues([page({ wordCount: 50 })])
+    expect(findings.some((f) => f.title === 'İnce içerik (thin content)')).toBe(true)
+  })
+
+  test('Faz 4.2 — likelyClientRendered true iken ince içerik bulgusu bastırılır (wordCount güvenilmez)', () => {
+    const findings = detectOnPageIssues([
+      page({ wordCount: 50, likelyClientRendered: true, title: 'Yeterli Başlık', h1s: ['H'], hasSchemaOrg: true, ogComplete: true }),
+    ])
+    expect(findings.some((f) => f.title === 'İnce içerik (thin content)')).toBe(false)
   })
 })

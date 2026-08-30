@@ -158,6 +158,12 @@ export interface CrawledPage {
   readonly externalLinkCount: number
   /** Faz 4.1 — ucuz bir sezgiyle (metin/HTML oranı + script sayısı) "muhtemelen CSR" işareti. Kesinlik değil, bkz. crawlHtmlParser.ts. */
   readonly likelyClientRendered: boolean
+  /**
+   * Faz 4.2 — anasayfadan kaç tıklama uzakta (BFS seviyesi). Orkestrasyon (crawlSite.ts)
+   * atar — sayfa ayrıştırıcısı (parseHtmlPage) kendi derinliğini bilemez, 0 döner ve
+   * crawlSite.ts bunu gerçek BFS derinliğiyle EZER.
+   */
+  readonly depth: number
 }
 
 export interface RunMeta {

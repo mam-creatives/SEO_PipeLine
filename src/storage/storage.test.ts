@@ -113,6 +113,7 @@ const sampleCrawledPage: CrawledPage = {
   internalLinks: [],
   externalLinkCount: 3,
   likelyClientRendered: false,
+  depth: 0,
 }
 
 const samplePageLink: PageLink = {

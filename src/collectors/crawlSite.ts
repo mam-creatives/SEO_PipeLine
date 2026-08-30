@@ -38,6 +38,8 @@ const degradedPage = (url: string, message: string): CrawledPage => ({
   externalLinkCount: 0,
   // Ağ/timeout hatasında sayfa hiç alınamadı — CSR olup olmadığı bilinmez, uydurulmaz.
   likelyClientRendered: false,
+  // Yer tutucu — collectCrawl BFS döngüsünde gerçek derinlikle EZİLİR.
+  depth: 0,
 })
 
 /**
@@ -107,7 +109,9 @@ export const collectCrawl = async (
 
     const newPages = await mapWithConcurrency(toFetch, CRAWL_CONCURRENCY, async (url) => {
       const result = await providers.crawl.fetchPage(url)
-      return result.ok ? result.value : degradedPage(url, result.error.message)
+      const page = result.ok ? result.value : degradedPage(url, result.error.message)
+      // Sağlayıcı kendi derinliğini bilemez (yer tutucu 0 döner) — gerçek BFS derinliği burada yazılır.
+      return { ...page, depth }
     })
     pages.push(...newPages)
 

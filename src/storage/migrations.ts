@@ -242,6 +242,10 @@ export const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE pages ADD COLUMN likelyClientRendered INTEGER NOT NULL DEFAULT 0;
   `,
+  // Faz 4.2 — tıklama derinliği (BFS seviyesi): bkz. crawlSite.ts collectCrawl.
+  `
+  ALTER TABLE pages ADD COLUMN depth INTEGER NOT NULL DEFAULT 0;
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

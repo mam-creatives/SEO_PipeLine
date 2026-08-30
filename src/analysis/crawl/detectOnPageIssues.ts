@@ -1,4 +1,4 @@
-import { META_DESCRIPTION_MAX_LENGTH, TITLE_MAX_LENGTH } from '../../config/constants.js'
+import { DEEP_PAGE_THRESHOLD, META_DESCRIPTION_MAX_LENGTH, MIN_WORD_COUNT, TITLE_MAX_LENGTH } from '../../config/constants.js'
 import { estimateImpact, type Finding } from '../../core/findings.js'
 import type { CrawledPage } from '../../core/types.js'
 
@@ -196,6 +196,44 @@ const incompleteOgFinding = (page: CrawledPage): Finding | null => {
   }
 }
 
+/** Faz 4.2 — `depth`, orkestrasyonun (crawlSite.ts BFS) yazdığı gerçek tıklama-derinliği. CSR'den bağımsız: yapısal bir gerçek, içerik render zamanlamasıyla ilgisi yok. */
+const deepPageFinding = (page: CrawledPage): Finding | null => {
+  if (page.depth <= DEEP_PAGE_THRESHOLD) return null
+  return {
+    category: 'onpage',
+    severity: 'medium',
+    url: page.url,
+    culpritSelector: null,
+    title: `Sayfa anasayfadan ${page.depth} tıklama uzakta`,
+    explanation:
+      'Google, iç link grafiğinde anasayfadan uzak sayfaları daha az önemli sinyaliyle tarar/indeksler. ' +
+      `${DEEP_PAGE_THRESHOLD} tıklamadan uzak sayfalar keşif ve tarama bütçesinden daha az pay alır.`,
+    evidence: `depth: ${page.depth} (eşik: ${DEEP_PAGE_THRESHOLD})`,
+    impact: estimateImpact('medium'),
+    effort: 'medium',
+    fixSnippet: null,
+  }
+}
+
+/** Faz 4.2 — CSR'de bastırılır: wordCount ham HTML'den sayılıyor, JS render sonrası içerik eksik sayılabilir. */
+const thinContentFinding = (page: CrawledPage): Finding | null => {
+  if (page.wordCount >= MIN_WORD_COUNT) return null
+  return {
+    category: 'onpage',
+    severity: 'medium',
+    url: page.url,
+    culpritSelector: null,
+    title: 'İnce içerik (thin content)',
+    explanation:
+      `Sayfa yalnız ${page.wordCount} kelime içeriyor (eşik: ${MIN_WORD_COUNT}). Az içerikli sayfalar ` +
+      'Google\'ın konuyu yeterince kapsamlı bulmasını zorlaştırır ve genelde daha zayıf sıralanır.',
+    evidence: `wordCount: ${page.wordCount}`,
+    impact: estimateImpact('medium'),
+    effort: 'medium',
+    fixSnippet: null,
+  }
+}
+
 const imagesMissingAltFinding = (page: CrawledPage): Finding | null => {
   if (page.imagesMissingAlt === 0) return null
   return {
@@ -233,6 +271,8 @@ export const detectOnPageIssues = (pages: readonly CrawledPage[]): readonly Find
       reliable ? missingSchemaFinding(page) : null,
       reliable ? incompleteOgFinding(page) : null,
       imagesMissingAltFinding(page),
+      deepPageFinding(page),
+      reliable ? thinContentFinding(page) : null,
       clientRenderedFinding(page),
     ].filter((finding): finding is Finding => finding !== null)
   })

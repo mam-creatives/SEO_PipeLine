@@ -34,6 +34,7 @@ const emptyPage = (url: string, overrides: Partial<CrawledPage> = {}): CrawledPa
   internalLinks: [],
   externalLinkCount: 0,
   likelyClientRendered: false,
+  depth: 0,
   ...overrides,
 })
 
@@ -180,6 +181,23 @@ describe('collectCrawl', () => {
       const brokenPage = result.value.pages.find((p) => p.url === broken)
       expect(brokenPage?.fetchError).toContain('zaman aşımı')
       expect(brokenPage?.statusCode).toBeNull()
+    }
+  })
+
+  test('Faz 4.2 — depth BFS seviyesini yansıtır: seed 0, bir dalga sonrası bulunan sayfa 1', async () => {
+    const home = 'https://ornek.com/'
+    const about = 'https://ornek.com/hakkimizda'
+    const provider = fakeCrawlProvider({
+      [home]: emptyPage(home, {
+        internalLinks: [{ sourceUrl: home, targetUrl: about, anchorText: 'Hakkımızda', isInternal: true }],
+      }),
+      [about]: emptyPage(about),
+    })
+    const result = await collectCrawl(providersWith(provider), config, [home])
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value.pages.find((p) => p.url === home)?.depth).toBe(0)
+      expect(result.value.pages.find((p) => p.url === about)?.depth).toBe(1)
     }
   })
 

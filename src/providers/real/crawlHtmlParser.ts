@@ -139,5 +139,7 @@ export const parseHtmlPage = (html: string, url: string, statusCode: number, fin
     internalLinks,
     externalLinkCount,
     likelyClientRendered: detectLikelyClientRendered($, html),
+    // Yer tutucu — BFS derinliğini yalnız orkestrasyon (crawlSite.ts) bilir, burada EZİLİR.
+    depth: 0,
   }
 }

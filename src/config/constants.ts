@@ -135,6 +135,10 @@ export const CRAWL_REQUEST_DELAY_MS = 200
 export const CSR_SUSPECT_TEXT_RATIO = 0.02
 export const CSR_SUSPECT_MIN_SCRIPT_TAGS = 5
 
+/** Faz 4.2 — zaten toplanan crawl verisini kullanan yeni bulgu eşikleri. */
+export const DEEP_PAGE_THRESHOLD = 3
+export const MIN_WORD_COUNT = 150
+
 /**
  * Faz 3 kod denetçisi — güvenli okuma sınırları. Müşteri kaynak ağaçları binlerce dosya
  * (mamcreatives.com'da 7344) taşıyabilir; sınırsız okuma bellek riski taşır.
