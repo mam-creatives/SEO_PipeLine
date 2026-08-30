@@ -61,7 +61,7 @@ describe('runResearch (uçtan uca, mock mod)', () => {
       envFilePath: join(scratchDir, 'yok.env'),
     })
 
-    expect(outcome.mockCategories).toHaveLength(9)
+    expect(outcome.mockCategories).toHaveLength(10)
     const markdown = readFileSync(outcome.markdownPath, 'utf-8')
     expect(markdown).toContain('MOCK MODE')
     for (const header of SECTION_HEADERS) {

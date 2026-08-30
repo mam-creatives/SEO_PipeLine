@@ -1,6 +1,6 @@
 import { collectSourceCode } from '../codeaudit/collectSourceCode.js'
 import type { SourceFile, StackKind } from '../codeaudit/types.js'
-import { TECH_AUDIT_COMPETITOR_COUNT } from '../config/constants.js'
+import { KEYWORD_GAP_COMPETITOR_COUNT, TECH_AUDIT_COMPETITOR_COUNT } from '../config/constants.js'
 import type { ProjectConfig } from '../config/schema.js'
 import { AppError } from '../core/errors.js'
 import { createLogger } from '../core/logger.js'
@@ -11,6 +11,7 @@ import type {
   FieldCwv,
   GscRow,
   IndexStatus,
+  KeywordGap,
   KeywordMetric,
   SerpSnapshot,
   TechAudit,
@@ -22,6 +23,7 @@ import {
   collectFieldCwv,
   collectGsc,
   collectIndexStatuses,
+  collectKeywordGaps,
   collectKeywords,
   collectSerps,
   collectTechAudits,
@@ -61,6 +63,8 @@ export interface CollectedData {
   /** Faz 3 kod denetçisi — config.codePath yapılandırılmamışsa boş dizi. */
   readonly sourceFiles: readonly SourceFile[]
   readonly detectedStacks: readonly StackKind[]
+  /** Faz 4.4 — "rakipte var, sende yok" keyword'leri. DataForSEO yapılandırılmamışsa/dal başarısızsa boş dizi. */
+  readonly keywordGaps: readonly KeywordGap[]
   readonly failedBranches: readonly FailedBranch[]
 }
 
@@ -115,7 +119,7 @@ export const runAllCollectors = async (
   // + selectAuditUrls'in seçtiği temsilci sayfalar, BFS bunlardan iç linklerle genişler.
   const crawlSeedUrls = [...new Set([`https://${config.domain}/`, ...clientAuditUrls])]
 
-  const [backlinkResult, techResult, aiResult, gscResult, indexResult, cruxResult, crawlResult] = await Promise.all([
+  const [backlinkResult, techResult, aiResult, gscResult, indexResult, cruxResult, crawlResult, keywordGapResult] = await Promise.all([
     collectBacklinks(providers, backlinkDomains),
     collectTechAudits(providers, techUrls),
     collectAiVisibility(providers, config, backlinkDomains.filter((domain) => domain !== config.domain)),
@@ -126,6 +130,8 @@ export const runAllCollectors = async (
     // lab verisiyle karşılaştırılabilir gerçek kullanıcı p75'i, rakipler dahil.
     collectFieldCwv(providers, techUrls),
     collectCrawl(providers, config, crawlSeedUrls),
+    // Rakip başına ayrı DataForSEO çağrısı — maliyeti sınırlamak için KEYWORD_GAP_COMPETITOR_COUNT'a kırpılır.
+    collectKeywordGaps(providers, config.domain, competitorDomains.slice(0, KEYWORD_GAP_COMPETITOR_COUNT)),
   ])
 
   const failedBranches: FailedBranch[] = [...spineFailures]
@@ -162,6 +168,7 @@ export const runAllCollectors = async (
     fieldCwv: takeOrEmpty('CrUX alan verisi', cruxResult) as readonly FieldCwv[],
     sourceFiles,
     detectedStacks,
+    keywordGaps: takeOrEmpty('keyword fırsatları', keywordGapResult) as readonly KeywordGap[],
     failedBranches,
   }
 }

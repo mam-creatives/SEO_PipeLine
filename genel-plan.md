@@ -106,14 +106,11 @@ diyor ama CLI bunu kabul etmiyor — ikinci müşteride veritabanı çakışıyo
 - `--config <yol>` argümanı; db ve rapor yolu config'in `domain` alanından türetilsin
 - `runResearch()` zaten `ResearchOptions` alıyor, değişiklik sadece CLI katmanında
 
-### 1.7 Anthropic AI görünürlük sağlayıcısını tamamla
+### 1.7 Anthropic AI görünürlük sağlayıcısını tamamla ✅ TAMAMLANDI (Faz 4.3'te)
 
-`src/providers/real/anthropicAiVisibilityProvider.ts` iskelet halinde ve `registry.ts:63`
-anahtar verilirse yüksek sesle hata veriyor. Tamamlanması GEO ölçümünü tek motordan iki motora
-çıkarır — AI görünürlüğü modele göre ciddi değişir, tek motor yanıltıcıdır.
-
-Model: `claude-haiku-4-5` (dosyada zaten yazılı) doğru seçim — GEO ölçümünde amaç "en iyi
-cevabı almak" değil, sıradan bir kullanıcının aldığı cevabı görmek.
+`anthropicAiVisibilityProvider.ts` gerçek Messages API çağrısıyla dolduruldu. Model
+`claude-haiku-4-5-20251001` — iskeletin öngördüğü doğru seçim aynen korundu. **Tek-motor
+seçimi korundu** (çift-motor karşılaştırma değil) — bkz. Faz 4.3 detayı.
 
 ---
 
@@ -241,6 +238,40 @@ kaynağı.
 **Kapsam dışı bırakılanlar (bilinçli):** WordPress kural seti (aktif proje yok), otomatik patch
 uygulama (`fixSnippet` üretilir, dosyaya yazılmaz), LLM katmanı (Katman 1/2 — aşağıdaki bölüm,
 ayrı bir plan turu).
+
+---
+
+## Faz 4 — Crawler sağlamlığı, çapraz-sayfa kurallar, keyword keşfi ✅ TAMAMLANDI
+
+Kullanıcının yapıştırdığı dışarıdan bir kod incelemesinin altı maddesi, gerçek koda karşı
+tek tek doğrulandıktan sonra (hepsi doğru çıktı) tek bir plan altında, faz faz uygulandı.
+
+**4.1 — CSR sahte-bulgu koruması:** `detectLikelyClientRendered` — görünür metin/ham HTML
+oranı düşük VE script sayısı yüksekse `likelyClientRendered` işaretlenir; `detectOnPageIssues.ts`
+bu sayfalarda title/H1/schema/OG "eksik" iddialarını bastırır (yalnız "eksik/yok" — "çok uzun"
+gibi elinde veri olan bulgular etkilenmez), yerine tek bir uyarı bulgusu üretir. İki-geçişli
+render-diff ölçümü bilinçli olarak kapsam dışı bırakıldı (YAGNI, crawl maliyetini katlardı).
+
+**4.2 — sayfa-içi + sayfalar-arası kurallar:** `CrawledPage.depth` artık gerçekten yazılıyor
+(crawlSite.ts BFS'i damgalıyor) → tıklama-derinliği bulgusu. `wordCount` → ince içerik kuralı
+(CSR'de bastırılır). Yeni `detectCrossPageIssues.ts`: duplicate title/H1, grup başına HER
+sayfa için ayrı Finding (`Finding` tipine dokunulmadı).
+
+**4.3 — küçük sağlamlaştırmalar:** Anthropic sağlayıcısı tamamlandı (bkz. 1.7). hreflang canlı
+crawl'da toplanıyor, `missingHreflangFinding` yalnız 2+ dil-önekli path sinyali VE hiç hreflang
+yokken tetikleniyor (tek-dilli sitede yanlış pozitif yok). `collectIndexStatuses`/`collectFieldCwv`
+artık `mapWithConcurrency` kullanıyor.
+
+**4.4 — DataForSEO Labs keyword keşfi:** yeni `keywordGap` sağlayıcı kategorisi,
+`domain_intersection` endpoint'i (`dataForSeoProviders.ts`'e eklendi, DRY). `keyword_gaps`
+tablosu (immutable snapshot, `field_cwv`'nin UNIQUE + dedupe dersini baştan uyguladı). Yeni
+rapor bölümü + `ruleSynthesizer.ts`'e "AI görünürlük boşlukları" deseniyle aynı hacim-sıralı
+aksiyon bloğu. **Canlı doğrulanamadı** — DataForSEO bakiyesi bu fazın uygulandığı sırada boştu;
+alan adları dokümantasyonun en iyi tahmini, savunmacı zod şemasıyla korunuyor (bkz. README
+"Not (Keyword fırsatları)"). Bakiye yüklenince ilk gerçek çağrıda doğrulanmalı.
+
+**Kapsam dışı bırakılanlar (bilinçli):** iki-geçişli CSR ölçümü, eşzamanlı çift-motor GEO
+karşılaştırması, yurt dışı pazar desteği (ayrı, bilinen bir sınır).
 
 ---
 

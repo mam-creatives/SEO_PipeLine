@@ -91,6 +91,19 @@ export interface Competitor {
 }
 
 /**
+ * Faz 4.4 — "rakipte var, sende yok" keyword'ü: DataForSEO Labs domain_intersection'dan.
+ * Müşteri bu keyword için hiç sıralamadığı için opportunity skoru (rankGapFactor
+ * clientRank gerektirir) hesaplanamaz — ayrı, sıralamasız bir liste olarak sunulur.
+ */
+export interface KeywordGap {
+  readonly keyword: string
+  readonly competitorDomain: string
+  readonly competitorPosition: number
+  /** Aylık tahmini arama hacmi — DataForSEO veri bulamadıysa null (0 değil, "ölçülemedi" demek). */
+  readonly volume: number | null
+}
+
+/**
  * Google Search Console URL Inspection sonucu — SEO'nun en kritik tek sinyali:
  * sayfa gerçekten indekslendi mi, Google hangi canonical'ı seçti. Tahmin değil,
  * Google'ın kendi crawler'ının gördüğü.
@@ -192,6 +205,8 @@ export interface RunSnapshot {
   /** `internalLinks` burada hep boş — DB round-trip'te taşınmaz, bkz. migrations.ts v8 yorumu. */
   readonly pages: readonly CrawledPage[]
   readonly pageLinks: readonly PageLink[]
+  /** Faz 4.4 — "rakipte var, sende yok" keyword'leri. */
+  readonly keywordGaps: readonly KeywordGap[]
 }
 
 export interface KeywordSnapshotRow extends KeywordMetric {

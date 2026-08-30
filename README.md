@@ -178,6 +178,7 @@ için bu üç yerin config'ten okunacak şekilde açılması gerekir.
 | AI görünürlük (GEO) | `GEMINI_API_KEY` | Gemini API | token başına |
 | Site denetimi (crawler) | *anahtar yok* → `CRAWL_PROVIDER=live` | Kendi sitenize `fetch` | **ücretsiz** |
 | Kod erişimli denetim | *anahtar yok* → `codePath` / `--code` | Yerel dosya okuma | **ücretsiz** |
+| Keyword fırsatları (rakipte var, sende yok) | *aynı* `DATAFORSEO_LOGIN/PASSWORD` | DataForSEO Labs | pay-as-you-go |
 | Bildirim (yalnız başarısızlıkta) | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Telegram Bot API | ücretsiz |
 
 Gemini birincil AI motoru çünkü Google AI Overviews'ı besleyen model odur — oradaki
@@ -203,8 +204,13 @@ dener; kotalı olanları bilerek denemez.
 **Not (İndeksleme durumu):** `gscUrlInspectionProvider.ts`'in şeması Google'ın resmi
 dokümantasyonundan yazıldı, henüz **canlı bir GSC servis hesabına karşı doğrulanmadı**
 (bu depoda GSC anahtarları henüz yok). GSC anahtarlarını ekledikten sonra `npm run doctor`
-çalıştırıp "İndeksleme durumu" satırının ✓ verdiğini kontrol edin — repodaki diğer tüm
-sağlayıcılar gerçek yanıta karşı doğrulanmış durumda, bu tek istisna.
+çalıştırıp "İndeksleme durumu" satırının ✓ verdiğini kontrol edin.
+
+**Not (Keyword fırsatları):** `dataForSeoProviders.ts`'teki `domain_intersection` şeması da
+aynı gerekçeyle **canlı doğrulanmadı** (Faz 4.4 uygulanırken DataForSEO bakiyesi boştu).
+Alan adları uyuşmazsa sessizce yanlış veri ÜRETMEZ — savunmacı zod şeması açık bir hata
+döner (`dataForSeoResponseToKeywordGaps` yorumu). Bakiye yüklenip ilk gerçek çağrı
+yapıldığında şema doğrulanmalı, gerekirse düzeltilmeli.
 
 ## Operasyonel: VPS + çoklu müşteri
 

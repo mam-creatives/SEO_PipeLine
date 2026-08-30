@@ -5,6 +5,7 @@ import { renderCrawlFindingsHtml } from './crawlSection.js'
 import { CWV_SECTION_STYLE, renderCwvDiagnosisHtml, renderFieldCwvComparisonHtml } from './cwvSection.js'
 import { escapeHtml } from './htmlEscape.js'
 import { renderIndexingFindingsHtml } from './indexingSection.js'
+import { renderKeywordGapsHtml } from './keywordGapSection.js'
 import type { ReportModel } from './reportModel.js'
 import { renderSeoFindingsHtml } from './seoSection.js'
 
@@ -171,6 +172,9 @@ export const renderHtml = (model: ReportModel): string => {
 
   const codeAuditFindings = renderCodeAuditFindingsHtml(model.analysis.codeAuditFindings)
   if (codeAuditFindings !== '') sections.push(codeAuditFindings)
+
+  const keywordGaps = renderKeywordGapsHtml(model.analysis.keywordGaps)
+  if (keywordGaps !== '') sections.push(keywordGaps)
 
   sections.push('<h2>AI Görünürlüğü (GEO)</h2>')
   if (model.analysis.aiVisibility.length === 0) {

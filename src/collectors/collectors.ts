@@ -9,6 +9,7 @@ import type {
   FieldCwv,
   GscRow,
   IndexStatus,
+  KeywordGap,
   KeywordMetric,
   SerpSnapshot,
   TechAudit,
@@ -114,6 +115,17 @@ export const collectIndexStatuses = async (
   }
   return ok(results.flatMap((result) => (result.ok ? [result.value] : [])))
 }
+
+/**
+ * Faz 4.4 — "rakipte var, sende yok" keyword keşfi. `competitorDomains` çağıran tarafta
+ * (runAllCollectors.ts) KEYWORD_GAP_COMPETITOR_COUNT ile zaten küçük tutulur — DataForSEO
+ * maliyeti rakip sayısıyla doğrusal büyür.
+ */
+export const collectKeywordGaps = async (
+  providers: ProviderSet,
+  domain: string,
+  competitorDomains: readonly string[],
+): Promise<Result<readonly KeywordGap[], ProviderError>> => providers.keywordGap.fetchGapKeywords(domain, competitorDomains)
 
 export const collectGsc = async (
   providers: ProviderSet,

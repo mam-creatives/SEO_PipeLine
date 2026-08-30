@@ -162,9 +162,9 @@ describe('mockCrawlProvider', () => {
 })
 
 describe('registry.selectProviders', () => {
-  test('hiç anahtar yoksa 9 kategori de mock seçilir', () => {
+  test('hiç anahtar yoksa 10 kategori de mock seçilir', () => {
     const providers = selectProviders({}, config)
-    expect(providers.mockCategories).toHaveLength(9)
+    expect(providers.mockCategories).toHaveLength(10)
     expect(providers.keyword.isMock).toBe(true)
   })
 
@@ -191,6 +191,18 @@ describe('registry.selectProviders', () => {
     const providers = selectProviders({ DATAFORSEO_LOGIN: 'a', DATAFORSEO_PASSWORD: 'b' }, config)
     expect(providers.keyword.isMock).toBe(false)
     expect(providers.backlink.isMock).toBe(false)
+  })
+
+  test('Faz 4.4 — DataForSEO iki anahtarı da verilince keywordGap da gerçekleşir (aynı kimlik bilgileri)', () => {
+    const providers = selectProviders({ DATAFORSEO_LOGIN: 'a', DATAFORSEO_PASSWORD: 'b' }, config)
+    expect(providers.keywordGap.isMock).toBe(false)
+    expect(providers.mockCategories).not.toContain('keywordGap')
+  })
+
+  test('Faz 4.4 — DataForSEO yapılandırılmamışsa keywordGap mock kalır', () => {
+    const providers = selectProviders({}, config)
+    expect(providers.keywordGap.isMock).toBe(true)
+    expect(providers.mockCategories).toContain('keywordGap')
   })
 
   test('yarım DataForSEO yapılandırması sessizce mocka düşmez, hata verir', () => {

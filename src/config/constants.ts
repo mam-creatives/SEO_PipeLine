@@ -36,6 +36,8 @@ export const FEATURED_SNIPPET_INFORMATIONAL_BONUS = 1.15
  */
 export const MAX_AUDIT_URLS = 4
 export const TECH_AUDIT_COMPETITOR_COUNT = 3
+/** Faz 4.4 — keyword gap keşfi kaç rakiple sınırlı; her rakip ayrı bir DataForSEO çağrısı demek. */
+export const KEYWORD_GAP_COMPETITOR_COUNT = 3
 
 /**
  * Lighthouse aynı Node sürecinde EŞZAMANLI ÇALIŞTIRILAMAZ.

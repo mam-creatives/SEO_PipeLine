@@ -250,6 +250,22 @@ export const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE pages ADD COLUMN hreflangs TEXT NOT NULL DEFAULT '[]';
   `,
+  // Faz 4.4 — "rakipte var, sende yok" keyword'leri (DataForSEO Labs domain_intersection).
+  // field_cwv/page_links'teki aynı UNIQUE(runId, doğalAnahtar) deseni — Faz X.2'deki
+  // field_cwv UNIQUE hatasından ders alınarak baştan dedupe'lu tasarlandı.
+  `
+  CREATE TABLE keyword_gaps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    runId INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    keyword TEXT NOT NULL,
+    competitorDomain TEXT NOT NULL,
+    competitorPosition INTEGER NOT NULL,
+    volume INTEGER,
+    UNIQUE (runId, keyword, competitorDomain)
+  );
+
+  CREATE INDEX idx_keyword_gaps_run ON keyword_gaps(runId);
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

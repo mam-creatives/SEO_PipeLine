@@ -6,6 +6,7 @@ import {
   createMockCrawlProvider,
   createMockCruxProvider,
   createMockIndexingProvider,
+  createMockKeywordGapProvider,
   createMockKeywordProvider,
   createMockSearchConsoleProvider,
   createMockSerpProvider,
@@ -14,7 +15,11 @@ import {
 import { createAnthropicAiVisibilityProvider } from './real/anthropicAiVisibilityProvider.js'
 import { createCrawlProvider } from './real/crawlProvider.js'
 import { createCruxProvider } from './real/cruxProvider.js'
-import { createDataForSeoBacklinkProvider, createDataForSeoKeywordProvider } from './real/dataForSeoProviders.js'
+import {
+  createDataForSeoBacklinkProvider,
+  createDataForSeoKeywordGapProvider,
+  createDataForSeoKeywordProvider,
+} from './real/dataForSeoProviders.js'
 import { createGeminiAiVisibilityProvider } from './real/geminiAiVisibilityProvider.js'
 import { createGscAuth } from './real/gscAuth.js'
 import { createGscProvider } from './real/gscProvider.js'
@@ -116,6 +121,12 @@ export const selectProviders = (env: Env, config: ProjectConfig): ProviderSet =>
       ? real(createDataForSeoBacklinkProvider(dataForSeoLogin, dataForSeoPassword))
       : mock(createMockBacklinkProvider(config))
 
+  // Aynı DataForSEO kimlik bilgilerini paylaşır — ayrı bir requireAllOrNone çağrısı gerekmez.
+  const keywordGap =
+    hasDataForSeo && dataForSeoLogin !== undefined && dataForSeoPassword !== undefined
+      ? real(createDataForSeoKeywordGapProvider(dataForSeoLogin, dataForSeoPassword))
+      : mock(createMockKeywordGapProvider())
+
   // Tek paylaşılan auth örneği: searchConsole + indexing aynı jeton önbelleğini
   // kullanmalı, yoksa her çalıştırmada iki ayrı OAuth turu atılır (bkz. gscAuth.ts).
   const gscAuth =
@@ -145,6 +156,7 @@ export const selectProviders = (env: Env, config: ProjectConfig): ProviderSet =>
     ['indexing', indexing.isMock],
     ['crux', crux.isMock],
     ['crawl', crawl.isMock],
+    ['keywordGap', keywordGap.isMock],
   ]
 
   return {
@@ -157,6 +169,7 @@ export const selectProviders = (env: Env, config: ProjectConfig): ProviderSet =>
     indexing: indexing.provider,
     crux: crux.provider,
     crawl: crawl.provider,
+    keywordGap: keywordGap.provider,
     mockCategories: selections.flatMap(([category, isMock]) => (isMock ? [category] : [])),
   }
 }

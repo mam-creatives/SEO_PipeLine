@@ -3,7 +3,16 @@ import type { AnalysisResult } from '../analysis/runAnalysis.js'
 import { CWV_THRESHOLDS, OPPORTUNITY_TOP_COUNT } from '../config/constants.js'
 import { sortFindings, type Finding } from '../core/findings.js'
 
-export type ActionCategory = 'trend' | 'fırsat' | 'teknik' | 'on-page' | 'links' | 'ai-görünürlük' | 'indeksleme' | 'kod'
+export type ActionCategory =
+  | 'trend'
+  | 'fırsat'
+  | 'teknik'
+  | 'on-page'
+  | 'links'
+  | 'ai-görünürlük'
+  | 'indeksleme'
+  | 'kod'
+  | 'keyword-fırsatı'
 
 /** Site genelinde en yüksek etkili on-page bulguları — hepsini listelemek yönetici özetini boğar. */
 const TOP_ONPAGE_FINDINGS = 3
@@ -11,6 +20,8 @@ const TOP_ONPAGE_FINDINGS = 3
 const TOP_CRAWL_FINDINGS = 5
 /** Kod denetimi (Faz 3) onlarca dosya/bulgu üretebilir — aynı gerekçeyle sınırlanır. */
 const TOP_CODE_FINDINGS = 5
+/** Faz 4.4 — keyword fırsatları onlarcaya çıkabilir (rakip başına ~20) — hacme göre ilk N tanesi. */
+const TOP_KEYWORD_GAP_ACTIONS = 5
 
 /** Finding.category (İngilizce) → ActionCategory (Türkçe) — crawlFindings üç kategoriyi karıştırır. */
 const crawlActionCategory = (category: Finding['category']): ActionCategory => {
@@ -154,6 +165,19 @@ export const synthesizeWithRules = (analysis: AnalysisResult, diff: TrendDiff): 
       priority: 2,
       category: 'ai-görünürlük',
       text: `"${visibility.query}" sorgusunda AI görünürlük boşluğu:${competitorNote} markanız %${Math.round(visibility.clientRate * 100)}'de kalıyor — bu soruya doğrudan cevap veren içerik ve otorite sinyali (GEO) gerekli.`,
+    })
+  }
+
+  // 9) Keyword fırsatları (Faz 4.4) — "rakipte var, sende yok". Hacme göre büyükten küçüğe ilk N.
+  const topKeywordGaps = [...analysis.keywordGaps]
+    .sort((a, b) => (b.volume ?? -1) - (a.volume ?? -1))
+    .slice(0, TOP_KEYWORD_GAP_ACTIONS)
+  for (const gap of topKeywordGaps) {
+    const volumeNote = gap.volume === null ? '' : ` (aylık ~${gap.volume.toLocaleString('tr-TR')} arama)`
+    actions.push({
+      priority: 3,
+      category: 'keyword-fırsatı',
+      text: `"${gap.keyword}"${volumeNote} için ${gap.competitorDomain} #${gap.competitorPosition}'de sıralanıyor, siz hiç sıralamıyorsunuz — içerik fırsatı.`,
     })
   }
 

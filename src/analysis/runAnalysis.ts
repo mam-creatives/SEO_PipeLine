@@ -5,7 +5,7 @@ import type { SourceFile } from '../codeaudit/types.js'
 import { CWV_THRESHOLDS } from '../config/constants.js'
 import type { ProjectConfig } from '../config/schema.js'
 import { extractRootDomain } from '../core/text.js'
-import type { Competitor, FieldCwv, GscRow, KeywordSnapshotRow, TechAudit } from '../core/types.js'
+import type { Competitor, FieldCwv, GscRow, KeywordGap, KeywordSnapshotRow, TechAudit } from '../core/types.js'
 import type { Finding } from '../core/findings.js'
 import { buildClusters, buildKeywordRows, type KeywordCluster } from './clusterKeywords.js'
 import { diagnoseCwv } from './cwv/diagnose.js'
@@ -39,6 +39,8 @@ export interface AnalysisResult {
   readonly indexingFindings: readonly Finding[]
   readonly cannibalizationFindings: readonly Finding[]
   readonly fieldCwv: readonly FieldCwv[]
+  /** Faz 4.4 — "rakipte var, sende yok" keyword'leri, collectors'tan doğrudan geçirilir (skorlama gerektirmez). */
+  readonly keywordGaps: readonly KeywordGap[]
   /** onpage + links + taranabilirlik bulguları birleşik — tek bölümde, sortFindings ile sıralanmış render edilir. */
   readonly crawlFindings: readonly Finding[]
   /** Faz 3 kod denetçisi — config.codePath yapılandırılmamışsa boş dizi. */
@@ -90,6 +92,7 @@ export const runAnalysis = (collected: CollectedData, config: ProjectConfig): An
     indexingFindings: detectIndexingIssues(collected.indexStatuses),
     cannibalizationFindings: detectCannibalization(collected.gscRows),
     fieldCwv: collected.fieldCwv,
+    keywordGaps: collected.keywordGaps,
     crawlFindings: [
       ...detectOnPageIssues(collected.crawledPages),
       ...detectLinkIssues(collected.crawledPages, collected.crawlSeedUrls),

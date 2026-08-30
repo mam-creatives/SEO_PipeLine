@@ -57,6 +57,7 @@ const analysis: AnalysisResult = {
   indexingFindings: [],
   cannibalizationFindings: [],
   fieldCwv: [],
+  keywordGaps: [],
   crawlFindings: [],
   codeAuditFindings: [],
 }
@@ -227,5 +228,26 @@ describe('synthesizeWithRules', () => {
     const indexingAction = output.actions.find((action) => action.category === 'indeksleme')
     expect(indexingAction?.priority).toBe(1)
     expect(indexingAction?.text).toContain('ornek.tr/urun')
+  })
+
+  test('Faz 4.4 — keyword fırsatları hacme göre sıralı aksiyona dönüşür, en yüksek hacimli önce', () => {
+    const withKeywordGaps = {
+      ...analysis,
+      keywordGaps: [
+        { keyword: 'düşük hacimli', competitorDomain: 'flo.com.tr', competitorPosition: 5, volume: 100 },
+        { keyword: 'yüksek hacimli', competitorDomain: 'flo.com.tr', competitorPosition: 2, volume: 9000 },
+      ],
+    }
+    const output = synthesizeWithRules(withKeywordGaps, baselineDiff)
+    const gapActions = output.actions.filter((action) => action.category === 'keyword-fırsatı')
+    expect(gapActions).toHaveLength(2)
+    expect(gapActions[0]?.text).toContain('yüksek hacimli')
+    expect(gapActions[0]?.text).toContain('flo.com.tr')
+    expect(gapActions[0]?.text).toContain('#2')
+  })
+
+  test('Faz 4.4 — keywordGaps boşsa keyword-fırsatı aksiyonu hiç üretilmez', () => {
+    const output = synthesizeWithRules(analysis, baselineDiff)
+    expect(output.actions.some((action) => action.category === 'keyword-fırsatı')).toBe(false)
   })
 })

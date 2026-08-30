@@ -3,6 +3,7 @@ import { ProviderError } from '../../core/errors.js'
 import { hashString, mulberry32, randomInt } from '../../core/random.js'
 import { err, ok } from '../../core/result.js'
 import { extractRootDomain, normalizeTr, slugify } from '../../core/text.js'
+import type { KeywordGap } from '../../core/types.js'
 import {
   AYAKKABI_KEYWORDS,
   BACKLINK_FIXTURES,
@@ -19,6 +20,7 @@ import type {
   CrawlProvider,
   CruxProvider,
   IndexingProvider,
+  KeywordGapProvider,
   KeywordProvider,
   SearchConsoleProvider,
   SerpProvider,
@@ -99,6 +101,32 @@ export const createMockBacklinkProvider = (config: ProjectConfig): BacklinkProvi
       domainAuthority: randomInt(rng, 20, 55),
     })
   },
+})
+
+/**
+ * Faz 4.4 — "rakipte var, sende yok" keyword'leri. Uydurma metin yerine mevcut AYAKKABI_KEYWORDS
+ * evrenini (`config`/`fetchProfile`'daki gibi) yeniden kullanır — tutarlı sentetik tema.
+ */
+export const createMockKeywordGapProvider = (): KeywordGapProvider => ({
+  name: 'mock-keyword-gap',
+  isMock: true,
+  fetchGapKeywords: async (domain, competitorDomains) =>
+    ok(
+      competitorDomains.flatMap((competitorDomain): KeywordGap[] => {
+        const rng = mulberry32(hashString(`${domain}:${competitorDomain}`))
+        const sampleSize = randomInt(rng, 2, 5)
+        return Array.from({ length: sampleSize }, (_, index): KeywordGap | null => {
+          const fixture = AYAKKABI_KEYWORDS[(index + hashString(competitorDomain)) % AYAKKABI_KEYWORDS.length]
+          if (fixture === undefined) return null
+          return {
+            keyword: fixture.keyword,
+            competitorDomain,
+            competitorPosition: randomInt(rng, 1, 10),
+            volume: fixture.volume,
+          }
+        }).filter((gap): gap is KeywordGap => gap !== null)
+      }),
+    ),
 })
 
 export const createMockTechAuditProvider = (config: ProjectConfig): TechAuditProvider => ({

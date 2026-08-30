@@ -7,6 +7,7 @@ import type {
   FieldCwv,
   GscRow,
   IndexStatus,
+  KeywordGap,
   KeywordMetric,
   SerpSnapshot,
   TechAudit,
@@ -22,6 +23,7 @@ export type ProviderCategory =
   | 'indexing'
   | 'crux'
   | 'crawl'
+  | 'keywordGap'
 
 interface ProviderBase {
   readonly name: string
@@ -70,6 +72,14 @@ export interface RobotsRules {
   readonly sitemaps: readonly string[]
 }
 
+/** Faz 4.4 — "rakipte var, sende yok" keyword keşfi (DataForSEO Labs domain_intersection). */
+export interface KeywordGapProvider extends ProviderBase {
+  readonly fetchGapKeywords: (
+    domain: string,
+    competitorDomains: readonly string[],
+  ) => Promise<Result<readonly KeywordGap[], ProviderError>>
+}
+
 export interface CrawlProvider extends ProviderBase {
   /** 4xx/5xx hata değil — CrawledPage.statusCode'a yazılır, bulguya dönüşür. Yalnız ağ/timeout hatası err() döner. */
   readonly fetchPage: (url: string) => Promise<Result<CrawledPage, ProviderError>>
@@ -89,6 +99,7 @@ export interface ProviderSet {
   readonly indexing: IndexingProvider
   readonly crux: CruxProvider
   readonly crawl: CrawlProvider
+  readonly keywordGap: KeywordGapProvider
   /** Mock çalışan kategoriler — boş değilse raporlarda "MOCK MODE" banner'ı gösterilir. */
   readonly mockCategories: readonly ProviderCategory[]
 }

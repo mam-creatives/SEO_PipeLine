@@ -1,16 +1,27 @@
 import { z } from 'zod'
 import { ProviderError, summarizeZodError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
-import type { BacklinkProfile, KeywordMetric } from '../../core/types.js'
-import type { BacklinkProvider, KeywordProvider } from '../types.js'
+import type { BacklinkProfile, KeywordGap, KeywordMetric } from '../../core/types.js'
+import type { BacklinkProvider, KeywordGapProvider, KeywordProvider } from '../types.js'
 
 const KEYWORD_PROVIDER_NAME = 'dataforseo-keywords'
 const BACKLINK_PROVIDER_NAME = 'dataforseo-backlinks'
+const KEYWORD_GAP_PROVIDER_NAME = 'dataforseo-keyword-gap'
 const REQUEST_TIMEOUT_MS = 60_000
+/** Rakip başına dönecek keyword üst sınırı — DataForSEO maliyetini sınırlar (Faz 4.4). */
+const KEYWORD_GAP_LIMIT_PER_COMPETITOR = 20
 
 export const DATAFORSEO_KEYWORD_ENDPOINT =
   'https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live'
 export const DATAFORSEO_BACKLINK_ENDPOINT = 'https://api.dataforseo.com/v3/backlinks/summary/live'
+/**
+ * DataForSEO Labs — iki domain'in SERP'te kesişimi. `intersections: false` + client-side
+ * filtre (first_domain_serp_element null, second dolu) "rakipte var, sende yok" listesini verir.
+ * DİKKAT: alan adları DataForSEO'nun dokümante ettiği Labs API şemasının en iyi tahminidir,
+ * bu oturumda CANLI doğrulanamadı (bakiye boş) — bkz. dataForSeoResponseToKeywordGaps yorumu.
+ */
+export const DATAFORSEO_KEYWORD_GAP_ENDPOINT =
+  'https://api.dataforseo.com/v3/dataforseo_labs/google/domain_intersection/live'
 
 /** DataForSEO konum kodu: 2792 = Türkiye */
 export const TURKEY_LOCATION_CODE = 2792
@@ -86,6 +97,37 @@ export const buildKeywordRequestBody = (keywords: readonly string[]): string =>
 
 export const buildBacklinkRequestBody = (domain: string): string =>
   JSON.stringify([{ target: domain, internal_list_limit: 1 }])
+
+export const buildKeywordGapRequestBody = (domain: string, competitorDomain: string): string =>
+  JSON.stringify([
+    {
+      target1: domain,
+      target2: competitorDomain,
+      location_code: TURKEY_LOCATION_CODE,
+      language_code: TURKISH_LANGUAGE_CODE,
+      intersections: false,
+      limit: KEYWORD_GAP_LIMIT_PER_COMPETITOR,
+    },
+  ])
+
+const SerpElementSchema = z.object({ rank_absolute: z.number().nullable().optional() })
+
+const KeywordGapResultSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        keyword_data: z
+          .object({
+            keyword: z.string(),
+            keyword_info: z.object({ search_volume: z.number().nullable().optional() }).optional(),
+          })
+          .optional(),
+        first_domain_serp_element: SerpElementSchema.nullable().optional(),
+        second_domain_serp_element: SerpElementSchema.nullable().optional(),
+      }),
+    )
+    .optional(),
+})
 
 /** Zarfı doğrular ve ilk görevin `result` alanını çıkarır. */
 const extractResult = (raw: unknown, providerName: string): Result<unknown, ProviderError> => {
@@ -178,6 +220,47 @@ export const dataForSeoResponseToBacklinkProfile = (
   })
 }
 
+/**
+ * domain_intersection yanıtı → KeywordGap[]. Saf fonksiyon.
+ *
+ * "Gap" tanımı: `first_domain_serp_element` (müşteri) YOK, `second_domain_serp_element`
+ * (rakip) VAR — müşteri hiç sıralamıyor, rakip sıralıyor. `intersections: false` istendiği
+ * için yanıt hem kesişimi hem tek-taraflı sonuçları içerir, filtre burada yapılır.
+ *
+ * DİKKAT: alan adları (`keyword_data.keyword_info.search_volume`, `*_domain_serp_element`)
+ * DataForSEO Labs API dokümantasyonunun en iyi tahminidir, CANLI doğrulanmadı (bkz. dosya başı
+ * yorumu) — şema uyuşmazsa (alan adları farklıysa) sessizce yanlış veri ÜRETMEZ, açık
+ * ProviderError döner (`dataForSeoResponseToMetrics`'teki aynı savunmacı desen).
+ */
+export const dataForSeoResponseToKeywordGaps = (raw: unknown, competitorDomain: string): Result<readonly KeywordGap[], ProviderError> => {
+  const extracted = extractResult(raw, KEYWORD_GAP_PROVIDER_NAME)
+  if (!extracted.ok) return extracted
+
+  const parsed = z.array(KeywordGapResultSchema).safeParse(extracted.value ?? [])
+  if (!parsed.success) {
+    return err(new ProviderError(KEYWORD_GAP_PROVIDER_NAME, `Keyword gap sonucu okunamadı: ${summarizeZodError(parsed.error.issues)}`))
+  }
+
+  const items = parsed.data[0]?.items ?? []
+  return ok(
+    items.flatMap((item): KeywordGap[] => {
+      const keyword = item.keyword_data?.keyword
+      if (keyword === undefined) return []
+      const clientRanks = item.first_domain_serp_element?.rank_absolute !== undefined && item.first_domain_serp_element !== null
+      const competitorRank = item.second_domain_serp_element?.rank_absolute
+      if (clientRanks || competitorRank === undefined || competitorRank === null) return []
+      return [
+        {
+          keyword,
+          competitorDomain,
+          competitorPosition: competitorRank,
+          volume: item.keyword_data?.keyword_info?.search_volume ?? null,
+        },
+      ]
+    }),
+  )
+}
+
 const postToDataForSeo = async (endpoint: string, authHeader: string, body: string): Promise<Response> =>
   fetch(endpoint, {
     method: 'POST',
@@ -242,5 +325,45 @@ export const createDataForSeoBacklinkProvider = (login: string, password: string
     } catch (cause) {
       return err(new ProviderError(BACKLINK_PROVIDER_NAME, `'${domain}' için backlink çağrısı başarısız.`, { cause }))
     }
+  },
+})
+
+/**
+ * Rakip başına AYRI bir domain_intersection çağrısı gerekir (endpoint pairwise) — bu yüzden
+ * `fetchGapKeywords` competitorDomains listesini kendi içinde gezer. Liste zaten çağıran
+ * tarafta (collectKeywordGaps) KEYWORD_GAP_COMPETITOR_COUNT ile küçük tutulduğu için ayrı bir
+ * eşzamanlılık sınırlaması gerekmez (collectBacklinks'teki küçük-liste Promise.all deseniyle
+ * aynı gerekçe). Tek bir rakibin başarısız olması TÜM dalı düşürür (mevcut kısmi-hata
+ * politikasıyla tutarlı: collectors.ts çağıran taraf zaten dal-seviyesinde tolere ediyor).
+ */
+export const createDataForSeoKeywordGapProvider = (login: string, password: string): KeywordGapProvider => ({
+  name: KEYWORD_GAP_PROVIDER_NAME,
+  isMock: false,
+  fetchGapKeywords: async (domain, competitorDomains) => {
+    if (competitorDomains.length === 0) return ok([])
+    const authHeader = buildBasicAuthHeader(login, password)
+
+    const results = await Promise.all(
+      competitorDomains.map(async (competitorDomain) => {
+        try {
+          const response = await postToDataForSeo(DATAFORSEO_KEYWORD_GAP_ENDPOINT, authHeader, buildKeywordGapRequestBody(domain, competitorDomain))
+          if (!response.ok) {
+            return err(
+              new ProviderError(
+                KEYWORD_GAP_PROVIDER_NAME,
+                `'${competitorDomain}' için DataForSEO ${response.status} döndü${statusHint(response.status)}.`,
+              ),
+            )
+          }
+          return dataForSeoResponseToKeywordGaps(await response.json(), competitorDomain)
+        } catch (cause) {
+          return err(new ProviderError(KEYWORD_GAP_PROVIDER_NAME, `'${competitorDomain}' için keyword gap çağrısı başarısız.`, { cause }))
+        }
+      }),
+    )
+
+    const failed = results.find((result) => !result.ok)
+    if (failed !== undefined && !failed.ok) return failed
+    return ok(results.flatMap((result) => (result.ok ? result.value : [])))
   },
 })

@@ -7,6 +7,7 @@ import type {
   FieldCwv,
   GscRow,
   IndexStatus,
+  KeywordGap,
   KeywordSnapshotRow,
   PageLink,
   SerpSnapshot,
@@ -151,6 +152,18 @@ export const insertFieldCwv = (db: Db, runId: number, rows: readonly FieldCwv[])
   inTransaction(db, 'CrUX alan verisi', () => {
     for (const row of rows) {
       stmt.run(runId, row.url, row.formFactor, row.lcpMs, row.inpMs, row.cls)
+    }
+  })
+}
+
+/** Faz 4.4 — UNIQUE(runId, keyword, competitorDomain); çağıran taraf tekilleştirmezse StorageError yüzeye çıkar. */
+export const insertKeywordGaps = (db: Db, runId: number, rows: readonly KeywordGap[]): void => {
+  const stmt = db.prepare(
+    `INSERT INTO keyword_gaps (runId, keyword, competitorDomain, competitorPosition, volume) VALUES (?, ?, ?, ?, ?)`,
+  )
+  inTransaction(db, 'Keyword fırsatları', () => {
+    for (const row of rows) {
+      stmt.run(runId, row.keyword, row.competitorDomain, row.competitorPosition, row.volume)
     }
   })
 }

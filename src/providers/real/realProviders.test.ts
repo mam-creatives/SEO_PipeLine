@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { ProviderError } from '../../core/errors.js'
 import { err, ok } from '../../core/result.js'
 import { buildCruxRequestBody, cruxResponseToFieldCwv, withRequestedUrl } from './cruxProvider.js'
-import { dataForSeoResponseToBacklinkProfile, dataForSeoResponseToMetrics } from './dataForSeoProviders.js'
+import { dataForSeoResponseToBacklinkProfile, dataForSeoResponseToKeywordGaps, dataForSeoResponseToMetrics } from './dataForSeoProviders.js'
 import { anthropicResponseToAnswer } from './anthropicAiVisibilityProvider.js'
 import { geminiResponseToAnswer } from './geminiAiVisibilityProvider.js'
 import { matchSiteUrl, signServiceAccountJwt } from './gscAuth.js'
@@ -112,6 +112,72 @@ describe('dataForSeoResponseToBacklinkProfile', () => {
   test('boş sonuç sessizce sıfır profil üretmez', () => {
     const raw = { status_code: 20000, tasks: [{ status_code: 20000, result: [] }] }
     expect(dataForSeoResponseToBacklinkProfile(raw, 'x.com').ok).toBe(false)
+  })
+})
+
+describe('dataForSeoResponseToKeywordGaps', () => {
+  const envelope = (items: unknown[]) => ({ status_code: 20000, tasks: [{ status_code: 20000, result: [{ items }] }] })
+
+  test('müşteri sıralamıyor, rakip sıralıyorsa "gap" olarak döner', () => {
+    const raw = envelope([
+      {
+        keyword_data: { keyword: 'spor ayakkabı fiyatları', keyword_info: { search_volume: 8100 } },
+        first_domain_serp_element: null,
+        second_domain_serp_element: { rank_absolute: 3 },
+      },
+    ])
+    const result = dataForSeoResponseToKeywordGaps(raw, 'flo.com.tr')
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value).toEqual([
+        { keyword: 'spor ayakkabı fiyatları', competitorDomain: 'flo.com.tr', competitorPosition: 3, volume: 8100 },
+      ])
+    }
+  })
+
+  test('ikisi de sıralıyorsa (kesişim, gap değil) dışlanır', () => {
+    const raw = envelope([
+      {
+        keyword_data: { keyword: 'ayakkabı', keyword_info: { search_volume: 1000 } },
+        first_domain_serp_element: { rank_absolute: 5 },
+        second_domain_serp_element: { rank_absolute: 3 },
+      },
+    ])
+    const result = dataForSeoResponseToKeywordGaps(raw, 'flo.com.tr')
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.value).toEqual([])
+  })
+
+  test('yalnız müşteri sıralıyorsa (rakip yok) dışlanır — bu bir fırsat değil', () => {
+    const raw = envelope([
+      {
+        keyword_data: { keyword: 'marka adı', keyword_info: { search_volume: 500 } },
+        first_domain_serp_element: { rank_absolute: 1 },
+        second_domain_serp_element: null,
+      },
+    ])
+    const result = dataForSeoResponseToKeywordGaps(raw, 'flo.com.tr')
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.value).toEqual([])
+  })
+
+  test('search_volume yoksa volume null olarak taşınır (0 değil — "ölçülemedi" demek)', () => {
+    const raw = envelope([
+      {
+        keyword_data: { keyword: 'nadir keyword' },
+        first_domain_serp_element: null,
+        second_domain_serp_element: { rank_absolute: 8 },
+      },
+    ])
+    const result = dataForSeoResponseToKeywordGaps(raw, 'flo.com.tr')
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.value[0]?.volume).toBeNull()
+  })
+
+  test('boş items dizisinde boş liste döner', () => {
+    const result = dataForSeoResponseToKeywordGaps(envelope([]), 'flo.com.tr')
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.value).toEqual([])
   })
 })
 

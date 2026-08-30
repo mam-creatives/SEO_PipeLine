@@ -9,6 +9,7 @@ import type {
   FieldCwv,
   GscRow,
   IndexStatus,
+  KeywordGap,
   KeywordSnapshotRow,
   PageLink,
   RunSnapshot,
@@ -128,6 +129,10 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     .prepare(`SELECT url, formFactor, lcpMs, inpMs, cls FROM field_cwv WHERE runId = ?`)
     .all(runId) as FieldCwv[]
 
+  const keywordGaps = db
+    .prepare(`SELECT keyword, competitorDomain, competitorPosition, volume FROM keyword_gaps WHERE runId = ?`)
+    .all(runId) as KeywordGap[]
+
   const pageRows = db
     .prepare(
       `SELECT url, statusCode, finalUrl, fetchError, title, metaDescription, canonicalUrl, h1s, headingOrder,
@@ -194,5 +199,6 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
       internalLinks: [] as readonly PageLink[],
     })),
     pageLinks: pageLinks.map((row) => ({ ...row, isInternal: row.isInternal === 1 })),
+    keywordGaps,
   }
 }

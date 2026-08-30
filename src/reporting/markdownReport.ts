@@ -4,6 +4,7 @@ import { renderCodeAuditFindingsMarkdown } from './codeAuditSection.js'
 import { renderCrawlFindingsMarkdown } from './crawlSection.js'
 import { renderCwvDiagnosisMarkdown, renderFieldCwvComparisonMarkdown } from './cwvSection.js'
 import { renderIndexingFindingsMarkdown } from './indexingSection.js'
+import { renderKeywordGapsMarkdown } from './keywordGapSection.js'
 import { renderSeoFindingsMarkdown } from './seoSection.js'
 import type { ReportModel } from './reportModel.js'
 
@@ -146,6 +147,12 @@ export const renderMarkdown = (model: ReportModel): string => {
   const codeAuditFindings = renderCodeAuditFindingsMarkdown(model.analysis.codeAuditFindings)
   if (codeAuditFindings !== '') {
     push(codeAuditFindings)
+    push()
+  }
+
+  const keywordGaps = renderKeywordGapsMarkdown(model.analysis.keywordGaps)
+  if (keywordGaps !== '') {
+    push(keywordGaps)
     push()
   }
 

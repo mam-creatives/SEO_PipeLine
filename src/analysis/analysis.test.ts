@@ -242,6 +242,7 @@ describe('diffRuns', () => {
     fieldCwv: [],
     pages: [],
     pageLinks: [],
+    keywordGaps: [],
     ...overrides,
   })
 

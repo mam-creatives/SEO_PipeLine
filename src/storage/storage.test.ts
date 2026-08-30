@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { StorageError } from '../core/errors.js'
 import type { Finding } from '../core/findings.js'
-import type { CrawledPage, FieldCwv, GscRow, IndexStatus, KeywordSnapshotRow, PageLink, SerpSnapshot, TechAudit } from '../core/types.js'
+import type { CrawledPage, FieldCwv, GscRow, IndexStatus, KeywordGap, KeywordSnapshotRow, PageLink, SerpSnapshot, TechAudit } from '../core/types.js'
 import { openDatabase, type Db } from './db.js'
 import { applyMigrations, MIGRATIONS } from './migrations.js'
 import { getRunSnapshot } from './queryRepository.js'
@@ -12,6 +12,7 @@ import {
   insertFieldCwv,
   insertGscRows,
   insertIndexStatuses,
+  insertKeywordGaps,
   insertKeywordSnapshots,
   insertPageLinks,
   insertPages,
@@ -90,6 +91,13 @@ const sampleFieldCwv: FieldCwv = {
   lcpMs: 2300,
   inpMs: 190,
   cls: 0.04,
+}
+
+const sampleKeywordGap: KeywordGap = {
+  keyword: 'spor ayakkabı fiyatları',
+  competitorDomain: 'flo.com.tr',
+  competitorPosition: 3,
+  volume: 8100,
 }
 
 const sampleCrawledPage: CrawledPage = {
@@ -194,6 +202,7 @@ describe('storage', () => {
     insertFieldCwv(db, run.id, [sampleFieldCwv])
     insertPages(db, run.id, [sampleCrawledPage])
     insertPageLinks(db, run.id, [samplePageLink])
+    insertKeywordGaps(db, run.id, [sampleKeywordGap])
     insertAiSamples(db, run.id, [
       {
         query: 'en iyi ayakkabı mağazası',
@@ -215,8 +224,15 @@ describe('storage', () => {
     expect(snapshot.fieldCwv).toEqual([sampleFieldCwv])
     expect(snapshot.pages).toEqual([sampleCrawledPage])
     expect(snapshot.pageLinks).toEqual([samplePageLink])
+    expect(snapshot.keywordGaps).toEqual([sampleKeywordGap])
     expect(snapshot.aiSamples[0]?.clientMentioned).toBe(true)
     expect(snapshot.aiSamples[0]?.competitorsMentioned).toEqual(['flo.com.tr'])
+  })
+
+  test('aynı run içinde aynı (keyword, competitorDomain) iki kez eklenemez (UNIQUE)', () => {
+    const run = createRun(db, 'h', [])
+    insertKeywordGaps(db, run.id, [sampleKeywordGap])
+    expect(() => insertKeywordGaps(db, run.id, [sampleKeywordGap])).toThrow(StorageError)
   })
 
   test('v5 veritabanı en son sürüme sorunsuz yükselir — eski gsc_metrics satırı page="" ile korunur', () => {

@@ -18,6 +18,7 @@ const CATEGORY_LABELS: Readonly<Record<ProviderCategory, string>> = {
   indexing: 'İndeksleme durumu (URL Inspection)',
   crux: 'CrUX alan verisi (gerçek kullanıcı)',
   crawl: 'Crawler (on-page + iç link grafiği)',
+  keywordGap: 'Keyword fırsatları (rakip kesişimi)',
 }
 
 const printSelection = (providers: ProviderSet): void => {
@@ -189,6 +190,7 @@ const main = async (): Promise<void> => {
     console.log('─'.repeat(64))
     console.log(`  SerpApi     : çalıştırma başına ${config.seedKeywords.length} arama (ücretsiz kota 250/ay)`)
     console.log('  DataForSEO  : keyword için 1 çağrı + keşfedilen domain başına 1 backlink çağrısı (ücretli)')
+    console.log('  Keyword gap : aynı DataForSEO kimlik bilgileri, rakip başına 1 domain_intersection çağrısı (ücretli)')
     console.log(`  Lighthouse  : ${config.auditUrls.length} + rakip sayfaları, URL başına 10-30sn (ücretsiz)`)
     console.log('')
   } catch (error) {
