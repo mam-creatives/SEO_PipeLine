@@ -112,6 +112,7 @@ const sampleCrawledPage: CrawledPage = {
   headingOrder: ['h1', 'h2'],
   hasSchemaOrg: true,
   schemaTypes: ['LocalBusiness'],
+  schemaFields: [{ type: 'LocalBusiness', keys: ['name', 'address'] }],
   ogComplete: true,
   imagesMissingAlt: 2,
   wordCount: 450,

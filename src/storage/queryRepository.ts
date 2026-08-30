@@ -14,6 +14,7 @@ import type {
   PageLink,
   RedirectHop,
   RunSnapshot,
+  SchemaBlock,
   SerpSnapshot,
   TechAudit,
 } from '../core/types.js'
@@ -139,7 +140,7 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
       `SELECT url, statusCode, finalUrl, fetchError, title, metaDescription, canonicalUrl, h1s, headingOrder,
         hasSchemaOrg, schemaTypes, ogComplete, imagesMissingAlt, wordCount, metaRobots, externalLinkCount,
         likelyClientRendered, depth, hreflangs, xRobotsTag, contentType, headerHreflangs, securityHeaders,
-        redirectChain, redirectLoop
+        redirectChain, redirectLoop, schemaFields
        FROM pages WHERE runId = ?`,
     )
     .all(runId) as (Omit<
@@ -156,6 +157,7 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     | 'securityHeaders'
     | 'redirectChain'
     | 'redirectLoop'
+    | 'schemaFields'
   > & {
     h1s: string
     headingOrder: string
@@ -168,6 +170,7 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     securityHeaders: string
     redirectChain: string
     redirectLoop: number
+    schemaFields: string
   })[]
 
   const pageLinks = db
@@ -207,6 +210,7 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
       securityHeaders: JSON.parse(row.securityHeaders) as string[],
       redirectChain: JSON.parse(row.redirectChain) as RedirectHop[],
       redirectLoop: row.redirectLoop === 1,
+      schemaFields: JSON.parse(row.schemaFields) as SchemaBlock[],
       // Bilinçli: v8 migration yorumundaki tasarım kararı — tam link grafiği page_links'te,
       // round-trip'te sayfa içine geri gömülmüyor (mevcut run'ın bulgu tespiti DB'den değil
       // bellekteki CollectedData'dan çalışıyor, bu alan yalnız geçmiş/diff için var).

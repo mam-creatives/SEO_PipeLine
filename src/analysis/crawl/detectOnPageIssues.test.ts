@@ -14,6 +14,7 @@ const page = (overrides: Partial<CrawledPage>): CrawledPage => ({
   headingOrder: ['h1', 'h2'],
   hasSchemaOrg: true,
   schemaTypes: ['WebPage'],
+  schemaFields: [{ type: 'WebPage', keys: [] }],
   ogComplete: true,
   imagesMissingAlt: 0,
   wordCount: 300,

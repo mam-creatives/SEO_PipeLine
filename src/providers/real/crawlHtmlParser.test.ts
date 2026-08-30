@@ -55,6 +55,29 @@ describe('parseHtmlPage', () => {
     expect(page.title).toBe('t')
   })
 
+  test('schemaFields her blok için @type + var olan üst-seviye alan adlarını taşır', () => {
+    const html = `<html><head><script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"Product","name":"Ürün","offers":{"price":"100"}}
+    </script></head><body></body></html>`
+    const page = parseHtmlPage(html, REQUESTED_URL, 200, FINAL_URL)
+    expect(page.schemaFields).toEqual([{ type: 'Product', keys: ['name', 'offers', 'offers.price'] }])
+  })
+
+  test('schemaFields iç içe (offers.price gibi) BİR seviye alt anahtarı da çıkarır', () => {
+    const html = `<html><head><script type="application/ld+json">
+      {"@type":"Product","offers":{"price":"100","priceCurrency":"TRY"}}
+    </script></head><body></body></html>`
+    const page = parseHtmlPage(html, REQUESTED_URL, 200, FINAL_URL)
+    const block = page.schemaFields[0]
+    expect(block?.keys).toContain('offers.price')
+    expect(block?.keys).toContain('offers.priceCurrency')
+  })
+
+  test('schema yoksa schemaFields boş dizi döner', () => {
+    const page = parseHtmlPage(MAMCREATIVES_HOMEPAGE_HTML, REQUESTED_URL, 200, FINAL_URL)
+    expect(page.schemaFields).toEqual([])
+  })
+
   test('og:image var ama og:title/og:description yoksa ogComplete false', () => {
     const page = parseHtmlPage(MAMCREATIVES_HOMEPAGE_HTML, REQUESTED_URL, 200, FINAL_URL)
     expect(page.ogComplete).toBe(false)

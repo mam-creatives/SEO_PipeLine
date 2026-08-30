@@ -281,6 +281,12 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE pages ADD COLUMN redirectChain TEXT NOT NULL DEFAULT '[]';
   ALTER TABLE pages ADD COLUMN redirectLoop INTEGER NOT NULL DEFAULT 0;
   `,
+  // Faz 5.3 — schema.org alan doğrulaması: her JSON-LD bloğunun VAR OLAN alan adları (değerler
+  // değil). schemaTypes zaten vardı ama hiçbir kuralda kullanılmıyordu (ölü veri) — bu sütun
+  // kural motorunun "zorunlu alan eksik mi" kontrolü yapabilmesini sağlar. bkz. crawlHtmlParser.ts.
+  `
+  ALTER TABLE pages ADD COLUMN schemaFields TEXT NOT NULL DEFAULT '[]';
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

@@ -1,14 +1,39 @@
 import * as cheerio from 'cheerio'
 import { CSR_SUSPECT_MIN_SCRIPT_TAGS, CSR_SUSPECT_TEXT_RATIO } from '../../config/constants.js'
-import type { CrawledPage, PageLink, RedirectHop } from '../../core/types.js'
+import type { CrawledPage, PageLink, RedirectHop, SchemaBlock } from '../../core/types.js'
 import { parseContentType, parseLinkHreflangs, pickSecurityHeaders, parseXRobotsTag } from './crawlHeaderParser.js'
 
 const HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6'
 const NON_NAVIGABLE_PROTOCOLS = new Set(['javascript:', 'mailto:', 'tel:', 'sms:'])
 
-/** JSON-LD script içeriğinden `@type`(ler)i çıkarır — dizi ya da tekil obje, `@graph` sarmalı dahil. */
-const extractSchemaTypes = ($: cheerio.CheerioAPI): readonly string[] => {
-  const types: string[] = []
+const objectKeys = (obj: Record<string, unknown>): readonly string[] => Object.keys(obj).filter((key) => !key.startsWith('@'))
+
+/**
+ * Bir JSON-LD nesnesinin üst-seviye anahtarlarını + BİR seviye iç içe geçmiş anahtarlarını
+ * (`offers.price` gibi) düz bir listeye çıkarır. Değerler değil, yalnız anahtar ADLARI — Faz 5.3
+ * kural motorunun "zorunlu alan var mı" kontrolü için yeterli, ham değeri saklamaya gerek yok.
+ * `offers` schema.org'da tekil obje ya da dizi olabilir; dizi ise ilk elemana bakılır.
+ */
+const flattenSchemaKeys = (node: Record<string, unknown>): readonly string[] => {
+  const keys: string[] = []
+  for (const key of objectKeys(node)) {
+    keys.push(key)
+    const value = node[key]
+    const nested = Array.isArray(value) ? value[0] : value
+    if (typeof nested === 'object' && nested !== null) {
+      for (const nestedKey of objectKeys(nested as Record<string, unknown>)) keys.push(`${key}.${nestedKey}`)
+    }
+  }
+  return keys
+}
+
+/**
+ * JSON-LD script'lerini tarar — dizi ya da tekil obje, `@graph` sarmalı dahil — her `@type`
+ * için ayrı bir `SchemaBlock` üretir (bir düğümün `@type`'ı dizi ise her tip için aynı `keys`
+ * paylaşılan ayrı blok). Tek traversal; `extractSchemaTypes` bunun üzerine türetilir (DRY).
+ */
+const extractSchemaObjects = ($: cheerio.CheerioAPI): readonly SchemaBlock[] => {
+  const blocks: SchemaBlock[] = []
   $('script[type="application/ld+json"]').each((_, el) => {
     const raw = $(el).text().trim()
     if (raw === '') return
@@ -25,13 +50,16 @@ const extractSchemaTypes = ($: cheerio.CheerioAPI): readonly string[] => {
       const candidates = Array.isArray(graph) ? graph : [node]
       for (const candidate of candidates) {
         if (typeof candidate !== 'object' || candidate === null) continue
-        const type = (candidate as Record<string, unknown>)['@type']
-        if (typeof type === 'string') types.push(type)
-        else if (Array.isArray(type)) types.push(...type.filter((t): t is string => typeof t === 'string'))
+        const record = candidate as Record<string, unknown>
+        const type = record['@type']
+        const types = typeof type === 'string' ? [type] : Array.isArray(type) ? type.filter((t): t is string => typeof t === 'string') : []
+        if (types.length === 0) continue
+        const keys = flattenSchemaKeys(record)
+        for (const t of types) blocks.push({ type: t, keys })
       }
     }
   })
-  return types
+  return blocks
 }
 
 const resolveLinks = (
@@ -132,7 +160,8 @@ export const parseHtmlPage = (
     .toArray()
     .map((el) => $(el).text().trim())
 
-  const schemaTypes = extractSchemaTypes($)
+  const schemaObjects = extractSchemaObjects($)
+  const schemaTypes = schemaObjects.map((block) => block.type)
   const imagesMissingAlt = $('img').toArray().filter((el) => $(el).attr('alt') === undefined).length
 
   const ogTitle = $('meta[property="og:title"]').attr('content')
@@ -154,6 +183,7 @@ export const parseHtmlPage = (
     headingOrder,
     hasSchemaOrg: schemaTypes.length > 0,
     schemaTypes,
+    schemaFields: schemaObjects,
     ogComplete,
     imagesMissingAlt,
     wordCount: wordCountOf($),

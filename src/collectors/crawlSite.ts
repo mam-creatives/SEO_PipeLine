@@ -30,6 +30,7 @@ const degradedPage = (url: string, message: string): CrawledPage => ({
   headingOrder: [],
   hasSchemaOrg: false,
   schemaTypes: [],
+  schemaFields: [],
   ogComplete: false,
   imagesMissingAlt: 0,
   wordCount: 0,

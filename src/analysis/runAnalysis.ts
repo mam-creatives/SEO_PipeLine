@@ -15,6 +15,7 @@ import { detectCrawlabilityIssues } from './crawl/detectCrawlabilityIssues.js'
 import { detectCrossPageIssues } from './crawl/detectCrossPageIssues.js'
 import { detectLinkIssues } from './crawl/detectLinkIssues.js'
 import { detectOnPageIssues } from './crawl/detectOnPageIssues.js'
+import { detectSchemaIssues } from './crawl/detectSchemaIssues.js'
 import { detectAiGaps, type AiQueryVisibility } from './detectAiGaps.js'
 import { detectCannibalization } from './detectCannibalization.js'
 import { detectIndexingIssues } from './detectIndexingIssues.js'
@@ -100,6 +101,7 @@ export const runAnalysis = (collected: CollectedData, config: ProjectConfig): An
       ...detectCrawlabilityIssues(collected.crawledPages, collected.sitemapUrls),
       ...detectCrossPageIssues(collected.crawledPages),
       ...detectCanonicalIssues(collected.crawledPages),
+      ...detectSchemaIssues(collected.crawledPages),
     ],
     codeAuditFindings: computeCodeAuditFindings(collected.sourceFiles, collected.detectedStacks),
   }

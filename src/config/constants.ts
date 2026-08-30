@@ -157,6 +157,22 @@ export const MIN_WORD_COUNT = 150
 export const MAX_REDIRECT_HOPS = 5
 
 /**
+ * Faz 5.3 — `schemaTypes` toplanıp saklanıyordu ama hiçbir kuralda kullanılmıyordu (ölü veri,
+ * dış inceleme bulgusu). Google'ın zengin sonuç için beklediği ASGARİ zorunlu alanlar — tam
+ * schema.org tip hiyerarşisi değil, yalnız en yaygın 6 tip. `offers.price` gibi noktalı adlar
+ * bir üst seviye iç içe geçmiş anahtarı ifade eder (bkz. crawlHtmlParser.ts flattenSchemaKeys).
+ */
+export const SCHEMA_REQUIRED_FIELDS: Readonly<Record<string, readonly string[]>> = {
+  Product: ['name', 'offers', 'offers.price', 'offers.priceCurrency', 'offers.availability'],
+  Article: ['headline', 'author', 'datePublished'],
+  BlogPosting: ['headline', 'author', 'datePublished'],
+  LocalBusiness: ['name', 'address', 'telephone'],
+  BreadcrumbList: ['itemListElement'],
+  Organization: ['name', 'url'],
+  FAQPage: ['mainEntity'],
+}
+
+/**
  * Faz 3 kod denetçisi — güvenli okuma sınırları. Müşteri kaynak ağaçları binlerce dosya
  * (mamcreatives.com'da 7344) taşıyabilir; sınırsız okuma bellek riski taşır.
  */

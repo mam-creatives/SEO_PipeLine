@@ -133,6 +133,16 @@ export interface FieldCwv {
   readonly cls: number | null
 }
 
+/**
+ * Faz 5.3 — bir JSON-LD nesnesinin `@type`'ı ve VAR OLAN alan adları (değerler değil — PII/boyut
+ * riski yok, sadece anahtar adları). `schemaTypes`'ın aksine kural motorunun zorunlu-alan
+ * kontrolü yapabilmesi için. İç içe alanlar `offers.price` gibi noktalı adla ifade edilir.
+ */
+export interface SchemaBlock {
+  readonly type: string
+  readonly keys: readonly string[]
+}
+
 /** Faz 5.2 — yönlendirme zincirindeki tek bir adım. */
 export interface RedirectHop {
   readonly url: string
@@ -167,6 +177,8 @@ export interface CrawledPage {
   readonly headingOrder: readonly string[]
   readonly hasSchemaOrg: boolean
   readonly schemaTypes: readonly string[]
+  /** Faz 5.3 — schemaTypes'ın aksine kural motorunun okuyabildiği hâli: her blok için var olan alan adları. */
+  readonly schemaFields: readonly SchemaBlock[]
   /** og:title + og:description + og:image üçü de doluysa true. */
   readonly ogComplete: boolean
   readonly imagesMissingAlt: number
