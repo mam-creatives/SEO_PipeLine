@@ -71,6 +71,73 @@ const redirectTargetFindings = (pages: readonly CrawledPage[]): readonly Finding
   )
 }
 
+/** Faz 5.2 — çok adımlı yönlendirme zinciri: her hop hem gecikme hem link-değeri kaybı demek. */
+const redirectChainLengthFindings = (pages: readonly CrawledPage[]): readonly Finding[] =>
+  pages
+    .filter((page) => page.redirectChain.length > 1)
+    .map((page) => {
+      const path = [...page.redirectChain.map((hop) => hop.url), page.finalUrl ?? page.url].join(' → ')
+      return {
+        category: 'links',
+        severity: 'medium',
+        url: page.url,
+        culpritSelector: null,
+        title: `${page.redirectChain.length} adımlı yönlendirme zinciri`,
+        explanation:
+          `Bu adres nihai hedefine ulaşana kadar ${page.redirectChain.length} ayrı yönlendirmeden geçiyor. ` +
+          'Her adım hem ekstra bir HTTP isteği (hız kaybı) hem de küçük bir link-değeri kaybı demek — ' +
+          'zincir doğrudan nihai URL\'e kısaltılmalı.',
+        evidence: path,
+        impact: estimateImpact('medium'),
+        effort: 'small',
+        fixSnippet: null,
+      }
+    })
+
+/** Faz 5.2 — zincirde aynı URL ikinci kez görüldü: sonsuz döngü, sayfa hiçbir zaman yanıt vermez. */
+const redirectLoopFindings = (pages: readonly CrawledPage[]): readonly Finding[] =>
+  pages
+    .filter((page) => page.redirectLoop)
+    .map((page) => ({
+      category: 'links',
+      severity: 'critical',
+      url: page.url,
+      culpritSelector: null,
+      title: 'Yönlendirme döngüsü',
+      explanation:
+        'Bu adres bir yönlendirme zincirinin içinde daha önce görülmüş bir URL\'e tekrar düşüyor — ' +
+        'sonsuz döngü. Tarayıcı ve Googlebot bu sayfaya asla ulaşamaz.',
+      evidence: [...page.redirectChain.map((hop) => `${hop.url} (${hop.statusCode})`), '↺ döngü'].join(' → '),
+      impact: estimateImpact('critical'),
+      effort: 'small',
+      fixSnippet: null,
+    }))
+
+const TEMPORARY_REDIRECT_STATUSES = new Set([302, 307])
+
+/** Faz 5.2 — sitemap.xml'de listelenen bir URL GEÇİCİ (302/307) yönlendirmeyle başka yere gidiyor — sitemap yanlış adresi vaat ediyor. */
+const temporaryRedirectInSitemapFindings = (pages: readonly CrawledPage[], sitemapUrls: readonly string[]): readonly Finding[] => {
+  const sitemapSet = new Set(sitemapUrls)
+  return pages
+    .filter((page) => sitemapSet.has(page.url))
+    .filter((page) => page.redirectChain.some((hop) => TEMPORARY_REDIRECT_STATUSES.has(hop.statusCode)))
+    .map((page) => ({
+      category: 'links',
+      severity: 'low',
+      url: page.url,
+      culpritSelector: null,
+      title: "sitemap.xml'de listelenen URL geçici yönlendirmeyle başka yere gidiyor",
+      explanation:
+        `sitemap.xml bu adresi doğrudan indekslenecek sayfa olarak vaat ediyor ama adres geçici (302/307) ` +
+        `bir yönlendirmeyle "${page.finalUrl ?? '?'}" adresine gidiyor. Google genelde kalıcı olmayan ` +
+        'yönlendirmeyi indekslemez — sitemap ya nihai URL\'i göstermeli ya da yönlendirme 301 olmalı.',
+      evidence: `sitemap: ${page.url} → ${page.finalUrl ?? '?'}`,
+      impact: estimateImpact('low'),
+      effort: 'small',
+      fixSnippet: null,
+    }))
+}
+
 /** Taranan hiçbir sayfadan iç link almayan sayfalar — seed URL'ler hariç (giriş noktası olmak zaten linksiz olabilir). */
 const orphanPageFindings = (pages: readonly CrawledPage[], seedUrls: ReadonlySet<string>): readonly Finding[] => {
   const linkedTargets = new Set<string>()
@@ -101,7 +168,18 @@ const orphanPageFindings = (pages: readonly CrawledPage[], seedUrls: ReadonlySet
  * `seedUrls`: taramanın başlangıç noktaları (homepage + config.auditUrls) — öksüz sayfa
  * tespitinde hariç tutulur, aksi halde her taramada seed'in kendisi yanlışlıkla işaretlenir.
  */
-export const detectLinkIssues = (pages: readonly CrawledPage[], seedUrls: readonly string[] = []): readonly Finding[] => {
+export const detectLinkIssues = (
+  pages: readonly CrawledPage[],
+  seedUrls: readonly string[] = [],
+  sitemapUrls: readonly string[] = [],
+): readonly Finding[] => {
   const seedSet = new Set(seedUrls)
-  return [...brokenLinkFindings(pages), ...redirectTargetFindings(pages), ...orphanPageFindings(pages, seedSet)]
+  return [
+    ...brokenLinkFindings(pages),
+    ...redirectTargetFindings(pages),
+    ...orphanPageFindings(pages, seedSet),
+    ...redirectChainLengthFindings(pages),
+    ...redirectLoopFindings(pages),
+    ...temporaryRedirectInSitemapFindings(pages, sitemapUrls),
+  ]
 }

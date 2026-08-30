@@ -133,6 +133,12 @@ export interface FieldCwv {
   readonly cls: number | null
 }
 
+/** Faz 5.2 — yönlendirme zincirindeki tek bir adım. */
+export interface RedirectHop {
+  readonly url: string
+  readonly statusCode: number
+}
+
 /** Bir sayfadan çıkan tek bir link — iç link grafiğinin kenarı. */
 export interface PageLink {
   readonly sourceUrl: string
@@ -192,6 +198,13 @@ export interface CrawledPage {
   readonly headerHreflangs: readonly string[]
   /** Faz 5.1 — mevcut güvenlik başlıklarının ADLARI (ham değer değil) — bulgu üretmez, yalnız bilgi amaçlı. */
   readonly securityHeaders: readonly string[]
+  /**
+   * Faz 5.2 — yönlendirme zinciri: `fetch()`'in otomatik takibi yerine elle izlenir, her adım
+   * kaydedilir. Boş dizi = doğrudan 200 (yönlendirme yok). `finalUrl` zincirin SON adresidir.
+   */
+  readonly redirectChain: readonly RedirectHop[]
+  /** Faz 5.2 — zincirde aynı URL ikinci kez görüldü (sonsuz döngü potansiyeli), takip orada durduruldu. */
+  readonly redirectLoop: boolean
 }
 
 export interface RunMeta {

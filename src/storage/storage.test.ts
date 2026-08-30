@@ -127,6 +127,8 @@ const sampleCrawledPage: CrawledPage = {
   contentType: 'text/html',
   headerHreflangs: ['tr', 'en'],
   securityHeaders: ['strict-transport-security'],
+  redirectChain: [{ url: 'https://ornek-ayakkabi.com/eski', statusCode: 301 }],
+  redirectLoop: false,
 }
 
 const samplePageLink: PageLink = {

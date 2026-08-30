@@ -46,6 +46,8 @@ const degradedPage = (url: string, message: string): CrawledPage => ({
   contentType: null,
   headerHreflangs: [],
   securityHeaders: [],
+  redirectChain: [],
+  redirectLoop: false,
 })
 
 /**

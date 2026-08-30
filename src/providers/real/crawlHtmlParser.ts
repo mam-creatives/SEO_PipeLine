@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio'
 import { CSR_SUSPECT_MIN_SCRIPT_TAGS, CSR_SUSPECT_TEXT_RATIO } from '../../config/constants.js'
-import type { CrawledPage, PageLink } from '../../core/types.js'
+import type { CrawledPage, PageLink, RedirectHop } from '../../core/types.js'
 import { parseContentType, parseLinkHreflangs, pickSecurityHeaders, parseXRobotsTag } from './crawlHeaderParser.js'
 
 const HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6'
@@ -114,6 +114,8 @@ export const parseHtmlPage = (
   statusCode: number,
   finalUrl: string,
   headers: Readonly<Record<string, string>> = {},
+  redirectChain: readonly RedirectHop[] = [],
+  redirectLoop = false,
 ): CrawledPage => {
   const $ = cheerio.load(html)
 
@@ -166,5 +168,7 @@ export const parseHtmlPage = (
     contentType: parseContentType(headers),
     headerHreflangs: parseLinkHreflangs(headers),
     securityHeaders: pickSecurityHeaders(headers),
+    redirectChain,
+    redirectLoop,
   }
 }

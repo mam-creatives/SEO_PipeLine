@@ -308,6 +308,8 @@ export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider =>
         contentType: 'text/html',
         headerHreflangs: [],
         securityHeaders: [],
+        redirectChain: [],
+        redirectLoop: false,
       })
     }
     const rng = mulberry32(hashString(url))
@@ -336,6 +338,8 @@ export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider =>
       contentType: 'text/html',
       headerHreflangs: [],
       securityHeaders: [],
+      redirectChain: [],
+      redirectLoop: false,
     })
   },
   fetchRobotsRules: async () => ok({ isAllowed: () => true, sitemaps: [] }),

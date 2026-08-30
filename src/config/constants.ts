@@ -151,6 +151,12 @@ export const DEEP_PAGE_THRESHOLD = 3
 export const MIN_WORD_COUNT = 150
 
 /**
+ * Faz 5.2 — `fetch()`'in otomatik yönlendirme takibi kapatılıp elle izlendiği için (ara adımları
+ * görmek amacıyla) bir üst sınır gerekir; kırık bir yapılandırma sonsuz zincire girmesin diye.
+ */
+export const MAX_REDIRECT_HOPS = 5
+
+/**
  * Faz 3 kod denetçisi — güvenli okuma sınırları. Müşteri kaynak ağaçları binlerce dosya
  * (mamcreatives.com'da 7344) taşıyabilir; sınırsız okuma bellek riski taşır.
  */

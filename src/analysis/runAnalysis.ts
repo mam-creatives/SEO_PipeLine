@@ -10,6 +10,7 @@ import type { Finding } from '../core/findings.js'
 import { buildClusters, buildKeywordRows, type KeywordCluster } from './clusterKeywords.js'
 import { diagnoseCwv } from './cwv/diagnose.js'
 import type { CwvDiagnosis } from './cwv/types.js'
+import { detectCanonicalIssues } from './crawl/detectCanonicalIssues.js'
 import { detectCrawlabilityIssues } from './crawl/detectCrawlabilityIssues.js'
 import { detectCrossPageIssues } from './crawl/detectCrossPageIssues.js'
 import { detectLinkIssues } from './crawl/detectLinkIssues.js'
@@ -95,9 +96,10 @@ export const runAnalysis = (collected: CollectedData, config: ProjectConfig): An
     keywordGaps: collected.keywordGaps,
     crawlFindings: [
       ...detectOnPageIssues(collected.crawledPages),
-      ...detectLinkIssues(collected.crawledPages, collected.crawlSeedUrls),
+      ...detectLinkIssues(collected.crawledPages, collected.crawlSeedUrls, collected.sitemapUrls),
       ...detectCrawlabilityIssues(collected.crawledPages, collected.sitemapUrls),
       ...detectCrossPageIssues(collected.crawledPages),
+      ...detectCanonicalIssues(collected.crawledPages),
     ],
     codeAuditFindings: computeCodeAuditFindings(collected.sourceFiles, collected.detectedStacks),
   }

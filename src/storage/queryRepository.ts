@@ -12,6 +12,7 @@ import type {
   KeywordGap,
   KeywordSnapshotRow,
   PageLink,
+  RedirectHop,
   RunSnapshot,
   SerpSnapshot,
   TechAudit,
@@ -137,7 +138,8 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     .prepare(
       `SELECT url, statusCode, finalUrl, fetchError, title, metaDescription, canonicalUrl, h1s, headingOrder,
         hasSchemaOrg, schemaTypes, ogComplete, imagesMissingAlt, wordCount, metaRobots, externalLinkCount,
-        likelyClientRendered, depth, hreflangs, xRobotsTag, contentType, headerHreflangs, securityHeaders
+        likelyClientRendered, depth, hreflangs, xRobotsTag, contentType, headerHreflangs, securityHeaders,
+        redirectChain, redirectLoop
        FROM pages WHERE runId = ?`,
     )
     .all(runId) as (Omit<
@@ -152,6 +154,8 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     | 'hreflangs'
     | 'headerHreflangs'
     | 'securityHeaders'
+    | 'redirectChain'
+    | 'redirectLoop'
   > & {
     h1s: string
     headingOrder: string
@@ -162,6 +166,8 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     hreflangs: string
     headerHreflangs: string
     securityHeaders: string
+    redirectChain: string
+    redirectLoop: number
   })[]
 
   const pageLinks = db
@@ -199,6 +205,8 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
       hreflangs: JSON.parse(row.hreflangs) as string[],
       headerHreflangs: JSON.parse(row.headerHreflangs) as string[],
       securityHeaders: JSON.parse(row.securityHeaders) as string[],
+      redirectChain: JSON.parse(row.redirectChain) as RedirectHop[],
+      redirectLoop: row.redirectLoop === 1,
       // Bilinçli: v8 migration yorumundaki tasarım kararı — tam link grafiği page_links'te,
       // round-trip'te sayfa içine geri gömülmüyor (mevcut run'ın bulgu tespiti DB'den değil
       // bellekteki CollectedData'dan çalışıyor, bu alan yalnız geçmiş/diff için var).

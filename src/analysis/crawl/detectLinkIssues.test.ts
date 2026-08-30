@@ -35,6 +35,8 @@ const page = (overrides: Partial<CrawledPage>): CrawledPage => ({
   contentType: null,
   headerHreflangs: [],
   securityHeaders: [],
+  redirectChain: [],
+  redirectLoop: false,
   ...overrides,
 })
 
@@ -87,5 +89,71 @@ describe('detectLinkIssues', () => {
     const linked = page({ url: 'https://ornek.com/hakkimizda' })
     const findings = detectLinkIssues([home, linked], ['https://ornek.com/'])
     expect(findings.some((f) => f.title.includes('Öksüz'))).toBe(false)
+  })
+
+  test('2\'den fazla adımlı yönlendirme zinciri bulgu üretir', () => {
+    const withChain = page({
+      url: 'https://ornek.com/eski',
+      redirectChain: [
+        { url: 'https://ornek.com/eski', statusCode: 301 },
+        { url: 'https://ornek.com/orta', statusCode: 301 },
+      ],
+      finalUrl: 'https://ornek.com/yeni',
+    })
+    const findings = detectLinkIssues([withChain])
+    expect(findings.some((f) => f.severity === 'medium' && f.title.includes('adımlı yönlendirme zinciri'))).toBe(true)
+  })
+
+  test('tek adımlı yönlendirme zincir bulgusu üretmez (yalnız 2+ adım)', () => {
+    const singleHop = page({
+      url: 'https://ornek.com/eski',
+      redirectChain: [{ url: 'https://ornek.com/eski', statusCode: 301 }],
+      finalUrl: 'https://ornek.com/yeni',
+    })
+    const findings = detectLinkIssues([singleHop])
+    expect(findings.some((f) => f.title.includes('adımlı yönlendirme zinciri'))).toBe(false)
+  })
+
+  test('yönlendirme döngüsü kritik bulgu üretir', () => {
+    const looped = page({
+      url: 'https://ornek.com/a',
+      redirectLoop: true,
+      redirectChain: [
+        { url: 'https://ornek.com/a', statusCode: 302 },
+        { url: 'https://ornek.com/b', statusCode: 302 },
+      ],
+    })
+    const findings = detectLinkIssues([looped])
+    expect(findings.some((f) => f.severity === 'critical' && f.title.includes('döngü'))).toBe(true)
+  })
+
+  test('sitemap\'teki URL geçici (302) yönlendirmeyle başka yere gidiyorsa bulgu üretir', () => {
+    const temp = page({
+      url: 'https://ornek.com/kampanya',
+      redirectChain: [{ url: 'https://ornek.com/kampanya', statusCode: 302 }],
+      finalUrl: 'https://ornek.com/urun',
+    })
+    const findings = detectLinkIssues([temp], [], ['https://ornek.com/kampanya'])
+    expect(findings.some((f) => f.severity === 'low' && f.title.includes('geçici yönlendirmeyle'))).toBe(true)
+  })
+
+  test('sitemap\'te olmayan geçici yönlendirme bulgu üretmez', () => {
+    const temp = page({
+      url: 'https://ornek.com/kampanya',
+      redirectChain: [{ url: 'https://ornek.com/kampanya', statusCode: 302 }],
+      finalUrl: 'https://ornek.com/urun',
+    })
+    const findings = detectLinkIssues([temp], [], [])
+    expect(findings.some((f) => f.title.includes('geçici yönlendirmeyle'))).toBe(false)
+  })
+
+  test('sitemap\'teki URL kalıcı (301) yönlendirmeyle gidiyorsa geçici-yönlendirme bulgusu üretmez', () => {
+    const permanent = page({
+      url: 'https://ornek.com/kampanya',
+      redirectChain: [{ url: 'https://ornek.com/kampanya', statusCode: 301 }],
+      finalUrl: 'https://ornek.com/urun',
+    })
+    const findings = detectLinkIssues([permanent], [], ['https://ornek.com/kampanya'])
+    expect(findings.some((f) => f.title.includes('geçici yönlendirmeyle'))).toBe(false)
   })
 })

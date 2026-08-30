@@ -275,6 +275,12 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE pages ADD COLUMN headerHreflangs TEXT NOT NULL DEFAULT '[]';
   ALTER TABLE pages ADD COLUMN securityHeaders TEXT NOT NULL DEFAULT '[]';
   `,
+  // Faz 5.2 — yönlendirme zinciri: fetch()'in otomatik takibi yerine elle izlenir.
+  // bkz. crawlProvider.ts fetchText.
+  `
+  ALTER TABLE pages ADD COLUMN redirectChain TEXT NOT NULL DEFAULT '[]';
+  ALTER TABLE pages ADD COLUMN redirectLoop INTEGER NOT NULL DEFAULT 0;
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

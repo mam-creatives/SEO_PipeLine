@@ -5,7 +5,7 @@ const NOINDEX_PATTERN = /noindex/i
 const UNREACHED_SITEMAP_PREVIEW_COUNT = 5
 
 /** meta robots VEYA X-Robots-Tag başlığı — ikisi ayrı kanal, biri "noindex" derken diğeri bilmeyebilir. */
-const isNoindexed = (page: CrawledPage): boolean =>
+export const isNoindexed = (page: CrawledPage): boolean =>
   (page.metaRobots !== null && NOINDEX_PATTERN.test(page.metaRobots)) ||
   (page.xRobotsTag !== null && NOINDEX_PATTERN.test(page.xRobotsTag))
 

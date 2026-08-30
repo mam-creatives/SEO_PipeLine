@@ -27,6 +27,8 @@ const page = (url: string, overrides: Partial<CrawledPage> = {}): CrawledPage =>
   contentType: null,
   headerHreflangs: [],
   securityHeaders: [],
+  redirectChain: [],
+  redirectLoop: false,
   ...overrides,
 })
 

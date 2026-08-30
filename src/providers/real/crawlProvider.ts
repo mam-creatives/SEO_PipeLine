@@ -1,8 +1,8 @@
 import { setTimeout as delay } from 'node:timers/promises'
-import { CRAWL_REQUEST_DELAY_MS } from '../../config/constants.js'
+import { CRAWL_REQUEST_DELAY_MS, MAX_REDIRECT_HOPS } from '../../config/constants.js'
 import { ProviderError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
-import type { CrawledPage } from '../../core/types.js'
+import type { CrawledPage, RedirectHop } from '../../core/types.js'
 import type { CrawlProvider, RobotsRules } from '../types.js'
 import { parseHtmlPage } from './crawlHtmlParser.js'
 import { parseRobotsTxt } from './crawlRobotsParser.js'
@@ -19,20 +19,79 @@ interface FetchTextResult {
   readonly body: string
   /** Faz 5.1 — `Headers` API zaten lowercase anahtar döner (`entries()`), fetch spesifikasyonu gereği. */
   readonly headers: Readonly<Record<string, string>>
+  /** Faz 5.2 — takip edilen yönlendirme adımları; boş dizi = doğrudan 200. */
+  readonly redirectChain: readonly RedirectHop[]
+  /** Faz 5.2 — zincirde daha önce görülen bir URL'e tekrar düşüldü, takip orada durduruldu. */
+  readonly redirectLoop: boolean
 }
 
-/** Tek ortak I/O: GET + zaman aşımı + dürüst UA. Yalnız ağ/timeout hatası err() döner — HTTP durumu veridir. */
+const isRedirectStatus = (status: number): boolean => status >= 300 && status < 400
+
+const buildFetchResult = async (
+  response: Response,
+  finalUrl: string,
+  redirectChain: readonly RedirectHop[],
+  redirectLoop: boolean,
+): Promise<FetchTextResult> => ({
+  status: response.status,
+  finalUrl,
+  // Döngü/limit durumunda gövde bir 3xx yanıta ait olabilir (genelde boş/kısa) — .text() yine de güvenli.
+  body: await response.text().catch(() => ''),
+  headers: Object.fromEntries(response.headers.entries()),
+  redirectChain,
+  redirectLoop,
+})
+
+/**
+ * GET + zaman aşımı + dürüst UA — ve `redirect: 'manual'` ile YÖNLENDİRME ZİNCİRİNİ ELLE TAKİP
+ * EDER (Faz 5.2). `fetch()`'in varsayılan otomatik takibi ara adımları gizler; yalnız nihai
+ * URL'i bilmek redirect zinciri uzunluğunu, döngüleri, 301/302 ayrımını görünmez kılardı.
+ * Aynı URL zincirde ikinci kez görülürse `redirectLoop: true` ile durdurulur (sonsuz döngüye
+ * girmez); `MAX_REDIRECT_HOPS` aşılırsa da son yanıt "final" sayılıp durdurulur.
+ * Yalnız ağ/timeout hatası err() döner — HTTP durumu (3xx dahil) veridir.
+ */
 const fetchText = async (url: string): Promise<Result<FetchTextResult, ProviderError>> => {
-  try {
-    const response = await fetch(url, {
-      headers: { 'User-Agent': USER_AGENT },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
-    const body = await response.text()
-    return ok({ status: response.status, finalUrl: response.url, body, headers: Object.fromEntries(response.headers.entries()) })
-  } catch (cause) {
-    return err(new ProviderError(PROVIDER_NAME, `'${url}' için istek başarısız.`, { cause }))
+  const redirectChain: RedirectHop[] = []
+  const visitedUrls = new Set<string>([url])
+  let currentUrl = url
+
+  for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
+    let response: Response
+    try {
+      response = await fetch(currentUrl, {
+        headers: { 'User-Agent': USER_AGENT },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        redirect: 'manual',
+      })
+    } catch (cause) {
+      return err(new ProviderError(PROVIDER_NAME, `'${url}' için istek başarısız.`, { cause }))
+    }
+
+    const location = response.headers.get('location')
+    const isRedirect = isRedirectStatus(response.status) && location !== null && location.trim() !== ''
+    if (!isRedirect || hop === MAX_REDIRECT_HOPS) {
+      return ok(await buildFetchResult(response, currentUrl, redirectChain, false))
+    }
+
+    let nextUrl: string
+    try {
+      nextUrl = new URL(location, currentUrl).href
+    } catch {
+      // Location çözülemedi (bozuk yapılandırma) — burada dur, elimizdeki 3xx yanıtı final say.
+      return ok(await buildFetchResult(response, currentUrl, redirectChain, false))
+    }
+
+    redirectChain.push({ url: currentUrl, statusCode: response.status })
+
+    if (visitedUrls.has(nextUrl)) {
+      return ok(await buildFetchResult(response, currentUrl, redirectChain, true))
+    }
+    visitedUrls.add(nextUrl)
+    currentUrl = nextUrl
   }
+
+  // Yukarıdaki `hop === MAX_REDIRECT_HOPS` dalı her zaman döner — TS'in tamlık denetimi için.
+  return err(new ProviderError(PROVIDER_NAME, `'${url}' için yönlendirme sınırı aşıldı.`))
 }
 
 /**
@@ -49,7 +108,17 @@ export const createCrawlProvider = (): CrawlProvider => ({
     await delay(CRAWL_REQUEST_DELAY_MS)
     const fetched = await fetchText(url)
     if (!fetched.ok) return fetched
-    return ok(parseHtmlPage(fetched.value.body, url, fetched.value.status, fetched.value.finalUrl, fetched.value.headers))
+    return ok(
+      parseHtmlPage(
+        fetched.value.body,
+        url,
+        fetched.value.status,
+        fetched.value.finalUrl,
+        fetched.value.headers,
+        fetched.value.redirectChain,
+        fetched.value.redirectLoop,
+      ),
+    )
   },
 
   fetchRobotsRules: async (origin: string): Promise<Result<RobotsRules, ProviderError>> => {

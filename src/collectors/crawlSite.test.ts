@@ -40,6 +40,8 @@ const emptyPage = (url: string, overrides: Partial<CrawledPage> = {}): CrawledPa
   contentType: null,
   headerHreflangs: [],
   securityHeaders: [],
+  redirectChain: [],
+  redirectLoop: false,
   ...overrides,
 })
 
