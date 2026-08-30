@@ -30,16 +30,21 @@ const printSelection = (providers: ProviderSet): void => {
   }
 }
 
-const checkGemini = async (providers: ProviderSet): Promise<void> => {
+/**
+ * Faz 4.3 — Gemini VEYA Anthropic aktif olabilir (`registry.ts`'in tek-motor seçimi), bu
+ * yüzden isim sabit değil: hangi sağlayıcı seçildiyse (`providers.aiVisibility.name`) onu
+ * canlı dener ve mesajda gösterir.
+ */
+const checkAiVisibility = async (providers: ProviderSet): Promise<void> => {
   if (providers.aiVisibility.isMock) {
-    console.log('  ⊘ AI görünürlük mock — GEMINI_API_KEY yok, canlı deneme atlandı.')
+    console.log('  ⊘ AI görünürlük mock — GEMINI_API_KEY/ANTHROPIC_API_KEY yok, canlı deneme atlandı.')
     return
   }
   const result = await providers.aiVisibility.askQuery('Tek kelimeyle cevap ver: merhaba', 0)
   if (result.ok) {
-    console.log(`  ✓ Gemini çalışıyor (${result.value.model}) — örnek cevap: "${result.value.text.slice(0, 60)}"`)
+    console.log(`  ✓ ${result.value.model} çalışıyor — örnek cevap: "${result.value.text.slice(0, 60)}"`)
   } else {
-    console.log(`  ✗ Gemini başarısız: ${result.error.message}`)
+    console.log(`  ✗ ${providers.aiVisibility.name} başarısız: ${result.error.message}`)
   }
 }
 
@@ -172,7 +177,7 @@ const main = async (): Promise<void> => {
 
     console.log('\nCANLI DENEME (yalnız ücretsiz çağrılar)')
     console.log('─'.repeat(64))
-    await checkGemini(providers)
+    await checkAiVisibility(providers)
     await checkSearchConsole(providers, config.domain)
     await checkIndexing(providers, config.auditUrls)
     await checkTechAudit(providers, config.auditUrls)

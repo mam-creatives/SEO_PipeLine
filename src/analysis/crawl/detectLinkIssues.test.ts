@@ -30,6 +30,7 @@ const page = (overrides: Partial<CrawledPage>): CrawledPage => ({
   externalLinkCount: 0,
   likelyClientRendered: false,
   depth: 0,
+  hreflangs: [],
   ...overrides,
 })
 

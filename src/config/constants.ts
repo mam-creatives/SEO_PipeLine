@@ -127,6 +127,15 @@ export const CRAWL_CONCURRENCY = 4
 export const CRAWL_REQUEST_DELAY_MS = 200
 
 /**
+ * Faz 4.3 — GSC URL Inspection ve CrUX çağrıları önceden çıplak `Promise.all` ile gidiyordu;
+ * `collectTechAudits`'teki aynı gerekçeyle (kaynak tükenmesi/oran sınırı riski, bkz.
+ * mapWithConcurrency yorumu) sınırlanır. Değerler `CRAWL_CONCURRENCY` ile aynı — bugünkü
+ * hacimde zararsız, müşteri/URL sayısı büyürse ayrıca ayarlanabilir.
+ */
+export const INDEXING_CONCURRENCY = 4
+export const CRUX_CONCURRENCY = 4
+
+/**
  * Faz 4.1 — istemci-taraflı render (CSR) sezgisi. Bilimsel değil, ucuz bir sinyal: görünür
  * metin / ham HTML boyutu oranı bu eşiğin ALTINDA VE script sayısı bu eşiğin ÜSTÜNDEYSE sayfa
  * "muhtemelen istemci tarafında render ediliyor" işaretlenir — ikisi birlikte, çünkü analytics/

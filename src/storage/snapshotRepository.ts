@@ -159,8 +159,8 @@ export const insertPages = (db: Db, runId: number, pages: readonly CrawledPage[]
   const stmt = db.prepare(
     `INSERT INTO pages (runId, url, statusCode, finalUrl, fetchError, title, metaDescription, canonicalUrl,
       h1s, headingOrder, hasSchemaOrg, schemaTypes, ogComplete, imagesMissingAlt, wordCount, metaRobots,
-      externalLinkCount, likelyClientRendered, depth)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      externalLinkCount, likelyClientRendered, depth, hreflangs)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
   inTransaction(db, 'Crawler sayfaları', () => {
     for (const page of pages) {
@@ -184,6 +184,7 @@ export const insertPages = (db: Db, runId: number, pages: readonly CrawledPage[]
         page.externalLinkCount,
         page.likelyClientRendered ? 1 : 0,
         page.depth,
+        JSON.stringify(page.hreflangs),
       )
     }
   })

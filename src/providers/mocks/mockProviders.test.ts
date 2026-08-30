@@ -207,8 +207,15 @@ describe('registry.selectProviders', () => {
     expect(providers.mockCategories).not.toContain('aiVisibility')
   })
 
-  test('implemente edilmemiş Anthropic anahtarı hâlâ yüksek sesle hata verir', () => {
-    expect(() => selectProviders({ ANTHROPIC_API_KEY: 'test' }, config)).toThrow(ProviderError)
+  test('yalnız ANTHROPIC_API_KEY verilince (GEMINI yokken) AI görünürlüğü gerçekleştirir', () => {
+    const providers = selectProviders({ ANTHROPIC_API_KEY: 'test' }, config)
+    expect(providers.aiVisibility.isMock).toBe(false)
+    expect(providers.mockCategories).not.toContain('aiVisibility')
+  })
+
+  test('GEMINI_API_KEY ve ANTHROPIC_API_KEY birlikte verilince Gemini tercih edilir (tek-motor seçimi)', () => {
+    const providers = selectProviders({ GEMINI_API_KEY: 'g', ANTHROPIC_API_KEY: 'a' }, config)
+    expect(providers.aiVisibility.name).toContain('gemini')
   })
 
   test('TECH_AUDIT_PROVIDER=lighthouse teknik denetimi gerçekleştirir', () => {

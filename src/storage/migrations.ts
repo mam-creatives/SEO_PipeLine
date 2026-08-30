@@ -246,6 +246,10 @@ export const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE pages ADD COLUMN depth INTEGER NOT NULL DEFAULT 0;
   `,
+  // Faz 4.3 — hreflang etiketleri (canlı crawl): bkz. crawlHtmlParser.ts hreflangsOf.
+  `
+  ALTER TABLE pages ADD COLUMN hreflangs TEXT NOT NULL DEFAULT '[]';
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

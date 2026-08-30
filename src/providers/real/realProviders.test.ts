@@ -3,6 +3,7 @@ import { ProviderError } from '../../core/errors.js'
 import { err, ok } from '../../core/result.js'
 import { buildCruxRequestBody, cruxResponseToFieldCwv, withRequestedUrl } from './cruxProvider.js'
 import { dataForSeoResponseToBacklinkProfile, dataForSeoResponseToMetrics } from './dataForSeoProviders.js'
+import { anthropicResponseToAnswer } from './anthropicAiVisibilityProvider.js'
 import { geminiResponseToAnswer } from './geminiAiVisibilityProvider.js'
 import { matchSiteUrl, signServiceAccountJwt } from './gscAuth.js'
 import { buildDateRange, buildGscRequestBody, gscResponseToRows } from './gscProvider.js'
@@ -136,6 +137,38 @@ describe('geminiResponseToAnswer', () => {
     const result = geminiResponseToAnswer({ promptFeedback: { blockReason: 'SAFETY' } }, 'q')
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error.message).toContain('SAFETY')
+  })
+})
+
+describe('anthropicResponseToAnswer', () => {
+  test('text bloklarını birleştirip AiAnswer üretir', () => {
+    const raw = { content: [{ type: 'text', text: 'MAM Creatives' }, { type: 'text', text: ' önerilir.' }] }
+    const result = anthropicResponseToAnswer(raw, 'en iyi ajans?')
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value.text).toBe('MAM Creatives önerilir.')
+      expect(result.value.model).toContain('claude')
+    }
+  })
+
+  test('text olmayan blok tipleri (ör. tool_use) yok sayılır', () => {
+    const raw = { content: [{ type: 'tool_use' }, { type: 'text', text: 'cevap' }] }
+    const result = anthropicResponseToAnswer(raw, 'q')
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.value.text).toBe('cevap')
+  })
+
+  test('boş cevap hata döner — "marka geçmiyor" diye kaydedilmez', () => {
+    const raw = { content: [], stop_reason: 'max_tokens' }
+    const result = anthropicResponseToAnswer(raw, 'q')
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.message).toContain('max_tokens')
+  })
+
+  test('API hata zarfı ayrı bir hata olarak bildirilir', () => {
+    const result = anthropicResponseToAnswer({ type: 'error', error: { type: 'overloaded_error', message: 'Aşırı yüklü' } }, 'q')
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.message).toContain('overloaded_error')
   })
 })
 

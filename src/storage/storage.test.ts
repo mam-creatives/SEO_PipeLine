@@ -114,6 +114,7 @@ const sampleCrawledPage: CrawledPage = {
   externalLinkCount: 3,
   likelyClientRendered: false,
   depth: 0,
+  hreflangs: [],
 }
 
 const samplePageLink: PageLink = {

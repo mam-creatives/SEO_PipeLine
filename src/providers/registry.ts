@@ -11,6 +11,7 @@ import {
   createMockSerpProvider,
   createMockTechAuditProvider,
 } from './mocks/mockProviders.js'
+import { createAnthropicAiVisibilityProvider } from './real/anthropicAiVisibilityProvider.js'
 import { createCrawlProvider } from './real/crawlProvider.js'
 import { createCruxProvider } from './real/cruxProvider.js'
 import { createDataForSeoBacklinkProvider, createDataForSeoKeywordProvider } from './real/dataForSeoProviders.js'
@@ -62,18 +63,14 @@ const selectTech = (env: Env, config: ProjectConfig): Selection<ProviderSet['tec
 
 /**
  * AI görünürlük: Gemini birincil motor çünkü Google AI Overviews'ı besleyen model
- * odur — oradaki görünürlük doğrudan arama sonucuna yansır. Anthropic sağlayıcısı
- * henüz implemente edilmedi; anahtarı verilirse sessizce mock'a düşmek yerine hata verilir.
+ * odur — oradaki görünürlük doğrudan arama sonucuna yansır. Gemini yoksa Anthropic
+ * kullanılır (Faz 4.3, Faz 1.7'nin tamamlanması). Tek-motor seçimi bilinçli: eşzamanlı
+ * çift-motor karşılaştırma ayrı bir şema/rapor değişikliği gerektirir, bu fazın kapsamı
+ * dışında (bkz. genel-plan.md Faz 4 "Kapsam dışı").
  */
 const selectAiVisibility = (env: Env, config: ProjectConfig): Selection<ProviderSet['aiVisibility']> => {
   if (env.GEMINI_API_KEY !== undefined) return real(createGeminiAiVisibilityProvider(env.GEMINI_API_KEY))
-  if (env.ANTHROPIC_API_KEY !== undefined) {
-    throw new ProviderError(
-      'registry',
-      'ANTHROPIC_API_KEY verildi ama Anthropic sağlayıcısı henüz implemente edilmedi ' +
-        '(src/providers/real/anthropicAiVisibilityProvider.ts). GEMINI_API_KEY kullanın ya da anahtarı kaldırın.',
-    )
-  }
+  if (env.ANTHROPIC_API_KEY !== undefined) return real(createAnthropicAiVisibilityProvider(env.ANTHROPIC_API_KEY))
   return mock(createMockAiVisibilityProvider(config, config.mockSeed))
 }
 

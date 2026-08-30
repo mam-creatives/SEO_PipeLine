@@ -35,6 +35,7 @@ const emptyPage = (url: string, overrides: Partial<CrawledPage> = {}): CrawledPa
   externalLinkCount: 0,
   likelyClientRendered: false,
   depth: 0,
+  hreflangs: [],
   ...overrides,
 })
 

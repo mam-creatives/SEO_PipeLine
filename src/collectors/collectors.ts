@@ -1,4 +1,4 @@
-import { AI_SAMPLES_PER_QUERY, TECH_AUDIT_CONCURRENCY } from '../config/constants.js'
+import { AI_SAMPLES_PER_QUERY, CRUX_CONCURRENCY, INDEXING_CONCURRENCY, TECH_AUDIT_CONCURRENCY } from '../config/constants.js'
 import { mapWithConcurrency } from '../core/concurrency.js'
 import type { ProjectConfig } from '../config/schema.js'
 import { ProviderError } from '../core/errors.js'
@@ -100,12 +100,14 @@ export const collectAiVisibility = async (
 /**
  * URL Inspection yalnız servis hesabının erişebildiği MÜLKE ait URL'ler için çalışır —
  * rakip URL'leri buraya girmez (deriveAuditUrls yalnız müşteri sayfalarını seçer).
+ * INDEXING_CONCURRENCY ile sınırlı — Faz 4.3, müşteri/URL sayısı büyüdükçe oran sınırına
+ * çarpma riskini `collectTechAudits`'teki aynı gerekçeyle önler.
  */
 export const collectIndexStatuses = async (
   providers: ProviderSet,
   urls: readonly string[],
 ): Promise<Result<readonly IndexStatus[], ProviderError>> => {
-  const results = await Promise.all(urls.map((url) => providers.indexing.fetchIndexStatus(url)))
+  const results = await mapWithConcurrency(urls, INDEXING_CONCURRENCY, (url) => providers.indexing.fetchIndexStatus(url))
   const failed = results.find((result) => !result.ok)
   if (failed !== undefined && !failed.ok) {
     return err(failed.error)
@@ -122,12 +124,13 @@ export const collectGsc = async (
  * Yeterli trafiği olmayan URL'ler `null` döner (hata değil) — sonuç listesinden
  * sessizce elenir. Bir URL'in gerçek hata dönmesi (ör. ağ hatası) hâlâ dalın
  * tamamını başarısız sayar; "veri yok" ile "istek başarısız" farklı şeylerdir.
+ * CRUX_CONCURRENCY ile sınırlı — Faz 4.3, aynı gerekçe.
  */
 export const collectFieldCwv = async (
   providers: ProviderSet,
   urls: readonly string[],
 ): Promise<Result<readonly FieldCwv[], ProviderError>> => {
-  const results = await Promise.all(urls.map((url) => providers.crux.fetchFieldCwv(url)))
+  const results = await mapWithConcurrency(urls, CRUX_CONCURRENCY, (url) => providers.crux.fetchFieldCwv(url))
   const failed = results.find((result) => !result.ok)
   if (failed !== undefined && !failed.ok) {
     return err(failed.error)

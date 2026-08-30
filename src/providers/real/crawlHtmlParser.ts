@@ -64,6 +64,16 @@ const resolveLinks = (
   return { internalLinks, externalLinkCount }
 }
 
+/** `<link rel="alternate" hreflang="...">` etiketlerindeki dil kodlarını toplar — Faz 4.3. */
+const hreflangsOf = ($: cheerio.CheerioAPI): readonly string[] => {
+  const codes: string[] = []
+  $('link[rel="alternate"][hreflang]').each((_, el) => {
+    const code = $(el).attr('hreflang')
+    if (code !== undefined && code.trim() !== '') codes.push(code.trim())
+  })
+  return codes
+}
+
 const wordCountOf = ($: cheerio.CheerioAPI): number => {
   const text = $('body').text().trim()
   if (text === '') return 0
@@ -141,5 +151,6 @@ export const parseHtmlPage = (html: string, url: string, statusCode: number, fin
     likelyClientRendered: detectLikelyClientRendered($, html),
     // Yer tutucu — BFS derinliğini yalnız orkestrasyon (crawlSite.ts) bilir, burada EZİLİR.
     depth: 0,
+    hreflangs: hreflangsOf($),
   }
 }

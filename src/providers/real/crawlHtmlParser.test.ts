@@ -115,6 +115,22 @@ describe('parseHtmlPage', () => {
     const page = parseHtmlPage(MAMCREATIVES_HOMEPAGE_HTML, REQUESTED_URL, 200, FINAL_URL)
     expect(page.likelyClientRendered).toBe(false)
   })
+
+  test('hreflang etiketleri toplanır, yoksa boş dizi döner', () => {
+    const withHreflang = parseHtmlPage(
+      `<html><head>
+        <link rel="alternate" hreflang="tr" href="https://x.com/tr/">
+        <link rel="alternate" hreflang="en" href="https://x.com/en/">
+      </head><body></body></html>`,
+      REQUESTED_URL,
+      200,
+      FINAL_URL,
+    )
+    expect(withHreflang.hreflangs).toEqual(['tr', 'en'])
+
+    const withoutHreflang = parseHtmlPage(MAMCREATIVES_HOMEPAGE_HTML, REQUESTED_URL, 200, FINAL_URL)
+    expect(withoutHreflang.hreflangs).toEqual([])
+  })
 })
 
 describe('detectLikelyClientRendered', () => {

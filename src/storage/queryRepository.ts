@@ -132,12 +132,19 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     .prepare(
       `SELECT url, statusCode, finalUrl, fetchError, title, metaDescription, canonicalUrl, h1s, headingOrder,
         hasSchemaOrg, schemaTypes, ogComplete, imagesMissingAlt, wordCount, metaRobots, externalLinkCount,
-        likelyClientRendered, depth
+        likelyClientRendered, depth, hreflangs
        FROM pages WHERE runId = ?`,
     )
     .all(runId) as (Omit<
     CrawledPage,
-    'h1s' | 'headingOrder' | 'schemaTypes' | 'hasSchemaOrg' | 'ogComplete' | 'internalLinks' | 'likelyClientRendered'
+    | 'h1s'
+    | 'headingOrder'
+    | 'schemaTypes'
+    | 'hasSchemaOrg'
+    | 'ogComplete'
+    | 'internalLinks'
+    | 'likelyClientRendered'
+    | 'hreflangs'
   > & {
     h1s: string
     headingOrder: string
@@ -145,6 +152,7 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     hasSchemaOrg: number
     ogComplete: number
     likelyClientRendered: number
+    hreflangs: string
   })[]
 
   const pageLinks = db
@@ -179,6 +187,7 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
       hasSchemaOrg: row.hasSchemaOrg === 1,
       ogComplete: row.ogComplete === 1,
       likelyClientRendered: row.likelyClientRendered === 1,
+      hreflangs: JSON.parse(row.hreflangs) as string[],
       // Bilinçli: v8 migration yorumundaki tasarım kararı — tam link grafiği page_links'te,
       // round-trip'te sayfa içine geri gömülmüyor (mevcut run'ın bulgu tespiti DB'den değil
       // bellekteki CollectedData'dan çalışıyor, bu alan yalnız geçmiş/diff için var).

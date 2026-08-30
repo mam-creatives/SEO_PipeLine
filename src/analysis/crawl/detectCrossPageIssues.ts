@@ -75,13 +75,61 @@ const duplicateH1Findings = (pages: readonly CrawledPage[]): readonly Finding[] 
     )
 }
 
+/** ISO 639-1 benzeri iki harfli (opsiyonel bölge etiketli, ör. "en-US") path öneki. */
+const LOCALE_PATH_SEGMENT = /^[a-z]{2}(-[a-z]{2})?$/i
+
+const localePrefixOf = (url: string): string | null => {
+  let path: string
+  try {
+    path = new URL(url).pathname
+  } catch {
+    return null
+  }
+  const first = path.split('/').filter((segment) => segment !== '')[0]
+  return first !== undefined && LOCALE_PATH_SEGMENT.test(first) ? first.toLowerCase() : null
+}
+
+/**
+ * Faz 4.3 — canlı crawl karşılığı, `codeaudit/rules/php/missingHreflang.ts`'in aynı temkinli
+ * mantığıyla: yalnız çok dilli routing SİNYALİ varsa (2+ farklı yerel-önekli path, ör. /tr/,
+ * /en/) VE hiçbir sayfada hreflang yoksa fırlatılır — tek dilli TR-only bir sitede path'in
+ * ilk segmenti tesadüfen iki harfli olsa bile (ör. "/tr/blog" TEK önekse) sinyal sayılmaz.
+ */
+const missingHreflangFinding = (pages: readonly CrawledPage[]): Finding | null => {
+  const localePrefixes = new Set(pages.map((page) => localePrefixOf(page.url)).filter((prefix): prefix is string => prefix !== null))
+  if (localePrefixes.size < 2) return null
+  if (pages.some((page) => page.hreflangs.length > 0)) return null
+
+  return {
+    category: 'onpage',
+    severity: 'medium',
+    url: null,
+    culpritSelector: 'link[rel="alternate"][hreflang]',
+    title: 'Site çok dilli routing kullanıyor ama hiçbir sayfada hreflang yok',
+    explanation:
+      `Taranan sayfalarda ${[...localePrefixes].sort().join(', ')} gibi farklı dil önekleri bulundu ` +
+      'ama hiçbir sayfada <link rel="alternate" hreflang="..."> etiketi yok. Google hangi dil ' +
+      'sürümünü hangi kullanıcıya göstereceğini bu işaret olmadan kendi tahmin eder.',
+    evidence: `Bulunan dil önekleri: ${[...localePrefixes].sort().join(', ')}`,
+    impact: estimateImpact('medium'),
+    effort: 'medium',
+    fixSnippet: '<link rel="alternate" hreflang="tr" href="https://ornek.com/tr/sayfa" />\n<link rel="alternate" hreflang="en" href="https://ornek.com/en/page" />',
+  }
+}
+
 /**
  * Sayfalar-arası (çapraz) bulgular — `detectOnPageIssues`'un aksine tek sayfaya değil,
- * kümülatif kalıplara bakar (Faz 4.2b). Saf fonksiyon; grup başına, gruptaki HER sayfa için
- * ayrı bir `Finding` üretir (`Finding.url` tek alan olduğu için mevcut per-page desenle
- * uyumlu, `Finding` tipine dokunulmadı) — `evidence` alanında kardeş URL'ler listelenir.
+ * kümülatif kalıplara bakar (Faz 4.2b/4.3). Saf fonksiyon; duplicate title/H1 grup başına
+ * gruptaki HER sayfa için ayrı bir `Finding` üretir (`Finding.url` tek alan olduğu için
+ * mevcut per-page desenle uyumlu, `Finding` tipine dokunulmadı) — `evidence` alanında kardeş
+ * URL'ler listelenir. hreflang bulgusu ise site geneli TEK bir Finding (`url: null`).
  */
 export const detectCrossPageIssues = (pages: readonly CrawledPage[]): readonly Finding[] => {
   const evaluable = pages.filter(isEvaluable)
-  return [...duplicateTitleFindings(evaluable), ...duplicateH1Findings(evaluable)]
+  const hreflangFinding = missingHreflangFinding(evaluable)
+  return [
+    ...duplicateTitleFindings(evaluable),
+    ...duplicateH1Findings(evaluable),
+    ...(hreflangFinding === null ? [] : [hreflangFinding]),
+  ]
 }

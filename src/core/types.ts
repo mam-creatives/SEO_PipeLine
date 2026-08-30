@@ -164,6 +164,8 @@ export interface CrawledPage {
    * crawlSite.ts bunu gerçek BFS derinliğiyle EZER.
    */
   readonly depth: number
+  /** Faz 4.3 — `<link rel="alternate" hreflang="...">` etiketlerindeki dil kodları, ör. ['tr','en']. Yoksa boş dizi. */
+  readonly hreflangs: readonly string[]
 }
 
 export interface RunMeta {

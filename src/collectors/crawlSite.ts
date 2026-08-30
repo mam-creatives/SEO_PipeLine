@@ -40,6 +40,7 @@ const degradedPage = (url: string, message: string): CrawledPage => ({
   likelyClientRendered: false,
   // Yer tutucu — collectCrawl BFS döngüsünde gerçek derinlikle EZİLİR.
   depth: 0,
+  hreflangs: [],
 })
 
 /**
