@@ -31,6 +31,10 @@ const page = (schemaFields: readonly SchemaBlock[], overrides: Partial<CrawledPa
   securityHeaders: [],
   redirectChain: [],
   redirectLoop: false,
+  viewportMeta: null,
+  langAttribute: null,
+  mixedContentCount: 0,
+  imagesMissingDimensions: 0,
   ...overrides,
 })
 

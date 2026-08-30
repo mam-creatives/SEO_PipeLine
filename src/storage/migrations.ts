@@ -293,6 +293,14 @@ export const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE pages ADD COLUMN bodyText TEXT NOT NULL DEFAULT '';
   `,
+  // Faz 5.5 — tarama yüzeyi genişlemesi: viewport meta, <html lang>, karma içerik (mixed
+  // content), boyutsuz görsel sayısı. bkz. crawlHtmlParser.ts.
+  `
+  ALTER TABLE pages ADD COLUMN viewportMeta TEXT;
+  ALTER TABLE pages ADD COLUMN langAttribute TEXT;
+  ALTER TABLE pages ADD COLUMN mixedContentCount INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE pages ADD COLUMN imagesMissingDimensions INTEGER NOT NULL DEFAULT 0;
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

@@ -312,6 +312,10 @@ export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider =>
         securityHeaders: [],
         redirectChain: [],
         redirectLoop: false,
+        viewportMeta: null,
+        langAttribute: null,
+        mixedContentCount: 0,
+        imagesMissingDimensions: 1,
       })
     }
     const rng = mulberry32(hashString(url))
@@ -344,6 +348,10 @@ export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider =>
       securityHeaders: [],
       redirectChain: [],
       redirectLoop: false,
+      viewportMeta: 'width=device-width, initial-scale=1',
+      langAttribute: 'tr',
+      mixedContentCount: 0,
+      imagesMissingDimensions: 0,
     })
   },
   fetchRobotsRules: async () => ok({ isAllowed: () => true, sitemaps: [] }),

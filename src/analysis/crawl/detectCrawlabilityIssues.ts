@@ -127,6 +127,54 @@ const unreachedSitemapUrlFindings = (pages: readonly CrawledPage[], sitemapUrls:
   ]
 }
 
+/** Faz 5.5 — HTTPS sayfada düz HTTP'den yüklenen kaynak: tarayıcı genelde bloklar/uyarır. */
+const mixedContentFindings = (pages: readonly CrawledPage[]): readonly Finding[] =>
+  pages
+    .filter((page) => page.url.startsWith('https://') && page.mixedContentCount > 0)
+    .map((page) => ({
+      category: 'indexing',
+      severity: 'high',
+      url: page.url,
+      culpritSelector: null,
+      title: `${page.mixedContentCount} adet karma içerik (mixed content) kaynağı`,
+      explanation:
+        "Sayfa HTTPS üzerinden sunuluyor ama en az bir kaynağı (görsel/script/link/iframe) düz HTTP'den " +
+        'yükleniyor. Tarayıcılar bunu genelde bloklar ya da uyarı gösterir — kullanıcı deneyimini ve güven ' +
+        'sinyalini bozar.',
+      evidence: `mixedContentCount: ${page.mixedContentCount}`,
+      impact: estimateImpact('high'),
+      effort: 'small',
+      fixSnippet: null,
+    }))
+
+/** Faz 5.5 — mevcut tek-yönlü "sitemap'te olup taranamayan" kuralın simetriği: taranmış ama sitemap'te hiç geçmeyen sayfalar. */
+const untrackedByCrawlSitemapFindings = (pages: readonly CrawledPage[], sitemapUrls: readonly string[]): readonly Finding[] => {
+  if (sitemapUrls.length === 0) return []
+  const sitemapSet = new Set(sitemapUrls)
+  const untracked = pages.filter(
+    (page) => page.statusCode !== null && page.statusCode >= 200 && page.statusCode < 300 && !sitemapSet.has(page.url),
+  )
+  if (untracked.length === 0) return []
+  const preview = untracked.slice(0, UNREACHED_SITEMAP_PREVIEW_COUNT).map((p) => p.url).join(', ')
+  const rest = untracked.length > UNREACHED_SITEMAP_PREVIEW_COUNT ? ` (+${untracked.length - UNREACHED_SITEMAP_PREVIEW_COUNT} daha)` : ''
+  return [
+    {
+      category: 'indexing',
+      severity: 'low',
+      url: null,
+      culpritSelector: null,
+      title: `Taranan ama sitemap.xml'de olmayan ${untracked.length} sayfa`,
+      explanation:
+        "Bu sayfalar iç link zinciriyle bulundu ve başarıyla tarandı ama sitemap.xml'de listelenmiyor. " +
+        "Sitemap'te olmayan sayfalar Google'a doğrudan işaret edilmiyor — keşif tamamen iç link grafiğine kalıyor.",
+      evidence: `${preview}${rest}`,
+      impact: estimateImpact('low'),
+      effort: 'medium',
+      fixSnippet: null,
+    },
+  ]
+}
+
 /**
  * Sitemap/robots kaynaklı taranabilirlik bulguları — saf fonksiyon.
  * `sitemapUrls` boşsa yalnız "sitemap yok" bulgusu üretir, diğer iki kural sessizce atlanır
@@ -140,5 +188,7 @@ export const detectCrawlabilityIssues = (pages: readonly CrawledPage[], sitemapU
     ...noindexContradictionFindings(pages, sitemapUrls),
     ...unreachedSitemapUrlFindings(pages, sitemapUrls),
     ...contentTypeMismatchFindings(pages),
+    ...mixedContentFindings(pages),
+    ...untrackedByCrawlSitemapFindings(pages, sitemapUrls),
   ]
 }

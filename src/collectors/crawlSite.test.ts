@@ -44,6 +44,10 @@ const emptyPage = (url: string, overrides: Partial<CrawledPage> = {}): CrawledPa
   securityHeaders: [],
   redirectChain: [],
   redirectLoop: false,
+  viewportMeta: null,
+  langAttribute: null,
+  mixedContentCount: 0,
+  imagesMissingDimensions: 0,
   ...overrides,
 })
 
@@ -208,6 +212,21 @@ describe('collectCrawl', () => {
       expect(result.value.pages.find((p) => p.url === home)?.depth).toBe(0)
       expect(result.value.pages.find((p) => p.url === about)?.depth).toBe(1)
     }
+  })
+
+  test('Faz 5.5 — sitemap.xml URL\'leri iç linkle ulaşılamasa bile crawl kuyruğuna girer', async () => {
+    const home = 'https://ornek.com/'
+    const orphanInSitemap = 'https://ornek.com/kampanya'
+    const provider: CrawlProvider = {
+      name: 'fake-crawl',
+      isMock: true,
+      fetchPage: async (url) => ok(emptyPage(url)),
+      fetchRobotsRules: async () => ok({ isAllowed: () => true, sitemaps: [] }),
+      fetchSitemapUrls: async () => ok([home, orphanInSitemap]),
+    }
+    const result = await collectCrawl(providersWith(provider), config, [home])
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.value.pages.map((p) => p.url)).toContain(orphanInSitemap)
   })
 
   test('robots.txt çekimi tamamen başarısız olursa err döner', async () => {

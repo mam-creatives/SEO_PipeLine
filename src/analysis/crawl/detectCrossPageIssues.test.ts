@@ -31,6 +31,10 @@ const page = (url: string, overrides: Partial<CrawledPage> = {}): CrawledPage =>
   securityHeaders: [],
   redirectChain: [],
   redirectLoop: false,
+  viewportMeta: null,
+  langAttribute: null,
+  mixedContentCount: 0,
+  imagesMissingDimensions: 0,
   ...overrides,
 })
 

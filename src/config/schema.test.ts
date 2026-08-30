@@ -42,8 +42,8 @@ describe('ProjectConfigSchema', () => {
     const result = ProjectConfigSchema.safeParse(validConfig)
     expect(result.success).toBe(true)
     if (result.success) {
-      expect(result.data.crawlMaxPages).toBe(60)
-      expect(result.data.crawlMaxDepth).toBe(3)
+      expect(result.data.crawlMaxPages).toBe(300)
+      expect(result.data.crawlMaxDepth).toBe(5)
       expect(result.data.crawlExcludePaths).toEqual([])
     }
   })

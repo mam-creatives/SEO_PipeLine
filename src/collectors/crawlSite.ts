@@ -50,6 +50,10 @@ const degradedPage = (url: string, message: string): CrawledPage => ({
   securityHeaders: [],
   redirectChain: [],
   redirectLoop: false,
+  viewportMeta: null,
+  langAttribute: null,
+  mixedContentCount: 0,
+  imagesMissingDimensions: 0,
 })
 
 /**
@@ -102,7 +106,12 @@ export const collectCrawl = async (
 
   const visited = new Set<string>()
   const pages: CrawledPage[] = []
-  let currentWave = [...new Set(seedUrls)]
+  // Faz 5.5 — sitemap URL'leri de ilk dalgaya eklenir: iç linkle erişilemeyen ama Google'a
+  // indekslenebilir olarak vaat edilen sayfalar da denetlenir. Bilinçli basitleştirme: bu
+  // sayfalar `depth: 0` alır (BFS "ek giriş noktası" muamelesi görür) — gerçek tıklama
+  // mesafeleri bilinmiyor olabilir, ama link grafiğinde hiç yoksa zaten öksüz bulgusuyla
+  // (detectLinkIssues) ayrıca işaretlenirler.
+  let currentWave = [...new Set([...seedUrls, ...sitemapUrls])]
   let depth = 0
 
   while (currentWave.length > 0 && pages.length < config.crawlMaxPages && depth <= config.crawlMaxDepth) {

@@ -334,6 +334,10 @@ describe('diffRuns', () => {
       securityHeaders: [],
       redirectChain: [],
       redirectLoop: false,
+      viewportMeta: null,
+      langAttribute: null,
+      mixedContentCount: 0,
+      imagesMissingDimensions: 0,
     })
     const prev = makeSnapshot({ pages: [page('https://x.tr/')] })
     const curr = makeSnapshot({ pages: [page('https://x.tr/'), page('https://x.tr/yeni')] })

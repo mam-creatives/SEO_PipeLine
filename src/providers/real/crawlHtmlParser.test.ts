@@ -78,6 +78,41 @@ describe('parseHtmlPage', () => {
     expect(page.schemaFields).toEqual([])
   })
 
+  test('viewport meta ve html lang etiketleri ayrıştırılır, yoksa null döner', () => {
+    const withBoth = parseHtmlPage(
+      '<html lang="tr"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body></body></html>',
+      REQUESTED_URL,
+      200,
+      FINAL_URL,
+    )
+    expect(withBoth.viewportMeta).toBe('width=device-width, initial-scale=1')
+    expect(withBoth.langAttribute).toBe('tr')
+
+    const withoutEither = parseHtmlPage('<html><head></head><body></body></html>', REQUESTED_URL, 200, FINAL_URL)
+    expect(withoutEither.viewportMeta).toBeNull()
+    expect(withoutEither.langAttribute).toBeNull()
+  })
+
+  test('düz HTTP kaynaklarını (img/script/link/iframe) mixedContentCount olarak sayar', () => {
+    const html = `<html><body>
+      <img src="http://x.com/a.jpg">
+      <script src="http://x.com/a.js"></script>
+      <img src="https://x.com/guvenli.jpg">
+      </body></html>`
+    const page = parseHtmlPage(html, REQUESTED_URL, 200, FINAL_URL)
+    expect(page.mixedContentCount).toBe(2)
+  })
+
+  test('width veya height eksik görselleri imagesMissingDimensions olarak sayar', () => {
+    const html = `<html><body>
+      <img src="a.jpg" width="100" height="100">
+      <img src="b.jpg" width="100">
+      <img src="c.jpg">
+      </body></html>`
+    const page = parseHtmlPage(html, REQUESTED_URL, 200, FINAL_URL)
+    expect(page.imagesMissingDimensions).toBe(2)
+  })
+
   test('og:image var ama og:title/og:description yoksa ogComplete false', () => {
     const page = parseHtmlPage(MAMCREATIVES_HOMEPAGE_HTML, REQUESTED_URL, 200, FINAL_URL)
     expect(page.ogComplete).toBe(false)

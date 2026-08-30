@@ -131,6 +131,10 @@ const sampleCrawledPage: CrawledPage = {
   securityHeaders: ['strict-transport-security'],
   redirectChain: [{ url: 'https://ornek-ayakkabi.com/eski', statusCode: 301 }],
   redirectLoop: false,
+  viewportMeta: 'width=device-width, initial-scale=1',
+  langAttribute: 'tr',
+  mixedContentCount: 1,
+  imagesMissingDimensions: 2,
 }
 
 const samplePageLink: PageLink = {

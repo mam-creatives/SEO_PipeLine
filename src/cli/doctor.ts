@@ -1,4 +1,5 @@
 import { collectSourceCode } from '../codeaudit/collectSourceCode.js'
+import { CRAWL_CONCURRENCY, CRAWL_REQUEST_DELAY_MS } from '../config/constants.js'
 import { loadEnv } from '../config/env.js'
 import { loadProjectConfig } from '../config/loadConfig.js'
 import { createLogger } from '../core/logger.js'
@@ -192,6 +193,11 @@ const main = async (): Promise<void> => {
     console.log('  DataForSEO  : keyword için 1 çağrı + keşfedilen domain başına 1 backlink çağrısı (ücretli)')
     console.log('  Keyword gap : aynı DataForSEO kimlik bilgileri, rakip başına 1 domain_intersection çağrısı (ücretli)')
     console.log(`  Lighthouse  : ${config.auditUrls.length} + rakip sayfaları, URL başına 10-30sn (ücretsiz)`)
+    // Kaba tahmin: nezaket gecikmesi × sayfa sayısı / eşzamanlılık — gerçek ağ gecikmesi hariç.
+    const estimatedCrawlSeconds = Math.round((config.crawlMaxPages * CRAWL_REQUEST_DELAY_MS) / CRAWL_CONCURRENCY / 1000)
+    console.log(
+      `  Crawler     : en fazla ${config.crawlMaxPages} sayfa, derinlik ${config.crawlMaxDepth} — tahmini ~${estimatedCrawlSeconds}sn + ağ gecikmesi (ücretsiz, yalnız CRAWL_PROVIDER=live)`,
+    )
     console.log('')
   } catch (error) {
     logger.error('Tanı çalıştırılamadı.', error)

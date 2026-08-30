@@ -252,6 +252,62 @@ const imagesMissingAltFinding = (page: CrawledPage): Finding | null => {
   }
 }
 
+/** Faz 5.5 — CSR'den bağımsız, viewport meta genelde JS'ten önce sunucudan gelir (mobil render için gerekli). */
+const missingViewportFinding = (page: CrawledPage): Finding | null => {
+  if (page.viewportMeta !== null) return null
+  return {
+    category: 'onpage',
+    severity: 'high',
+    url: page.url,
+    culpritSelector: 'meta[name="viewport"]',
+    title: 'Viewport meta etiketi yok',
+    explanation:
+      'Mobil tarayıcılar viewport meta etiketi olmadan sayfayı masaüstü genişliğinde render eder, kullanıcı ' +
+      'yakınlaştırmak zorunda kalır. Google mobil-öncelikli indeksleme kullanıyor — bu doğrudan mobil ' +
+      'kullanılabilirliği ve sıralamayı etkiler.',
+    evidence: 'meta[name="viewport"]: (yok)',
+    impact: estimateImpact('high'),
+    effort: 'trivial',
+    fixSnippet: '<meta name="viewport" content="width=device-width, initial-scale=1">',
+  }
+}
+
+const missingLangAttributeFinding = (page: CrawledPage): Finding | null => {
+  if (page.langAttribute !== null) return null
+  return {
+    category: 'onpage',
+    severity: 'low',
+    url: page.url,
+    culpritSelector: 'html',
+    title: '<html lang> özniteliği yok',
+    explanation:
+      'Tarayıcılar ve ekran okuyucular sayfanın dilini bu öznitelikten anlar — eksikse doğru telaffuz/çeviri ' +
+      'önerisi yapılamaz, küçük ama ücretsiz bir erişilebilirlik/SEO sinyali kaçırılıyor.',
+    evidence: '<html lang>: (yok)',
+    impact: estimateImpact('low'),
+    effort: 'trivial',
+    fixSnippet: '<html lang="tr">',
+  }
+}
+
+const imagesMissingDimensionsFinding = (page: CrawledPage): Finding | null => {
+  if (page.imagesMissingDimensions === 0) return null
+  return {
+    category: 'cwv',
+    severity: 'medium',
+    url: page.url,
+    culpritSelector: 'img:not([width]), img:not([height])',
+    title: `${page.imagesMissingDimensions} görselde width/height özniteliği eksik`,
+    explanation:
+      "width/height olmadan tarayıcı görselin son boyutunu indirilene kadar bilemez — sayfa yüklenirken " +
+      'içerik kayar (CLS), bu Core Web Vitals\'ı bozan yaygın bir sebep.',
+    evidence: `imagesMissingDimensions: ${page.imagesMissingDimensions}`,
+    impact: estimateImpact('medium'),
+    effort: 'small',
+    fixSnippet: '<img src="..." width="800" height="600" alt="...">',
+  }
+}
+
 /**
  * CrawledPage listesinden on-page bulgu üretir — saf fonksiyon, yalnız başarıyla alınmış
  * sayfalar değerlendirilir. `likelyClientRendered` sayfalarda "eksik/yok" iddiaları
@@ -274,5 +330,8 @@ export const detectOnPageIssues = (pages: readonly CrawledPage[]): readonly Find
       deepPageFinding(page),
       reliable ? thinContentFinding(page) : null,
       clientRenderedFinding(page),
+      missingViewportFinding(page),
+      missingLangAttributeFinding(page),
+      imagesMissingDimensionsFinding(page),
     ].filter((finding): finding is Finding => finding !== null)
   })

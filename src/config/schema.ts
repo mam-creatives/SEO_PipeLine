@@ -12,9 +12,13 @@ export const ProjectConfigSchema = z.object({
   auditUrls: z.array(z.string().url('auditUrls geçerli URL olmalı')).default([]),
   locale: z.string().default('tr-TR'),
   mockSeed: z.number().int().default(DEFAULT_MOCK_SEED),
-  /** Faz 2 crawler bütçesi — client başına, tek bir çalıştırmada taranacak üst sınır. */
-  crawlMaxPages: z.number().int().positive().default(60),
-  crawlMaxDepth: z.number().int().positive().default(3),
+  /**
+   * Faz 2 crawler bütçesi — client başına, tek bir çalıştırmada taranacak üst sınır.
+   * Faz 5.5'te 60→300 / 3→5 yükseltildi (sitemap URL'leri artık kuyruğa da giriyor, daha
+   * geniş bir yüzeyi kapsamak için bütçe büyütüldü). `npm run doctor` tahmini süreyi gösterir.
+   */
+  crawlMaxPages: z.number().int().positive().default(300),
+  crawlMaxDepth: z.number().int().positive().default(5),
   /** robots.txt'e ek olarak taranmayacak path'ler, örn. ["/cart", "/wp-admin"]. */
   crawlExcludePaths: z.array(z.string().min(1)).default([]),
   /** Faz 3 kod denetçisi — müşteri kaynak kodunun yerel yolu. Verilmezse kod denetimi atlanır. */

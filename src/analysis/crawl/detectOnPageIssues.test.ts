@@ -31,6 +31,10 @@ const page = (overrides: Partial<CrawledPage>): CrawledPage => ({
   securityHeaders: [],
   redirectChain: [],
   redirectLoop: false,
+  viewportMeta: 'width=device-width, initial-scale=1',
+  langAttribute: 'tr',
+  mixedContentCount: 0,
+  imagesMissingDimensions: 0,
   ...overrides,
 })
 
@@ -141,5 +145,26 @@ describe('detectOnPageIssues', () => {
       page({ wordCount: 50, likelyClientRendered: true, title: 'Yeterli Başlık', h1s: ['H'], hasSchemaOrg: true, ogComplete: true }),
     ])
     expect(findings.some((f) => f.title === 'İnce içerik (thin content)')).toBe(false)
+  })
+
+  test('Faz 5.5 — viewport meta yoksa yüksek önemde bulgu üretir', () => {
+    const findings = detectOnPageIssues([page({ viewportMeta: null })])
+    expect(findings.some((f) => f.severity === 'high' && f.title.includes('Viewport'))).toBe(true)
+  })
+
+  test('Faz 5.5 — html lang yoksa düşük önemde bulgu üretir', () => {
+    const findings = detectOnPageIssues([page({ langAttribute: null })])
+    expect(findings.some((f) => f.severity === 'low' && f.title.includes('lang'))).toBe(true)
+  })
+
+  test('Faz 5.5 — boyutsuz görsel varsa CWV kategorisinde orta önemde bulgu üretir', () => {
+    const findings = detectOnPageIssues([page({ imagesMissingDimensions: 3 })])
+    const finding = findings.find((f) => f.title.includes('width/height'))
+    expect(finding).toMatchObject({ category: 'cwv', severity: 'medium' })
+  })
+
+  test('Faz 5.5 — boyutsuz görsel yoksa bulgu üretmez', () => {
+    const findings = detectOnPageIssues([page({ imagesMissingDimensions: 0 })])
+    expect(findings.some((f) => f.title.includes('width/height'))).toBe(false)
   })
 })

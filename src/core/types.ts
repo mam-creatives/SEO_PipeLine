@@ -223,6 +223,14 @@ export interface CrawledPage {
   readonly redirectChain: readonly RedirectHop[]
   /** Faz 5.2 — zincirde aynı URL ikinci kez görüldü (sonsuz döngü potansiyeli), takip orada durduruldu. */
   readonly redirectLoop: boolean
+  /** Faz 5.5 — `<meta name="viewport">` içeriği, ör. "width=device-width, initial-scale=1". Yoksa null. */
+  readonly viewportMeta: string | null
+  /** Faz 5.5 — `<html lang="...">` özniteliği. Yoksa null. */
+  readonly langAttribute: string | null
+  /** Faz 5.5 — HTTPS sayfada düz HTTP'den yüklenen kaynak sayısı (görsel/script/link/iframe). */
+  readonly mixedContentCount: number
+  /** Faz 5.5 — width VEYA height özniteliği eksik görsel sayısı (CLS riski). */
+  readonly imagesMissingDimensions: number
 }
 
 export interface RunMeta {

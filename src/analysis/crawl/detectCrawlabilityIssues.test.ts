@@ -31,6 +31,10 @@ const page = (overrides: Partial<CrawledPage>): CrawledPage => ({
   securityHeaders: [],
   redirectChain: [],
   redirectLoop: false,
+  viewportMeta: null,
+  langAttribute: null,
+  mixedContentCount: 0,
+  imagesMissingDimensions: 0,
   ...overrides,
 })
 
@@ -89,5 +93,28 @@ describe('detectCrawlabilityIssues', () => {
   test('Content-Type text/html ise bulgu üretmez', () => {
     const findings = detectCrawlabilityIssues([page({ contentType: 'text/html' })], [])
     expect(findings.some((f) => f.title.includes('Content-Type'))).toBe(false)
+  })
+
+  test('Faz 5.5 — HTTPS sayfada karma içerik varsa yüksek önemde bulgu üretir', () => {
+    const findings = detectCrawlabilityIssues([page({ url: 'https://ornek.com/', mixedContentCount: 2 })], [])
+    expect(findings.some((f) => f.severity === 'high' && f.title.includes('karma içerik'))).toBe(true)
+  })
+
+  test('Faz 5.5 — mixedContentCount 0 ise bulgu üretmez', () => {
+    const findings = detectCrawlabilityIssues([page({ url: 'https://ornek.com/', mixedContentCount: 0 })], [])
+    expect(findings.some((f) => f.title.includes('karma içerik'))).toBe(false)
+  })
+
+  test('Faz 5.5 — taranan ama sitemap\'te olmayan sayfalar için düşük önemde bulgu üretir', () => {
+    const tracked = page({ url: 'https://ornek.com/' })
+    const untracked = page({ url: 'https://ornek.com/blog/yeni-yazi' })
+    const findings = detectCrawlabilityIssues([tracked, untracked], ['https://ornek.com/'])
+    expect(findings.some((f) => f.severity === 'low' && f.title.includes("sitemap.xml'de olmayan 1 sayfa"))).toBe(true)
+  })
+
+  test('Faz 5.5 — tüm taranan sayfalar sitemap\'teyse ters yön bulgusu üretmez', () => {
+    const tracked = page({ url: 'https://ornek.com/' })
+    const findings = detectCrawlabilityIssues([tracked], ['https://ornek.com/'])
+    expect(findings.some((f) => f.title.includes('sitemap.xml\'de olmayan'))).toBe(false)
   })
 })

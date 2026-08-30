@@ -105,6 +105,16 @@ const hreflangsOf = ($: cheerio.CheerioAPI): readonly string[] => {
 
 const wordCountOf = (bodyText: string): number => (bodyText === '' ? 0 : bodyText.split(/\s+/).length)
 
+/** Faz 5.5 — düz HTTP'den yüklenen görsel/script/link/iframe kaynak sayısı; yalnız HTTPS sayfada anlamlı (çağıran taraf kontrol eder). */
+const MIXED_CONTENT_SELECTOR = 'img[src^="http://"], script[src^="http://"], link[href^="http://"], iframe[src^="http://"]'
+const mixedContentCountOf = ($: cheerio.CheerioAPI): number => $(MIXED_CONTENT_SELECTOR).length
+
+/** Faz 5.5 — width VEYA height eksik görsel sayısı: tarayıcı son boyutu bilmeden render eder → CLS riski. */
+const imagesMissingDimensionsOf = ($: cheerio.CheerioAPI): number =>
+  $('img')
+    .toArray()
+    .filter((el) => $(el).attr('width') === undefined || $(el).attr('height') === undefined).length
+
 /** Görünür body metni, boşlukları tekilleştirilmiş — Faz 5.4, `MAX_BODY_TEXT_LENGTH`'te kırpılır. */
 const bodyTextOf = ($: cheerio.CheerioAPI): string => $('body').text().replace(/\s+/g, ' ').trim().slice(0, MAX_BODY_TEXT_LENGTH)
 
@@ -170,6 +180,8 @@ export const parseHtmlPage = (
 
   const { internalLinks, externalLinkCount } = resolveLinks($, finalUrl)
   const bodyText = bodyTextOf($)
+  const viewportMeta = $('meta[name="viewport"]').attr('content') ?? null
+  const langAttribute = $('html').attr('lang') ?? null
 
   return {
     url,
@@ -199,6 +211,10 @@ export const parseHtmlPage = (
     contentType: parseContentType(headers),
     headerHreflangs: parseLinkHreflangs(headers),
     securityHeaders: pickSecurityHeaders(headers),
+    viewportMeta,
+    langAttribute,
+    mixedContentCount: mixedContentCountOf($),
+    imagesMissingDimensions: imagesMissingDimensionsOf($),
     redirectChain,
     redirectLoop,
   }
