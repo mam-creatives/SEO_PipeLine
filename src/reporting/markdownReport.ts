@@ -6,8 +6,9 @@ import { renderCwvDiagnosisMarkdown, renderFieldCwvComparisonMarkdown } from './
 import { renderIndexingFindingsMarkdown } from './indexingSection.js'
 import { renderKeywordGapsMarkdown } from './keywordGapSection.js'
 import { renderKeywordPageMatchesMarkdown } from './keywordPageSection.js'
-import { renderSeoFindingsMarkdown } from './seoSection.js'
 import type { ReportModel } from './reportModel.js'
+import { renderSeoFindingsMarkdown } from './seoSection.js'
+import { SEVERITY_LABEL } from './severityLabel.js'
 
 const percent = (rate: number): string => `%${Math.round(rate * 100)}`
 const rankLabel = (rank: number | null): string => (rank === null ? '—' : `#${rank}`)
@@ -18,6 +19,32 @@ const serpFeaturesLabel = (features: { readonly hasAiOverview: boolean; readonly
   if (features.hasFeaturedSnippet) badges.push('Featured Snippet')
   return badges.length > 0 ? badges.join(', ') : '—'
 }
+
+/**
+ * Faz 5.6 — GitHub'ın kendi başlık→anchor algoritmasını taklit eder (lowercase, harf/rakam/
+ * boşluk/tire dışını at, boşlukları tireye çevir) — Unicode harfleri (ı/ğ/ü/ş/ö/ç) ASCII'ye
+ * katlamaz, GitHub da katlamıyor. Bilerek `normalizeTr` KULLANMAZ: GitHub/çoğu görüntüleyici
+ * heading→anchor dönüşümünde locale-aware değil düz `toLowerCase()` kullanıyor — "AI" Türkçe
+ * kuralıyla "aı" olurdu ama gerçek anchor "ai" oluyor, link kırılırdı. En iyi çaba.
+ */
+const slugAnchor = (title: string): string =>
+  title
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N} -]+/gu, '')
+    .trim()
+    .replace(/\s+/g, '-')
+
+/** 1052 satırlık raporda gezinmeyi kolaylaştırır — yalnız her zaman basılan ## bölümleri listeler, ### alt bölümler burada değil. */
+const TOC_SECTIONS: readonly string[] = [
+  'Yönetici Özeti',
+  'Fırsatlar',
+  'Rakip Haritası',
+  'Küme Görünümü',
+  'Teknik Sorunlar (Core Web Vitals)',
+  'AI Görünürlüğü (GEO)',
+  'Gerçek Arama Performansı (GSC)',
+  'Son Çalıştırmadan Bu Yana Değişenler',
+]
 
 /** ReportModel → Markdown rapor. Saf fonksiyon, G/Ç yok. */
 export const renderMarkdown = (model: ReportModel): string => {
@@ -40,6 +67,11 @@ export const renderMarkdown = (model: ReportModel): string => {
     push(`> ❌ **${failed.branch} dalı başarısız** — bu bölüm eksik olabilir: ${failed.message}`)
     push()
   }
+
+  push('**İçindekiler**')
+  push()
+  for (const title of TOC_SECTIONS) push(`- [${title}](#${slugAnchor(title)})`)
+  push()
 
   push('## Yönetici Özeti')
   push()
@@ -243,6 +275,16 @@ export const renderMarkdown = (model: ReportModel): string => {
       for (const delta of model.diff.aiRateDeltas) {
         push(`- "${delta.query}": ${percent(delta.previousRate)} → ${percent(delta.currentRate)}`)
       }
+    }
+    if (model.diff.resolvedFindings.length > 0) {
+      push()
+      push(`✅ Düzelen bulgular (${model.diff.resolvedFindings.length}):`)
+      for (const f of model.diff.resolvedFindings) push(`- ${f.title}${f.url === null ? '' : ` — ${f.url}`}`)
+    }
+    if (model.diff.newFindings.length > 0) {
+      push()
+      push(`🆕 Yeni açılan bulgular (${model.diff.newFindings.length}):`)
+      for (const f of model.diff.newFindings) push(`- ${SEVERITY_LABEL[f.severity]} ${f.title}${f.url === null ? '' : ` — ${f.url}`}`)
     }
   }
   push()

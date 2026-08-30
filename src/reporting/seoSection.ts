@@ -1,7 +1,7 @@
 import type { TechEvaluation } from '../analysis/runAnalysis.js'
 import { sortFindings } from '../core/findings.js'
 import { escapeHtml } from './htmlEscape.js'
-import { EFFORT_LABEL, SEVERITY_LABEL } from './severityLabel.js'
+import { impactEffortLabel, SEVERITY_LABEL } from './severityLabel.js'
 
 /** Yalnız SEO bulgusu olan denetimler — Lighthouse SEO kategorisi çalışmadıysa (PSI/mock) sessizce atlanır. */
 const withSeoFindings = (evaluations: readonly TechEvaluation[]): readonly TechEvaluation[] =>
@@ -23,7 +23,7 @@ export const renderSeoFindingsMarkdown = (evaluations: readonly TechEvaluation[]
     lines.push(`#### ${audit.url}${score === null || score === undefined ? '' : ` — SEO skoru ${score}/100`}`, '')
 
     for (const finding of sortFindings(audit.seoFindings ?? [])) {
-      lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}** _(${EFFORT_LABEL[finding.effort]})_`, '')
+      lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}** _(${impactEffortLabel(finding)})_`, '')
       lines.push(finding.explanation, '')
       if (finding.culpritSelector !== null) lines.push(`Suçlu element: \`${finding.culpritSelector}\``, '')
       if (finding.codeLocation != null) lines.push(`Kaynak: \`${finding.codeLocation.file}${finding.codeLocation.line === null ? '' : `:${finding.codeLocation.line}`}\``, '')
@@ -57,7 +57,7 @@ export const renderSeoFindingsHtml = (evaluations: readonly TechEvaluation[]): s
         return (
           `<div class="action p${priority}">` +
           `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}</strong>` +
-          ` <span class="muted">(${escapeHtml(EFFORT_LABEL[finding.effort])})</span>` +
+          ` <span class="muted">(${escapeHtml(impactEffortLabel(finding))})</span>` +
           `<p>${escapeHtml(finding.explanation)}</p>${culprit}${codeLocationLine}${snippet}</div>`
         )
       })

@@ -70,6 +70,20 @@ const enrichWithCodeLocation = (evaluation: TechEvaluation, sourceFiles: readonl
   }
 }
 
+/**
+ * Faz 5.6 — bulgu-bazlı diff (`diffRuns`) için tüm bulgu kaynaklarını tek diziye toplar.
+ * `crawlFindings` zaten on-page/link/taranabilirlik/canonical/schema/keyword-içerik
+ * bulgularının birleşimi (Faz 5.1-5.4); CWV per-page teşhis bulguları (`techEvaluations`
+ * içinde) ve Lighthouse `seoFindings` kapsam dışı bırakıldı — onlar zaten `cwvDeltas`/mevcut
+ * regresyon uyarısıyla ayrıca izleniyor, bilinçli bir basitleştirme.
+ */
+export const allFindings = (analysis: AnalysisResult): readonly Finding[] => [
+  ...analysis.crawlFindings,
+  ...analysis.indexingFindings,
+  ...analysis.cannibalizationFindings,
+  ...analysis.codeAuditFindings,
+]
+
 /** Toplanan ham veriyi rapora hazır analiz sonucuna dönüştürür — tamamı saf hesap. */
 export const runAnalysis = (collected: CollectedData, config: ProjectConfig): AnalysisResult => {
   const rows = buildKeywordRows(collected.keywords, collected.serps, config)

@@ -13,6 +13,8 @@ const baselineDiff: TrendDiff = {
   aiRateDeltas: [],
   crawlDelta: { pageCountDelta: 0 },
   alerts: [],
+  resolvedFindings: [],
+  newFindings: [],
 }
 
 const analysis: AnalysisResult = {

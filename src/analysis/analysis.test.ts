@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { ProjectConfigSchema } from '../config/schema.js'
+import type { Finding } from '../core/findings.js'
 import type { AiVisibilitySample, RunSnapshot, SerpSnapshot } from '../core/types.js'
 import { buildClusters, buildKeywordRows, clusterIdFor } from './clusterKeywords.js'
 import { detectAiGaps } from './detectAiGaps.js'
@@ -347,5 +348,57 @@ describe('diffRuns', () => {
   test('baseline (ilk çalıştırma) crawlDelta.pageCountDelta 0 döner', () => {
     const curr = makeSnapshot({})
     expect(diffRuns(null, curr).crawlDelta).toEqual({ pageCountDelta: 0 })
+  })
+
+  const finding = (overrides: Partial<Finding>): Finding => ({
+    category: 'onpage',
+    severity: 'medium',
+    url: 'https://ornek.com/',
+    culpritSelector: null,
+    title: '<title> etiketi eksik',
+    explanation: 'x',
+    evidence: 'x',
+    impact: 25,
+    effort: 'trivial',
+    fixSnippet: null,
+    ...overrides,
+  })
+
+  test('Faz 5.6 — önceki run\'da olup şimdi olmayan bulgu resolvedFindings\'e düşer', () => {
+    const prev = makeSnapshot({})
+    const curr = makeSnapshot({})
+    const diff = diffRuns(prev, curr, [finding({})], [])
+    expect(diff.resolvedFindings).toHaveLength(1)
+    expect(diff.newFindings).toHaveLength(0)
+  })
+
+  test('Faz 5.6 — önceki run\'da olmayıp şimdi olan bulgu newFindings\'e düşer', () => {
+    const prev = makeSnapshot({})
+    const curr = makeSnapshot({})
+    const diff = diffRuns(prev, curr, [], [finding({})])
+    expect(diff.newFindings).toHaveLength(1)
+    expect(diff.resolvedFindings).toHaveLength(0)
+  })
+
+  test('Faz 5.6 — her iki run\'da da aynı bulgu (kategori+başlık+url) ne resolved ne new sayılır', () => {
+    const prev = makeSnapshot({})
+    const curr = makeSnapshot({})
+    const diff = diffRuns(prev, curr, [finding({})], [finding({})])
+    expect(diff.resolvedFindings).toEqual([])
+    expect(diff.newFindings).toEqual([])
+  })
+
+  test('Faz 5.6 — farklı url aynı bulguyu farklı sayar', () => {
+    const prev = makeSnapshot({})
+    const curr = makeSnapshot({})
+    const diff = diffRuns(prev, curr, [finding({ url: 'https://ornek.com/a' })], [finding({ url: 'https://ornek.com/b' })])
+    expect(diff.resolvedFindings).toHaveLength(1)
+    expect(diff.newFindings).toHaveLength(1)
+  })
+
+  test('Faz 5.6 — baseline\'da (ilk çalıştırma) resolvedFindings/newFindings boş döner', () => {
+    const diff = diffRuns(null, makeSnapshot({}), [], [finding({})])
+    expect(diff.resolvedFindings).toEqual([])
+    expect(diff.newFindings).toEqual([])
   })
 })

@@ -1,6 +1,6 @@
 import { sortFindings, type Finding } from '../core/findings.js'
 import { escapeHtml } from './htmlEscape.js'
-import { EFFORT_LABEL, SEVERITY_LABEL } from './severityLabel.js'
+import { impactEffortLabel, SEVERITY_LABEL } from './severityLabel.js'
 
 /**
  * `crawlSection.ts`/`indexingSection.ts`'ten farklı olarak `url` DEĞİL `codeLocation.file` ile
@@ -34,7 +34,7 @@ export const renderCodeAuditFindingsMarkdown = (findings: readonly Finding[]): s
     lines.push(`#### ${file}`, '')
     for (const finding of sortFindings(fileFindings)) {
       const location = locationLabel(finding)
-      lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}${location}** _(${EFFORT_LABEL[finding.effort]})_`, '')
+      lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}${location}** _(${impactEffortLabel(finding)})_`, '')
       lines.push(finding.explanation, '')
       lines.push(`_${finding.evidence}_`, '')
       if (finding.fixSnippet !== null) lines.push('```', finding.fixSnippet, '```', '')
@@ -56,7 +56,7 @@ export const renderCodeAuditFindingsHtml = (findings: readonly Finding[]): strin
         return (
           `<div class="action p${priority}">` +
           `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}${escapeHtml(location)}</strong>` +
-          ` <span class="muted">(${escapeHtml(EFFORT_LABEL[finding.effort])})</span>` +
+          ` <span class="muted">(${escapeHtml(impactEffortLabel(finding))})</span>` +
           `<p>${escapeHtml(finding.explanation)}</p><p class="muted">${escapeHtml(finding.evidence)}</p>${snippet}</div>`
         )
       })

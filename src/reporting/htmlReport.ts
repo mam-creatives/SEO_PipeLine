@@ -9,6 +9,7 @@ import { renderKeywordGapsHtml } from './keywordGapSection.js'
 import { renderKeywordPageMatchesHtml } from './keywordPageSection.js'
 import type { ReportModel } from './reportModel.js'
 import { renderSeoFindingsHtml } from './seoSection.js'
+import { SEVERITY_LABEL } from './severityLabel.js'
 
 const percent = (rate: number): string => `%${Math.round(rate * 100)}`
 const rankLabel = (rank: number | null): string => (rank === null ? '—' : `#${rank}`)
@@ -29,6 +30,27 @@ const table = (headers: readonly string[], rows: readonly (readonly string[])[])
 
 const rateBar = (rate: number): string =>
   `<div class="bar"><div class="bar-fill" style="width:${Math.round(rate * 100)}%"></div></div> ${percent(rate)}`
+
+/** Faz 5.6 — markdownReport.ts'teki slugAnchor ile aynı (düz toLowerCase, normalizeTr değil) — iki dosya tutarlı olsun diye, HTML'in kendisi için zorunlu değil (id/href kendi kontrolümüzde). */
+const slugAnchor = (title: string): string =>
+  title
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N} -]+/gu, '')
+    .trim()
+    .replace(/\s+/g, '-')
+
+const TOC_SECTIONS: readonly string[] = [
+  'Yönetici Özeti',
+  'Fırsatlar',
+  'Rakip Haritası',
+  'Küme Görünümü',
+  'Teknik Sorunlar (Core Web Vitals)',
+  'AI Görünürlüğü (GEO)',
+  'Gerçek Arama Performansı (GSC)',
+  'Son Çalıştırmadan Bu Yana Değişenler',
+]
+
+const sectionHeading = (title: string): string => `<h2 id="${slugAnchor(title)}">${escapeHtml(title)}</h2>`
 
 const STYLE = `
   :root { color-scheme: light; }
@@ -51,6 +73,10 @@ const STYLE = `
   .bar { display: inline-block; width: 90px; height: 8px; background: #edf2f7; border-radius: 4px; vertical-align: middle; margin-right: .4rem; }
   .bar-fill { height: 100%; background: #2b6cb0; border-radius: 4px; }
   .muted { color: #718096; font-size: .85rem; }
+  .toc { position: sticky; top: 0; background: #fff; z-index: 1; padding: .5rem 0; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; }
+  .toc ul { list-style: none; display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin: 0; padding: 0; }
+  .toc a { color: #2b6cb0; text-decoration: none; font-size: .85rem; }
+  .toc a:hover { text-decoration: underline; }
 ${CWV_SECTION_STYLE}
 `
 
@@ -69,7 +95,7 @@ export const renderHtml = (model: ReportModel): string => {
     )
   }
 
-  sections.push(`<h2>Yönetici Özeti</h2><p>${escapeHtml(model.synthesis.headline)}</p>`)
+  sections.push(`${sectionHeading('Yönetici Özeti')}<p>${escapeHtml(model.synthesis.headline)}</p>`)
   sections.push(
     model.synthesis.actions
       .map(
@@ -80,7 +106,7 @@ export const renderHtml = (model: ReportModel): string => {
   )
   sections.push(`<p class="muted">Sentez: ${escapeHtml(model.synthesis.synthesizer)}</p>`)
 
-  sections.push('<h2>Fırsatlar</h2>')
+  sections.push(sectionHeading('Fırsatlar'))
   sections.push(
     table(
       ['Skor', 'Keyword', 'Niyet', 'Hacim/ay', 'Zorluk', 'Sıra', 'SERP Özellikleri', 'Neden'],
@@ -97,7 +123,7 @@ export const renderHtml = (model: ReportModel): string => {
     ),
   )
 
-  sections.push('<h2>Rakip Haritası</h2>')
+  sections.push(sectionHeading('Rakip Haritası'))
   sections.push(
     table(
       ['Domain', 'Görünme Oranı', 'Sınıf', 'Gerçek Rakip?', 'Kaynak'],
@@ -114,7 +140,7 @@ export const renderHtml = (model: ReportModel): string => {
     ),
   )
 
-  sections.push('<h2>Küme Görünümü</h2>')
+  sections.push(sectionHeading('Küme Görünümü'))
   sections.push(
     table(
       ['Küme', 'Niyet', 'Keyword', 'Toplam Hacim', 'Ort. Zorluk', 'En İyi Sıra', 'Temsilci'],
@@ -130,7 +156,7 @@ export const renderHtml = (model: ReportModel): string => {
     ),
   )
 
-  sections.push('<h2>Teknik Sorunlar (Core Web Vitals)</h2>')
+  sections.push(sectionHeading('Teknik Sorunlar (Core Web Vitals)'))
   sections.push(
     table(
       ['URL', 'LCP', 'INP', 'CLS', 'Skor', 'Site'],
@@ -180,7 +206,7 @@ export const renderHtml = (model: ReportModel): string => {
   const keywordPageMatches = renderKeywordPageMatchesHtml(model.analysis.keywordPageMatches)
   if (keywordPageMatches !== '') sections.push(keywordPageMatches)
 
-  sections.push('<h2>AI Görünürlüğü (GEO)</h2>')
+  sections.push(sectionHeading('AI Görünürlüğü (GEO)'))
   if (model.analysis.aiVisibility.length === 0) {
     sections.push('<p class="muted">Bu çalıştırmada AI görünürlük verisi yok.</p>')
   } else {
@@ -202,7 +228,7 @@ export const renderHtml = (model: ReportModel): string => {
     )
   }
 
-  sections.push('<h2>Gerçek Arama Performansı (GSC)</h2>')
+  sections.push(sectionHeading('Gerçek Arama Performansı (GSC)'))
   if (model.analysis.gscRows.length === 0) {
     sections.push('<p class="muted">GSC verisi yok.</p>')
   } else {
@@ -224,7 +250,7 @@ export const renderHtml = (model: ReportModel): string => {
   const cannibalizationFindings = renderCannibalizationFindingsHtml(model.analysis.cannibalizationFindings)
   if (cannibalizationFindings !== '') sections.push(cannibalizationFindings)
 
-  sections.push('<h2>Son Çalıştırmadan Bu Yana Değişenler</h2>')
+  sections.push(sectionHeading('Son Çalıştırmadan Bu Yana Değişenler'))
   if (model.diff.isBaseline) {
     sections.push('<p class="muted">İlk çalıştırma — karşılaştırma yok. Bir sonraki çalıştırmada bu bölüm dolacak.</p>')
   } else {
@@ -244,10 +270,50 @@ export const renderHtml = (model: ReportModel): string => {
             ]),
           ),
     )
+    if (model.diff.cwvDeltas.length > 0) {
+      const signed = (value: number, unit: string): string =>
+        `${value > 0 ? '▲ +' : value < 0 ? '▼ ' : ''}${Math.round(value)}${unit}`
+      sections.push(
+        '<p class="muted">Core Web Vitals değişimi:</p>' +
+          table(
+            ['URL', 'LCP', 'INP', 'CLS'],
+            model.diff.cwvDeltas.map((delta) => [
+              escapeHtml(delta.url),
+              signed(delta.lcpDeltaMs, 'ms'),
+              signed(delta.inpDeltaMs, 'ms'),
+              delta.clsDelta.toFixed(3),
+            ]),
+          ),
+      )
+    }
+    if (model.diff.crawlDelta.pageCountDelta !== 0) {
+      const delta = model.diff.crawlDelta.pageCountDelta
+      sections.push(`<p class="muted">Taranan sayfa sayısı: ${delta > 0 ? `+${delta}` : delta} (önceki çalıştırmaya göre)</p>`)
+    }
+    if (model.diff.competitorEntries.length > 0) {
+      sections.push(`<p class="muted">Yeni rakipler: ${escapeHtml(model.diff.competitorEntries.join(', '))}</p>`)
+    }
+    if (model.diff.competitorExits.length > 0) {
+      sections.push(`<p class="muted">Listeden çıkan rakipler: ${escapeHtml(model.diff.competitorExits.join(', '))}</p>`)
+    }
     if (model.diff.aiRateDeltas.length > 0) {
       sections.push(
         `<ul>${model.diff.aiRateDeltas
           .map((delta) => `<li>"${escapeHtml(delta.query)}": ${percent(delta.previousRate)} → ${percent(delta.currentRate)}</li>`)
+          .join('')}</ul>`,
+      )
+    }
+    if (model.diff.resolvedFindings.length > 0) {
+      sections.push(
+        `<p class="muted">✅ Düzelen bulgular (${model.diff.resolvedFindings.length}):</p><ul>${model.diff.resolvedFindings
+          .map((f) => `<li>${escapeHtml(f.title)}${f.url === null ? '' : ` — ${escapeHtml(f.url)}`}</li>`)
+          .join('')}</ul>`,
+      )
+    }
+    if (model.diff.newFindings.length > 0) {
+      sections.push(
+        `<p class="muted">🆕 Yeni açılan bulgular (${model.diff.newFindings.length}):</p><ul>${model.diff.newFindings
+          .map((f) => `<li>${escapeHtml(SEVERITY_LABEL[f.severity])} ${escapeHtml(f.title)}${f.url === null ? '' : ` — ${escapeHtml(f.url)}`}</li>`)
           .join('')}</ul>`,
       )
     }
@@ -264,6 +330,7 @@ export const renderHtml = (model: ReportModel): string => {
 <body>
 <h1>SEO Araştırma Raporu — ${escapeHtml(model.brandName)} <span class="muted">(${escapeHtml(model.domain)})</span></h1>
 <p class="muted">Çalıştırma #${model.run.id} · ${escapeHtml(model.run.startedAt)}${model.previousRunId === null ? '' : ` · Karşılaştırma: #${model.previousRunId}`}</p>
+<nav class="toc"><ul>${TOC_SECTIONS.map((title) => `<li><a href="#${slugAnchor(title)}">${escapeHtml(title)}</a></li>`).join('')}</ul></nav>
 ${sections.join('\n')}
 <hr><p class="muted">Rapor ${escapeHtml(model.generatedAt)} tarihinde SEO Komuta Merkezi tarafından üretildi.</p>
 </body>

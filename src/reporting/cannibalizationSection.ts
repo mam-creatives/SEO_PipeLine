@@ -1,6 +1,6 @@
 import { sortFindings, type Finding } from '../core/findings.js'
 import { escapeHtml } from './htmlEscape.js'
-import { EFFORT_LABEL, SEVERITY_LABEL } from './severityLabel.js'
+import { impactEffortLabel, SEVERITY_LABEL } from './severityLabel.js'
 
 /**
  * Yamyamlık (cannibalization) bölümü — GSC'nin `page` boyutundan gelen bulgular:
@@ -13,7 +13,7 @@ export const renderCannibalizationFindingsMarkdown = (findings: readonly Finding
   const lines: string[] = ['### Sayfa Yamyamlığı (Cannibalization)', '']
 
   for (const finding of sortFindings(findings)) {
-    lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}** _(${EFFORT_LABEL[finding.effort]})_`, '')
+    lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}** _(${impactEffortLabel(finding)})_`, '')
     lines.push(finding.explanation, '')
     lines.push(`Kanıt: ${finding.evidence}`, '')
     if (finding.fixSnippet !== null) lines.push('```', finding.fixSnippet, '```', '')
@@ -33,7 +33,7 @@ export const renderCannibalizationFindingsHtml = (findings: readonly Finding[]):
       return (
         `<div class="action p${priority}">` +
         `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}</strong>` +
-        ` <span class="muted">(${escapeHtml(EFFORT_LABEL[finding.effort])})</span>` +
+        ` <span class="muted">(${escapeHtml(impactEffortLabel(finding))})</span>` +
         `<p>${escapeHtml(finding.explanation)}</p>` +
         `<p class="muted">Kanıt: ${escapeHtml(finding.evidence)}</p>${snippet}</div>`
       )

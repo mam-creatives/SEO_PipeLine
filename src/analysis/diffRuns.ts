@@ -1,4 +1,5 @@
 import { RANK_DROP_ALERT_THRESHOLD } from '../config/constants.js'
+import type { Finding } from '../core/findings.js'
 import type { RunSnapshot } from '../core/types.js'
 
 export interface RankChange {
@@ -47,6 +48,10 @@ export interface TrendDiff {
   readonly aiRateDeltas: readonly AiRateDelta[]
   readonly crawlDelta: CrawlDelta
   readonly alerts: readonly Alert[]
+  /** Faz 5.6 — önceki run'da vardı, bu run'da yok (ham veriden yeniden hesaplanmış bulgular üzerinden). */
+  readonly resolvedFindings: readonly Finding[]
+  /** Faz 5.6 — önceki run'da yoktu, bu run'da var. */
+  readonly newFindings: readonly Finding[]
 }
 
 const EMPTY_BASELINE: TrendDiff = {
@@ -59,6 +64,28 @@ const EMPTY_BASELINE: TrendDiff = {
   aiRateDeltas: [],
   crawlDelta: { pageCountDelta: 0 },
   alerts: [],
+  resolvedFindings: [],
+  newFindings: [],
+}
+
+/**
+ * Bulgu kimliği: kategori+başlık+url üçlüsü. Basitleştirme: bir bulgunun başlığı sayı içeriyorsa
+ * (ör. "3 görselde alt eksik" → "2 görselde alt eksik") bu iki farklı bulgu sayılır — "düzeldi +
+ * yeni açıldı" olarak görünür, "iyileşti" olarak değil. Kabul edilebilir: yanlış pozitif üretmez,
+ * yalnız aynı kök sorunu iki ayrı satırda gösterir.
+ */
+const findingKey = (finding: Finding): string => `${finding.category}|${finding.title}|${finding.url ?? ''}`
+
+const diffFindings = (
+  prevFindings: readonly Finding[],
+  currFindings: readonly Finding[],
+): { readonly resolvedFindings: readonly Finding[]; readonly newFindings: readonly Finding[] } => {
+  const prevKeys = new Set(prevFindings.map(findingKey))
+  const currKeys = new Set(currFindings.map(findingKey))
+  return {
+    resolvedFindings: prevFindings.filter((finding) => !currKeys.has(findingKey(finding))),
+    newFindings: currFindings.filter((finding) => !prevKeys.has(findingKey(finding))),
+  }
 }
 
 /** Sıra karşılaştırmasında "top-10 dışı" 11 sayılır — delta hesabı için. */
@@ -91,8 +118,18 @@ const realCompetitorSet = (snapshot: RunSnapshot): ReadonlySet<string> =>
 /**
  * İki çalıştırma arasındaki değişimleri hesaplar — pipeline'ın asıl değer ürettiği yer.
  * prev null ise ilk çalıştırmadır (baseline), karşılaştırma yapılmaz.
+ *
+ * `prevFindings`/`currFindings` — Faz 5.6, opsiyonel: bulgular `RunSnapshot`'ta yaşamıyor
+ * (yalnız ham veri), çağıran taraf (`researchPipeline.ts`/`report.ts`) ham veriyi
+ * `runAnalysis`'ten geçirip bulguları AYRICA hesaplayıp buraya verir. Verilmezse (varsayılan
+ * `[]`) resolvedFindings/newFindings boş kalır — geri uyumlu.
  */
-export const diffRuns = (prev: RunSnapshot | null, curr: RunSnapshot): TrendDiff => {
+export const diffRuns = (
+  prev: RunSnapshot | null,
+  curr: RunSnapshot,
+  prevFindings: readonly Finding[] = [],
+  currFindings: readonly Finding[] = [],
+): TrendDiff => {
   if (prev === null) return EMPTY_BASELINE
 
   const alerts: Alert[] = []
@@ -186,6 +223,8 @@ export const diffRuns = (prev: RunSnapshot | null, curr: RunSnapshot): TrendDiff
   // Crawler sayfa sayısı deltası — ham karşılaştırma, ham cwvDeltas ile aynı seviyede.
   const crawlDelta: CrawlDelta = { pageCountDelta: curr.pages.length - prev.pages.length }
 
+  const { resolvedFindings, newFindings } = diffFindings(prevFindings, currFindings)
+
   return {
     isBaseline: false,
     configMismatch,
@@ -196,5 +235,7 @@ export const diffRuns = (prev: RunSnapshot | null, curr: RunSnapshot): TrendDiff
     aiRateDeltas,
     crawlDelta,
     alerts,
+    resolvedFindings,
+    newFindings,
   }
 }

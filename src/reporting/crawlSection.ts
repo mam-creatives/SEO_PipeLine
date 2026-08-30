@@ -1,6 +1,6 @@
 import { sortFindings, type Finding } from '../core/findings.js'
 import { escapeHtml } from './htmlEscape.js'
-import { EFFORT_LABEL, SEVERITY_LABEL } from './severityLabel.js'
+import { impactEffortLabel, SEVERITY_LABEL } from './severityLabel.js'
 
 /** url → o sayfaya ait bulgular; site geneli bulgular (sitemap yok vb.) url: null taşır. */
 const groupByUrl = (findings: readonly Finding[]): ReadonlyMap<string, readonly Finding[]> => {
@@ -27,7 +27,7 @@ export const renderCrawlFindingsMarkdown = (findings: readonly Finding[]): strin
   for (const [url, urlFindings] of groupByUrl(findings)) {
     lines.push(`#### ${url}`, '')
     for (const finding of sortFindings(urlFindings)) {
-      lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}** _(${EFFORT_LABEL[finding.effort]})_`, '')
+      lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}** _(${impactEffortLabel(finding)})_`, '')
       lines.push(finding.explanation, '')
       lines.push(`_${finding.evidence}_`, '')
       if (finding.codeLocation != null) lines.push(`Kaynak: \`${finding.codeLocation.file}${finding.codeLocation.line === null ? '' : `:${finding.codeLocation.line}`}\``, '')
@@ -54,7 +54,7 @@ export const renderCrawlFindingsHtml = (findings: readonly Finding[]): string =>
         return (
           `<div class="action p${priority}">` +
           `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}</strong>` +
-          ` <span class="muted">(${escapeHtml(EFFORT_LABEL[finding.effort])})</span>` +
+          ` <span class="muted">(${escapeHtml(impactEffortLabel(finding))})</span>` +
           `<p>${escapeHtml(finding.explanation)}</p><p class="muted">${escapeHtml(finding.evidence)}</p>${codeLocationLine}${snippet}</div>`
         )
       })

@@ -1,6 +1,6 @@
 import { diffRuns } from '../analysis/diffRuns.js'
-import { runAnalysis } from '../analysis/runAnalysis.js'
-import type { CollectedData } from '../collectors/runAllCollectors.js'
+import { allFindings, runAnalysis } from '../analysis/runAnalysis.js'
+import { snapshotToCollectedData } from '../collectors/snapshotToCollectedData.js'
 import { loadProjectConfig } from '../config/loadConfig.js'
 import { createLogger } from '../core/logger.js'
 import { buildReportModel } from '../reporting/reportModel.js'
@@ -28,33 +28,22 @@ const main = async (): Promise<void> => {
       }
 
       const snapshot = getRunSnapshot(db, latest.id)
-      const collected: CollectedData = {
-        keywords: snapshot.keywords,
-        serps: snapshot.serps,
-        backlinks: snapshot.backlinks,
-        techAudits: snapshot.techAudits,
-        aiSamples: snapshot.aiSamples,
-        gscRows: snapshot.gscRows,
-        indexStatuses: snapshot.indexStatuses,
-        fieldCwv: snapshot.fieldCwv,
-        crawledPages: snapshot.pages,
-        keywordGaps: snapshot.keywordGaps,
-        // sitemapUrls/crawlSeedUrls kalıcı değil (bkz. migrations.ts v8 yorumu) — yeniden
-        // toplamadan üretilen raporda sitemap karşılaştırması yapılamaz, öksüz-sayfa istisnası
-        // uygulanamaz (boş seed = hiçbir sayfa istisna almaz, en kötü ihtimalle fazladan uyarı).
-        sitemapUrls: [],
-        crawlSeedUrls: [],
-        // sourceFiles/detectedStacks de kalıcı değil (bkz. runAllCollectors.ts yorumu) — yeniden
-        // toplamadan üretilen raporda kod denetimi bölümü boş çıkar, bu beklenen davranış.
-        sourceFiles: [],
-        detectedStacks: [],
-        failedBranches: [],
-      }
-      const analysis = runAnalysis(collected, config)
+      // sitemapUrls/crawlSeedUrls/sourceFiles/detectedStacks kalıcı değil (bkz.
+      // snapshotToCollectedData.ts yorumu) — yeniden toplamadan üretilen raporda sitemap
+      // karşılaştırması ve kod denetimi bölümü boş çıkar, bu beklenen davranış.
+      const analysis = runAnalysis(snapshotToCollectedData(snapshot), config)
 
       const previousMeta = getPreviousCompletedRun(db, latest.id)
       const previousSnapshot = previousMeta === null ? null : getRunSnapshot(db, previousMeta.id)
-      const diff = diffRuns(previousSnapshot, snapshot)
+      // Faz 5.6 — bulgu-bazlı diff (hangi bulgu düzeldi/yeni açıldı) için önceki run'ın
+      // bulguları da ham veriden yeniden hesaplanır — snapshot bulguyu değil ham veriyi taşıyor.
+      const previousAnalysis = previousSnapshot === null ? null : runAnalysis(snapshotToCollectedData(previousSnapshot), config)
+      const diff = diffRuns(
+        previousSnapshot,
+        snapshot,
+        previousAnalysis === null ? [] : allFindings(previousAnalysis),
+        allFindings(analysis),
+      )
       const synthesis = synthesizeWithRules(analysis, diff)
 
       const model = buildReportModel({

@@ -77,10 +77,16 @@ describe('runResearch (uçtan uca, mock mod)', () => {
     expect(markdown).toContain('<title> etiketi eksik')
     expect(markdown).toContain('hiç <h1> yok')
 
+    // Faz 5.6 — impact skoru artık basılıyor, İçindekiler her iki formatta da var.
+    expect(markdown).toContain('**İçindekiler**')
+    expect(markdown).toMatch(/· etki \d+/)
+
     const html = readFileSync(outcome.htmlPath, 'utf-8')
     expect(html).toContain('MOCK MODE')
     expect(html).toContain('<title>')
     expect(html).toContain('cwv-card')
+    expect(html).toContain('class="toc"')
+    expect(html).toMatch(/· etki \d+/)
 
     // Regresyon nöbetçisi: collectFieldCwv veri üretiyor ama insertFieldCwv çağrılmazsa
     // (Faz 1.4'te fiilen olan hata) rapor yine de dolu görünür çünkü o run'ın KENDİ
