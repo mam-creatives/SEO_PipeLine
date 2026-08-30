@@ -98,7 +98,8 @@ const localePrefixOf = (url: string): string | null => {
 const missingHreflangFinding = (pages: readonly CrawledPage[]): Finding | null => {
   const localePrefixes = new Set(pages.map((page) => localePrefixOf(page.url)).filter((prefix): prefix is string => prefix !== null))
   if (localePrefixes.size < 2) return null
-  if (pages.some((page) => page.hreflangs.length > 0)) return null
+  // Faz 5.1 — bazı siteler hreflang'ı yalnız HTTP Link başlığında gönderir, HTML'de hiç <link> etiketi olmaz.
+  if (pages.some((page) => page.hreflangs.length > 0 || page.headerHreflangs.length > 0)) return null
 
   return {
     category: 'onpage',

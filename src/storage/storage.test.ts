@@ -123,6 +123,10 @@ const sampleCrawledPage: CrawledPage = {
   likelyClientRendered: false,
   depth: 0,
   hreflangs: [],
+  xRobotsTag: 'noindex',
+  contentType: 'text/html',
+  headerHreflangs: ['tr', 'en'],
+  securityHeaders: ['strict-transport-security'],
 }
 
 const samplePageLink: PageLink = {

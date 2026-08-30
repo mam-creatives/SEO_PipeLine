@@ -266,6 +266,15 @@ export const MIGRATIONS: readonly string[] = [
 
   CREATE INDEX idx_keyword_gaps_run ON keyword_gaps(runId);
   `,
+  // Faz 5.1 — HTTP yanıt başlıkları: X-Robots-Tag (HTML'de izi olmayan indeksleme engeli),
+  // Content-Type, Link header hreflang'ları, mevcut güvenlik başlıklarının adları.
+  // bkz. crawlHeaderParser.ts.
+  `
+  ALTER TABLE pages ADD COLUMN xRobotsTag TEXT;
+  ALTER TABLE pages ADD COLUMN contentType TEXT;
+  ALTER TABLE pages ADD COLUMN headerHreflangs TEXT NOT NULL DEFAULT '[]';
+  ALTER TABLE pages ADD COLUMN securityHeaders TEXT NOT NULL DEFAULT '[]';
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

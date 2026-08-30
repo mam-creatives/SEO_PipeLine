@@ -23,6 +23,10 @@ const page = (url: string, overrides: Partial<CrawledPage> = {}): CrawledPage =>
   likelyClientRendered: false,
   depth: 0,
   hreflangs: [],
+  xRobotsTag: null,
+  contentType: null,
+  headerHreflangs: [],
+  securityHeaders: [],
   ...overrides,
 })
 

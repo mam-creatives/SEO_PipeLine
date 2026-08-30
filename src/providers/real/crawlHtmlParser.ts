@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio'
 import { CSR_SUSPECT_MIN_SCRIPT_TAGS, CSR_SUSPECT_TEXT_RATIO } from '../../config/constants.js'
 import type { CrawledPage, PageLink } from '../../core/types.js'
+import { parseContentType, parseLinkHreflangs, pickSecurityHeaders, parseXRobotsTag } from './crawlHeaderParser.js'
 
 const HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6'
 const NON_NAVIGABLE_PROTOCOLS = new Set(['javascript:', 'mailto:', 'tel:', 'sms:'])
@@ -103,8 +104,17 @@ export const detectLikelyClientRendered = ($: cheerio.CheerioAPI, rawHtml: strin
  * Ham HTML → yapılandırılmış on-page veri. Saf fonksiyon — ağ çağrısı yok, statusCode/finalUrl
  * fetch katmanından geçirilir. HTTP durumunu YORUMLAMAZ: 404 gövdesi de aynen ayrıştırılır,
  * "bu bir hata mı" kararı `detectOnPageIssues`/`detectLinkIssues`'a aittir.
+ *
+ * `headers` — Faz 5.1 — varsayılan `{}`: mevcut çağrı yerlerini (testler dahil) kırmadan
+ * opsiyonel kalır, ama gerçek crawlProvider.ts her zaman gerçek yanıt başlıklarını geçirir.
  */
-export const parseHtmlPage = (html: string, url: string, statusCode: number, finalUrl: string): CrawledPage => {
+export const parseHtmlPage = (
+  html: string,
+  url: string,
+  statusCode: number,
+  finalUrl: string,
+  headers: Readonly<Record<string, string>> = {},
+): CrawledPage => {
   const $ = cheerio.load(html)
 
   const descriptionEl = $('meta[name="description"]')
@@ -152,5 +162,9 @@ export const parseHtmlPage = (html: string, url: string, statusCode: number, fin
     // Yer tutucu — BFS derinliğini yalnız orkestrasyon (crawlSite.ts) bilir, burada EZİLİR.
     depth: 0,
     hreflangs: hreflangsOf($),
+    xRobotsTag: parseXRobotsTag(headers),
+    contentType: parseContentType(headers),
+    headerHreflangs: parseLinkHreflangs(headers),
+    securityHeaders: pickSecurityHeaders(headers),
   }
 }

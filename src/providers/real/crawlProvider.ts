@@ -17,6 +17,8 @@ interface FetchTextResult {
   readonly status: number
   readonly finalUrl: string
   readonly body: string
+  /** Faz 5.1 — `Headers` API zaten lowercase anahtar döner (`entries()`), fetch spesifikasyonu gereği. */
+  readonly headers: Readonly<Record<string, string>>
 }
 
 /** Tek ortak I/O: GET + zaman aşımı + dürüst UA. Yalnız ağ/timeout hatası err() döner — HTTP durumu veridir. */
@@ -27,7 +29,7 @@ const fetchText = async (url: string): Promise<Result<FetchTextResult, ProviderE
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
     const body = await response.text()
-    return ok({ status: response.status, finalUrl: response.url, body })
+    return ok({ status: response.status, finalUrl: response.url, body, headers: Object.fromEntries(response.headers.entries()) })
   } catch (cause) {
     return err(new ProviderError(PROVIDER_NAME, `'${url}' için istek başarısız.`, { cause }))
   }
@@ -47,7 +49,7 @@ export const createCrawlProvider = (): CrawlProvider => ({
     await delay(CRAWL_REQUEST_DELAY_MS)
     const fetched = await fetchText(url)
     if (!fetched.ok) return fetched
-    return ok(parseHtmlPage(fetched.value.body, url, fetched.value.status, fetched.value.finalUrl))
+    return ok(parseHtmlPage(fetched.value.body, url, fetched.value.status, fetched.value.finalUrl, fetched.value.headers))
   },
 
   fetchRobotsRules: async (origin: string): Promise<Result<RobotsRules, ProviderError>> => {

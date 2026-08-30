@@ -304,6 +304,10 @@ export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider =>
         likelyClientRendered: false,
         depth: 0,
         hreflangs: [],
+        xRobotsTag: null,
+        contentType: 'text/html',
+        headerHreflangs: [],
+        securityHeaders: [],
       })
     }
     const rng = mulberry32(hashString(url))
@@ -328,6 +332,10 @@ export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider =>
       likelyClientRendered: false,
       depth: 0,
       hreflangs: [],
+      xRobotsTag: null,
+      contentType: 'text/html',
+      headerHreflangs: [],
+      securityHeaders: [],
     })
   },
   fetchRobotsRules: async () => ok({ isAllowed: () => true, sitemaps: [] }),

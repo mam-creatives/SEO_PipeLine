@@ -23,6 +23,10 @@ const page = (overrides: Partial<CrawledPage>): CrawledPage => ({
   likelyClientRendered: false,
   depth: 0,
   hreflangs: [],
+  xRobotsTag: null,
+  contentType: null,
+  headerHreflangs: [],
+  securityHeaders: [],
   ...overrides,
 })
 
@@ -55,5 +59,31 @@ describe('detectCrawlabilityIssues', () => {
   test('tüm sitemap URL\'leri tarandıysa unreached bulgusu üretmez', () => {
     const findings = detectCrawlabilityIssues([page({})], ['https://ornek.com/'])
     expect(findings.some((f) => f.title.includes('taranamayan'))).toBe(false)
+  })
+
+  test('X-Robots-Tag: noindex — HTML\'de iz yoksa bile kritik bulgu üretir', () => {
+    const findings = detectCrawlabilityIssues([page({ xRobotsTag: 'noindex' })], [])
+    expect(findings.some((f) => f.severity === 'critical' && f.title.includes('HTTP başlığıyla indekslemeye kapatılmış'))).toBe(true)
+  })
+
+  test('X-Robots-Tag yoksa ya da noindex içermiyorsa bulgu üretmez', () => {
+    const findings = detectCrawlabilityIssues([page({ xRobotsTag: 'max-image-preview:large' })], [])
+    expect(findings.some((f) => f.title.includes('HTTP başlığıyla'))).toBe(false)
+  })
+
+  test('X-Robots-Tag noindex + sitemap\'te olan sayfa için de çelişki bulgusu üretir (meta değil, başlık kaynaklı)', () => {
+    const findings = detectCrawlabilityIssues([page({ xRobotsTag: 'noindex' })], ['https://ornek.com/'])
+    const contradiction = findings.find((f) => f.title.includes('çelişkili'))
+    expect(contradiction?.evidence).toContain('X-Robots-Tag')
+  })
+
+  test('Content-Type html içermiyorsa düşük önemde bulgu üretir', () => {
+    const findings = detectCrawlabilityIssues([page({ contentType: 'application/pdf' })], [])
+    expect(findings.some((f) => f.severity === 'low' && f.title.includes('Content-Type'))).toBe(true)
+  })
+
+  test('Content-Type text/html ise bulgu üretmez', () => {
+    const findings = detectCrawlabilityIssues([page({ contentType: 'text/html' })], [])
+    expect(findings.some((f) => f.title.includes('Content-Type'))).toBe(false)
   })
 })

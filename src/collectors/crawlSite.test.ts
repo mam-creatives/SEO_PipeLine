@@ -36,6 +36,10 @@ const emptyPage = (url: string, overrides: Partial<CrawledPage> = {}): CrawledPa
   likelyClientRendered: false,
   depth: 0,
   hreflangs: [],
+  xRobotsTag: null,
+  contentType: null,
+  headerHreflangs: [],
+  securityHeaders: [],
   ...overrides,
 })
 

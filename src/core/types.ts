@@ -179,6 +179,19 @@ export interface CrawledPage {
   readonly depth: number
   /** Faz 4.3 — `<link rel="alternate" hreflang="...">` etiketlerindeki dil kodları, ör. ['tr','en']. Yoksa boş dizi. */
   readonly hreflangs: readonly string[]
+  /**
+   * Faz 5.1 — HTTP `X-Robots-Tag` yanıt başlığı, ör. "noindex". HTML'de HİÇBİR İZİ yoktur —
+   * yalnız sunucu yanıtında var, tarayıcının "Kaynağı Görüntüle"sinde bile görünmez. Bu yüzden
+   * `metaRobots`'tan ayrı bir alan: ikisi de "yok" olabilir ama biri "noindex" derken diğeri
+   * bilmiyor olabilir.
+   */
+  readonly xRobotsTag: string | null
+  /** Faz 5.1 — yanıtın Content-Type'ı, charset gibi ek parametreler atılmış (ör. "text/html"). */
+  readonly contentType: string | null
+  /** Faz 5.1 — HTTP `Link` başlığındaki rel="alternate" hreflang kodları — bazı siteler hreflang'ı yalnız başlıkta gönderir, HTML'de hiç etiket olmaz. */
+  readonly headerHreflangs: readonly string[]
+  /** Faz 5.1 — mevcut güvenlik başlıklarının ADLARI (ham değer değil) — bulgu üretmez, yalnız bilgi amaçlı. */
+  readonly securityHeaders: readonly string[]
 }
 
 export interface RunMeta {

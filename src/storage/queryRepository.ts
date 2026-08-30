@@ -137,7 +137,7 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     .prepare(
       `SELECT url, statusCode, finalUrl, fetchError, title, metaDescription, canonicalUrl, h1s, headingOrder,
         hasSchemaOrg, schemaTypes, ogComplete, imagesMissingAlt, wordCount, metaRobots, externalLinkCount,
-        likelyClientRendered, depth, hreflangs
+        likelyClientRendered, depth, hreflangs, xRobotsTag, contentType, headerHreflangs, securityHeaders
        FROM pages WHERE runId = ?`,
     )
     .all(runId) as (Omit<
@@ -150,6 +150,8 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     | 'internalLinks'
     | 'likelyClientRendered'
     | 'hreflangs'
+    | 'headerHreflangs'
+    | 'securityHeaders'
   > & {
     h1s: string
     headingOrder: string
@@ -158,6 +160,8 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     ogComplete: number
     likelyClientRendered: number
     hreflangs: string
+    headerHreflangs: string
+    securityHeaders: string
   })[]
 
   const pageLinks = db
@@ -193,6 +197,8 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
       ogComplete: row.ogComplete === 1,
       likelyClientRendered: row.likelyClientRendered === 1,
       hreflangs: JSON.parse(row.hreflangs) as string[],
+      headerHreflangs: JSON.parse(row.headerHreflangs) as string[],
+      securityHeaders: JSON.parse(row.securityHeaders) as string[],
       // Bilinçli: v8 migration yorumundaki tasarım kararı — tam link grafiği page_links'te,
       // round-trip'te sayfa içine geri gömülmüyor (mevcut run'ın bulgu tespiti DB'den değil
       // bellekteki CollectedData'dan çalışıyor, bu alan yalnız geçmiş/diff için var).

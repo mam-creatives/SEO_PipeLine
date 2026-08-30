@@ -131,6 +131,28 @@ describe('parseHtmlPage', () => {
     const withoutHreflang = parseHtmlPage(MAMCREATIVES_HOMEPAGE_HTML, REQUESTED_URL, 200, FINAL_URL)
     expect(withoutHreflang.hreflangs).toEqual([])
   })
+
+  test('headers verilmezse (varsayılan {}) tüm başlık-türevi alanlar null/boş döner', () => {
+    const page = parseHtmlPage(MAMCREATIVES_HOMEPAGE_HTML, REQUESTED_URL, 200, FINAL_URL)
+    expect(page.xRobotsTag).toBeNull()
+    expect(page.contentType).toBeNull()
+    expect(page.headerHreflangs).toEqual([])
+    expect(page.securityHeaders).toEqual([])
+  })
+
+  test('HTTP başlıkları verilirse X-Robots-Tag/Content-Type/Link-hreflang/güvenlik başlıkları ayrıştırılır', () => {
+    const headers = {
+      'x-robots-tag': 'noindex',
+      'content-type': 'text/html; charset=utf-8',
+      link: '<https://x.com/tr/>; rel="alternate"; hreflang="tr"',
+      'strict-transport-security': 'max-age=31536000',
+    }
+    const page = parseHtmlPage(MAMCREATIVES_HOMEPAGE_HTML, REQUESTED_URL, 200, FINAL_URL, headers)
+    expect(page.xRobotsTag).toBe('noindex')
+    expect(page.contentType).toBe('text/html')
+    expect(page.headerHreflangs).toEqual(['tr'])
+    expect(page.securityHeaders).toEqual(['strict-transport-security'])
+  })
 })
 
 describe('detectLikelyClientRendered', () => {

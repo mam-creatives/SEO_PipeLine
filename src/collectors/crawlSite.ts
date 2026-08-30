@@ -41,6 +41,11 @@ const degradedPage = (url: string, message: string): CrawledPage => ({
   // Yer tutucu — collectCrawl BFS döngüsünde gerçek derinlikle EZİLİR.
   depth: 0,
   hreflangs: [],
+  // Ağ/timeout hatasında hiçbir HTTP yanıtı alınamadı — başlıklar da bilinmez.
+  xRobotsTag: null,
+  contentType: null,
+  headerHreflangs: [],
+  securityHeaders: [],
 })
 
 /**
