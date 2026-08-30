@@ -20,6 +20,7 @@ const page = (overrides: Partial<CrawledPage>): CrawledPage => ({
   metaRobots: null,
   internalLinks: [],
   externalLinkCount: 0,
+  likelyClientRendered: false,
   ...overrides,
 })
 
@@ -83,5 +84,30 @@ describe('detectOnPageIssues', () => {
     ])
     expect(findings.every((f) => f.category === 'onpage')).toBe(true)
     expect(findings.length).toBeGreaterThanOrEqual(4)
+  })
+
+  test('Faz 4.1 — likelyClientRendered true ise title/H1/schema/OG "eksik" bulguları bastırılır, tek uyarı bulgusu üretilir', () => {
+    const findings = detectOnPageIssues([
+      page({
+        title: null,
+        h1s: [],
+        hasSchemaOrg: false,
+        ogComplete: false,
+        likelyClientRendered: true,
+      }),
+    ])
+    expect(findings.some((f) => f.title.includes('eksik') || f.title.includes('yok'))).toBe(false)
+    expect(findings.some((f) => f.title === 'Sayfa muhtemelen istemci tarafında render ediliyor')).toBe(true)
+    expect(findings).toHaveLength(1)
+  })
+
+  test('Faz 4.1 — likelyClientRendered true olsa da "title çok uzun" gibi ELİNDE VERİ OLAN bulgu bastırılmaz', () => {
+    const findings = detectOnPageIssues([page({ title: 'x'.repeat(80), likelyClientRendered: true })])
+    expect(findings.some((f) => f.title.includes('uzun'))).toBe(true)
+  })
+
+  test('Faz 4.1 — likelyClientRendered false ise uyarı bulgusu hiç üretilmez', () => {
+    const findings = detectOnPageIssues([page({})])
+    expect(findings.some((f) => f.title === 'Sayfa muhtemelen istemci tarafında render ediliyor')).toBe(false)
   })
 })

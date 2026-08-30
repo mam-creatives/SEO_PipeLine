@@ -1,5 +1,6 @@
+import * as cheerio from 'cheerio'
 import { describe, expect, test } from 'vitest'
-import { parseHtmlPage } from './crawlHtmlParser.js'
+import { detectLikelyClientRendered, parseHtmlPage } from './crawlHtmlParser.js'
 import { MAMCREATIVES_HOMEPAGE_HTML } from './fixtures/mamcreativesHomepage.js'
 
 const REQUESTED_URL = 'https://mamcreatives.com/'
@@ -108,5 +109,53 @@ describe('parseHtmlPage', () => {
     const page = parseHtmlPage('<html><head><title>404</title></head><body></body></html>', REQUESTED_URL, 404, REQUESTED_URL)
     expect(page.statusCode).toBe(404)
     expect(page.fetchError).toBeNull()
+  })
+
+  test('gerçek mamcreatives.com anasayfası (script yok, içerik dolu) likelyClientRendered false döner', () => {
+    const page = parseHtmlPage(MAMCREATIVES_HOMEPAGE_HTML, REQUESTED_URL, 200, FINAL_URL)
+    expect(page.likelyClientRendered).toBe(false)
+  })
+})
+
+describe('detectLikelyClientRendered', () => {
+  test('boş body + çok script (SPA kabuğu) → muhtemelen CSR', () => {
+    const html = `<!DOCTYPE html><html><head>
+      <script src="/static/js/main.abc123.js"></script>
+      <script src="/static/js/vendor.def456.js"></script>
+      <script src="/static/js/runtime.ghi789.js"></script>
+      <script src="https://www.googletagmanager.com/gtag/js"></script>
+      <script>window.dataLayer=window.dataLayer||[];</script>
+      </head><body><div id="root"></div></body></html>`
+    const $ = cheerio.load(html)
+    expect(detectLikelyClientRendered($, html)).toBe(true)
+  })
+
+  test('içerik-zengin sayfa, çok script olsa bile → CSR değil (metin oranı yüksek)', () => {
+    const paragraph = 'Bu gerçek bir içerik paragrafıdır ve tekrar tekrar yazılarak sayfayı doldurur. '.repeat(20)
+    const html = `<html><head>
+      <script src="/a.js"></script><script src="/b.js"></script><script src="/c.js"></script>
+      <script src="/d.js"></script><script src="/e.js"></script>
+      </head><body><p>${paragraph}</p></body></html>`
+    const $ = cheerio.load(html)
+    expect(detectLikelyClientRendered($, html)).toBe(false)
+  })
+
+  test('boş body ama script sayısı eşiğin altında → CSR değil (tek başına düşük metin yetmez)', () => {
+    const html = `<html><head><script src="/a.js"></script></head><body><div id="root"></div></body></html>`
+    const $ = cheerio.load(html)
+    expect(detectLikelyClientRendered($, html)).toBe(false)
+  })
+
+  test('JSON-LD scripti script sayısına dahil edilmez', () => {
+    const html = `<html><head>
+      <script type="application/ld+json">{"@type":"WebPage"}</script>
+      </head><body><div id="root"></div></body></html>`
+    const $ = cheerio.load(html)
+    expect(detectLikelyClientRendered($, html)).toBe(false)
+  })
+
+  test('boş ham HTML için false döner (savunmacı)', () => {
+    const $ = cheerio.load('')
+    expect(detectLikelyClientRendered($, '')).toBe(false)
   })
 })

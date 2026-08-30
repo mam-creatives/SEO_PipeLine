@@ -322,6 +322,7 @@ describe('diffRuns', () => {
       metaRobots: null,
       internalLinks: [],
       externalLinkCount: 0,
+      likelyClientRendered: false,
     })
     const prev = makeSnapshot({ pages: [page('https://x.tr/')] })
     const curr = makeSnapshot({ pages: [page('https://x.tr/'), page('https://x.tr/yeni')] })

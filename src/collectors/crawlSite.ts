@@ -36,6 +36,8 @@ const degradedPage = (url: string, message: string): CrawledPage => ({
   metaRobots: null,
   internalLinks: [],
   externalLinkCount: 0,
+  // Ağ/timeout hatasında sayfa hiç alınamadı — CSR olup olmadığı bilinmez, uydurulmaz.
+  likelyClientRendered: false,
 })
 
 /**

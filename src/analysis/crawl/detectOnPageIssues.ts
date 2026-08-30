@@ -5,38 +5,68 @@ import type { CrawledPage } from '../../core/types.js'
 /** Yalnız gerçekten alınmış sayfalar değerlendirilir — 4xx/5xx'in "title eksik" demesi anlamsız, o detectLinkIssues'ın işi. */
 const isEvaluable = (page: CrawledPage): boolean => page.statusCode !== null && page.statusCode >= 200 && page.statusCode < 300
 
-const titleFinding = (page: CrawledPage): Finding | null => {
-  if (page.title === null || page.title === '') {
-    return {
-      category: 'onpage',
-      severity: 'critical',
-      url: page.url,
-      culpritSelector: 'title',
-      title: '<title> etiketi eksik',
-      explanation:
-        'Sayfanın <title> etiketi yok ya da boş. Bu, SERP\'te gösterilen başlık ve Google\'ın sayfayı ' +
-        'anlamasında kullandığı en güçlü tek sinyal — eksikliği doğrudan tıklama oranını ve alaka skorunu düşürür.',
-      evidence: 'title: (yok)',
-      impact: estimateImpact('critical'),
-      effort: 'trivial',
-      fixSnippet: `<title>Anahtar Kelime | Marka Adı</title>`,
-    }
+/**
+ * Faz 4.1 — CSR (istemci-taraflı render) muhtemelse "title/H1/schema/OG yok" bulguları
+ * bastırılır: ham HTML boşsa bunlar aslında var olabilir, JS render sonrası eklenmiş olabilir.
+ * Uydurmak yerine `diagnoseCwv`/`linkFindingsToCode`'un "isabetsizse null döner" felsefesiyle
+ * aynı — yerine TEK bir uyarı bulgusu üretilir, aşağıdaki `clientRenderedFinding`. Yalnız
+ * "eksik/yok" iddiaları bastırılır — "çok uzun" gibi ELİNDE VERİ OLAN bulgular etkilenmez,
+ * bkz. aggregator'daki kullanım.
+ */
+const clientRenderedFinding = (page: CrawledPage): Finding | null => {
+  if (!page.likelyClientRendered) return null
+  return {
+    category: 'onpage',
+    severity: 'medium',
+    url: page.url,
+    culpritSelector: null,
+    title: 'Sayfa muhtemelen istemci tarafında render ediliyor',
+    explanation:
+      'Ham HTML\'de görünür metin oranı çok düşük ve script sayısı yüksek — sayfa muhtemelen ' +
+      'client-side render (Next.js CSR, Vue, SPA vb.). Bu crawler yalnız ham HTML\'i okur; bu ' +
+      'sayfadaki title/H1/schema/OG bulguları BASTIRILDI çünkü JS render sonrası içerik ' +
+      'crawler\'a görünmüyor olabilir — güvenilir değiller.',
+    evidence: `wordCount: ${page.wordCount}, likelyClientRendered: true`,
+    impact: estimateImpact('medium'),
+    effort: 'medium',
+    fixSnippet: null,
   }
-  if (page.title.length > TITLE_MAX_LENGTH) {
-    return {
-      category: 'onpage',
-      severity: 'low',
-      url: page.url,
-      culpritSelector: 'title',
-      title: 'Title çok uzun, SERP\'te kırpılabilir',
-      explanation: `Title ${page.title.length} karakter — Google genelde ~${TITLE_MAX_LENGTH} karakterden sonra kırpar.`,
-      evidence: `title (${page.title.length} karakter): "${page.title}"`,
-      impact: estimateImpact('low'),
-      effort: 'trivial',
-      fixSnippet: null,
-    }
+}
+
+/** CSR'de bastırılır — ham HTML'de yoksa bile JS render sonrası var olabilir. */
+const missingTitleFinding = (page: CrawledPage): Finding | null => {
+  if (page.title !== null && page.title !== '') return null
+  return {
+    category: 'onpage',
+    severity: 'critical',
+    url: page.url,
+    culpritSelector: 'title',
+    title: '<title> etiketi eksik',
+    explanation:
+      'Sayfanın <title> etiketi yok ya da boş. Bu, SERP\'te gösterilen başlık ve Google\'ın sayfayı ' +
+      'anlamasında kullandığı en güçlü tek sinyal — eksikliği doğrudan tıklama oranını ve alaka skorunu düşürür.',
+    evidence: 'title: (yok)',
+    impact: estimateImpact('critical'),
+    effort: 'trivial',
+    fixSnippet: `<title>Anahtar Kelime | Marka Adı</title>`,
   }
-  return null
+}
+
+/** CSR'den bağımsız — title elimizde VAR, uzunluğu ölçülebiliyor, JS render şüphesi bunu geçersiz kılmaz. */
+const titleTooLongFinding = (page: CrawledPage): Finding | null => {
+  if (page.title === null || page.title.length <= TITLE_MAX_LENGTH) return null
+  return {
+    category: 'onpage',
+    severity: 'low',
+    url: page.url,
+    culpritSelector: 'title',
+    title: 'Title çok uzun, SERP\'te kırpılabilir',
+    explanation: `Title ${page.title.length} karakter — Google genelde ~${TITLE_MAX_LENGTH} karakterden sonra kırpar.`,
+    evidence: `title (${page.title.length} karakter): "${page.title}"`,
+    impact: estimateImpact('low'),
+    effort: 'trivial',
+    fixSnippet: null,
+  }
 }
 
 const metaDescriptionFinding = (page: CrawledPage): Finding | null => {
@@ -184,17 +214,25 @@ const imagesMissingAltFinding = (page: CrawledPage): Finding | null => {
   }
 }
 
-/** CrawledPage listesinden on-page bulgu üretir — saf fonksiyon, yalnız başarıyla alınmış sayfalar değerlendirilir. */
+/**
+ * CrawledPage listesinden on-page bulgu üretir — saf fonksiyon, yalnız başarıyla alınmış
+ * sayfalar değerlendirilir. `likelyClientRendered` sayfalarda "eksik/yok" iddiaları
+ * (title/H1/schema/OG) bastırılır, yerine tek bir `clientRenderedFinding` üretilir —
+ * bkz. dosya başındaki Faz 4.1 yorumu.
+ */
 export const detectOnPageIssues = (pages: readonly CrawledPage[]): readonly Finding[] =>
-  pages.filter(isEvaluable).flatMap((page) =>
-    [
-      titleFinding(page),
+  pages.filter(isEvaluable).flatMap((page) => {
+    const reliable = !page.likelyClientRendered
+    return [
+      reliable ? missingTitleFinding(page) : null,
+      titleTooLongFinding(page),
       metaDescriptionFinding(page),
-      missingH1Finding(page),
+      reliable ? missingH1Finding(page) : null,
       multipleH1Finding(page),
       missingCanonicalFinding(page),
-      missingSchemaFinding(page),
-      incompleteOgFinding(page),
+      reliable ? missingSchemaFinding(page) : null,
+      reliable ? incompleteOgFinding(page) : null,
       imagesMissingAltFinding(page),
-    ].filter((finding): finding is Finding => finding !== null),
-  )
+      clientRenderedFinding(page),
+    ].filter((finding): finding is Finding => finding !== null)
+  })

@@ -238,6 +238,10 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX idx_pages_run ON pages(runId);
   CREATE INDEX idx_page_links_run ON page_links(runId);
   `,
+  // Faz 4.1 — CSR sahte-bulgu koruması: bkz. crawlHtmlParser.ts detectLikelyClientRendered.
+  `
+  ALTER TABLE pages ADD COLUMN likelyClientRendered INTEGER NOT NULL DEFAULT 0;
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

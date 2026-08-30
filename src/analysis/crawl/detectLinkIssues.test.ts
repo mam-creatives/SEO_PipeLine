@@ -28,6 +28,7 @@ const page = (overrides: Partial<CrawledPage>): CrawledPage => ({
   metaRobots: null,
   internalLinks: [],
   externalLinkCount: 0,
+  likelyClientRendered: false,
   ...overrides,
 })
 

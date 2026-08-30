@@ -127,6 +127,15 @@ export const CRAWL_CONCURRENCY = 4
 export const CRAWL_REQUEST_DELAY_MS = 200
 
 /**
+ * Faz 4.1 — istemci-taraflı render (CSR) sezgisi. Bilimsel değil, ucuz bir sinyal: görünür
+ * metin / ham HTML boyutu oranı bu eşiğin ALTINDA VE script sayısı bu eşiğin ÜSTÜNDEYSE sayfa
+ * "muhtemelen istemci tarafında render ediliyor" işaretlenir — ikisi birlikte, çünkü analytics/
+ * chat widget scriptleri tek başına yaygındır ve içerik-zengin sayfalarda da bol script olabilir.
+ */
+export const CSR_SUSPECT_TEXT_RATIO = 0.02
+export const CSR_SUSPECT_MIN_SCRIPT_TAGS = 5
+
+/**
  * Faz 3 kod denetçisi — güvenli okuma sınırları. Müşteri kaynak ağaçları binlerce dosya
  * (mamcreatives.com'da 7344) taşıyabilir; sınırsız okuma bellek riski taşır.
  */

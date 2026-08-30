@@ -158,8 +158,9 @@ export const insertFieldCwv = (db: Db, runId: number, rows: readonly FieldCwv[])
 export const insertPages = (db: Db, runId: number, pages: readonly CrawledPage[]): void => {
   const stmt = db.prepare(
     `INSERT INTO pages (runId, url, statusCode, finalUrl, fetchError, title, metaDescription, canonicalUrl,
-      h1s, headingOrder, hasSchemaOrg, schemaTypes, ogComplete, imagesMissingAlt, wordCount, metaRobots, externalLinkCount)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      h1s, headingOrder, hasSchemaOrg, schemaTypes, ogComplete, imagesMissingAlt, wordCount, metaRobots,
+      externalLinkCount, likelyClientRendered)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
   inTransaction(db, 'Crawler sayfaları', () => {
     for (const page of pages) {
@@ -181,6 +182,7 @@ export const insertPages = (db: Db, runId: number, pages: readonly CrawledPage[]
         page.wordCount,
         page.metaRobots,
         page.externalLinkCount,
+        page.likelyClientRendered ? 1 : 0,
       )
     }
   })

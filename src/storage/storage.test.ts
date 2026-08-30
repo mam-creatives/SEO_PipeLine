@@ -112,6 +112,7 @@ const sampleCrawledPage: CrawledPage = {
   // eşitliğinin anlamlı olması için burada da [] veriliyor.
   internalLinks: [],
   externalLinkCount: 3,
+  likelyClientRendered: false,
 }
 
 const samplePageLink: PageLink = {

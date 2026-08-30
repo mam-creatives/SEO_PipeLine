@@ -273,6 +273,7 @@ export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider =>
           isInternal: true,
         })),
         externalLinkCount: 2,
+        likelyClientRendered: false,
       })
     }
     const rng = mulberry32(hashString(url))
@@ -294,6 +295,7 @@ export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider =>
       metaRobots: null,
       internalLinks: [],
       externalLinkCount: 0,
+      likelyClientRendered: false,
     })
   },
   fetchRobotsRules: async () => ok({ isAllowed: () => true, sitemaps: [] }),

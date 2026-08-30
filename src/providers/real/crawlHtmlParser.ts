@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio'
+import { CSR_SUSPECT_MIN_SCRIPT_TAGS, CSR_SUSPECT_TEXT_RATIO } from '../../config/constants.js'
 import type { CrawledPage, PageLink } from '../../core/types.js'
 
 const HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6'
@@ -70,6 +71,25 @@ const wordCountOf = ($: cheerio.CheerioAPI): number => {
 }
 
 /**
+ * Ucuz CSR (istemci-taraflı render) sezgisi — Faz 4.1. İstemci tarafında render edilen bir
+ * sitede (Next.js CSR, Vue, herhangi bir SPA) ham HTML neredeyse boş gelir; crawler bunu
+ * yorumlamadan "title yok"/"H1 yok" gibi kendinden emin ama sahte bulgulara çevirirdi
+ * (bkz. `detectOnPageIssues.ts`'teki bastırma). Bilimsel bir ölçüm değil: görünür metin / ham
+ * HTML boyutu oranı çok düşükse VE script sayısı yüksekse "muhtemelen CSR" işaretlenir — tek
+ * başına script sayısı güvenilmez (analytics/chat widget'ları normal sitelerde de yaygın),
+ * ikisinin birlikte olması yanlış pozitifi azaltır.
+ *
+ * JSON-LD scriptleri sayılmaz — yapılandırılmış veridir, CSR sinyali değildir.
+ */
+export const detectLikelyClientRendered = ($: cheerio.CheerioAPI, rawHtml: string): boolean => {
+  if (rawHtml.length === 0) return false
+  const visibleTextLength = $('body').text().trim().length
+  const textRatio = visibleTextLength / rawHtml.length
+  const scriptCount = $('script:not([type="application/ld+json"])').length
+  return textRatio < CSR_SUSPECT_TEXT_RATIO && scriptCount >= CSR_SUSPECT_MIN_SCRIPT_TAGS
+}
+
+/**
  * Ham HTML → yapılandırılmış on-page veri. Saf fonksiyon — ağ çağrısı yok, statusCode/finalUrl
  * fetch katmanından geçirilir. HTTP durumunu YORUMLAMAZ: 404 gövdesi de aynen ayrıştırılır,
  * "bu bir hata mı" kararı `detectOnPageIssues`/`detectLinkIssues`'a aittir.
@@ -118,5 +138,6 @@ export const parseHtmlPage = (html: string, url: string, statusCode: number, fin
     metaRobots,
     internalLinks,
     externalLinkCount,
+    likelyClientRendered: detectLikelyClientRendered($, html),
   }
 }

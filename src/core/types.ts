@@ -156,6 +156,8 @@ export interface CrawledPage {
   readonly metaRobots: string | null
   readonly internalLinks: readonly PageLink[]
   readonly externalLinkCount: number
+  /** Faz 4.1 — ucuz bir sezgiyle (metin/HTML oranı + script sayısı) "muhtemelen CSR" işareti. Kesinlik değil, bkz. crawlHtmlParser.ts. */
+  readonly likelyClientRendered: boolean
 }
 
 export interface RunMeta {
