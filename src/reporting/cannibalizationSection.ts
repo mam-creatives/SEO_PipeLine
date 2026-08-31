@@ -1,6 +1,6 @@
 import { sortFindings, type Finding } from '../core/findings.js'
 import { escapeHtml } from './htmlEscape.js'
-import { impactEffortLabel, SEVERITY_LABEL } from './severityLabel.js'
+import { findingCardAttrs, impactEffortLabel, SEVERITY_LABEL } from './severityLabel.js'
 
 /**
  * Yamyamlık (cannibalization) bölümü — GSC'nin `page` boyutundan gelen bulgular:
@@ -31,7 +31,7 @@ export const renderCannibalizationFindingsHtml = (findings: readonly Finding[]):
       const snippet =
         finding.fixSnippet === null ? '' : `<pre><code>${escapeHtml(finding.fixSnippet)}</code></pre>`
       return (
-        `<div class="action p${priority}">` +
+        `<div class="action p${priority}" ${findingCardAttrs(finding)}>` +
         `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}</strong>` +
         ` <span class="muted">(${escapeHtml(impactEffortLabel(finding))})</span>` +
         `<p>${escapeHtml(finding.explanation)}</p>` +

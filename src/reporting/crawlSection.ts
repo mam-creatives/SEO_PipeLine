@@ -1,6 +1,6 @@
 import { dedupeWidespreadFindings, sortFindings, type Finding } from '../core/findings.js'
 import { escapeHtml } from './htmlEscape.js'
-import { impactEffortLabel, SEVERITY_LABEL } from './severityLabel.js'
+import { findingCardAttrs, impactEffortLabel, SEVERITY_LABEL } from './severityLabel.js'
 
 /** url → o sayfaya ait bulgular; site geneli bulgular (sitemap yok vb.) url: null taşır. */
 const groupByUrl = (findings: readonly Finding[]): ReadonlyMap<string, readonly Finding[]> => {
@@ -42,7 +42,8 @@ export const renderCrawlFindingsHtml = (findings: readonly Finding[]): string =>
   if (findings.length === 0) return ''
 
   const cards = [...groupByUrl(dedupeWidespreadFindings(findings))].map(([url, urlFindings]) => {
-    const cardFindings = sortFindings(urlFindings)
+    const sorted = sortFindings(urlFindings)
+    const cardFindings = sorted
       .map((finding) => {
         const priority = finding.severity === 'critical' ? 1 : finding.severity === 'high' ? 2 : 3
         const snippet =
@@ -52,14 +53,18 @@ export const renderCrawlFindingsHtml = (findings: readonly Finding[]): string =>
             ? ''
             : `<p class="muted">Kaynak: <code>${escapeHtml(finding.codeLocation.file)}${finding.codeLocation.line === null ? '' : `:${finding.codeLocation.line}`}</code></p>`
         return (
-          `<div class="action p${priority}">` +
+          `<div class="action p${priority}" ${findingCardAttrs(finding)}>` +
           `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}</strong>` +
           ` <span class="muted">(${escapeHtml(impactEffortLabel(finding))})</span>` +
           `<p>${escapeHtml(finding.explanation)}</p><p class="muted">${escapeHtml(finding.evidence)}</p>${codeLocationLine}${snippet}</div>`
         )
       })
       .join('\n')
-    return `<div class="cwv-card"><h3>${escapeHtml(url)}</h3>${cardFindings}</div>`
+    // Faz C — yüzlerce URL kartı sayfayı boğuyordu; kritik/önemli bulgu taşıyanlar açık
+    // başlar (dikkat çeker), geri kalanı katlı (tıklanınca açılır, native <details>, JS'siz de çalışır).
+    const hasUrgentFinding = sorted.some((finding) => finding.severity === 'critical' || finding.severity === 'high')
+    const openAttr = hasUrgentFinding ? ' open' : ''
+    return `<details class="cwv-card"${openAttr}><summary><h3>${escapeHtml(url)}</h3></summary>${cardFindings}</details>`
   })
 
   return `<h2>Site Denetimi (Crawler)</h2>\n${cards.join('\n')}`

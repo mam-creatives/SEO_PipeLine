@@ -1,4 +1,6 @@
-import { COMPETITOR_REPORT_LIMIT } from '../config/constants.js'
+import { COMPETITOR_REPORT_LIMIT, DIFF_FINDINGS_REPORT_LIMIT, GSC_ROWS_REPORT_LIMIT } from '../config/constants.js'
+import { capFindingsForDisplay } from '../core/findings.js'
+import { slugAnchor } from './anchor.js'
 import { renderCannibalizationFindingsHtml } from './cannibalizationSection.js'
 import { renderCodeAuditFindingsHtml } from './codeAuditSection.js'
 import { renderCrawlFindingsHtml } from './crawlSection.js'
@@ -9,7 +11,7 @@ import { renderKeywordGapsHtml } from './keywordGapSection.js'
 import { renderKeywordPageMatchesHtml } from './keywordPageSection.js'
 import type { ReportModel } from './reportModel.js'
 import { renderSeoFindingsHtml } from './seoSection.js'
-import { SEVERITY_LABEL } from './severityLabel.js'
+import { CATEGORY_LABEL, SEVERITY_LABEL } from './severityLabel.js'
 
 const percent = (rate: number): string => `%${Math.round(rate * 100)}`
 const rankLabel = (rank: number | null): string => (rank === null ? '—' : `#${rank}`)
@@ -31,14 +33,6 @@ const table = (headers: readonly string[], rows: readonly (readonly string[])[])
 const rateBar = (rate: number): string =>
   `<div class="bar"><div class="bar-fill" style="width:${Math.round(rate * 100)}%"></div></div> ${percent(rate)}`
 
-/** Faz 5.6 — markdownReport.ts'teki slugAnchor ile aynı (düz toLowerCase, normalizeTr değil) — iki dosya tutarlı olsun diye, HTML'in kendisi için zorunlu değil (id/href kendi kontrolümüzde). */
-const slugAnchor = (title: string): string =>
-  title
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N} -]+/gu, '')
-    .trim()
-    .replace(/\s+/g, '-')
-
 const TOC_SECTIONS: readonly string[] = [
   'Yönetici Özeti',
   'Fırsatlar',
@@ -52,33 +46,169 @@ const TOC_SECTIONS: readonly string[] = [
 
 const sectionHeading = (title: string): string => `<h2 id="${slugAnchor(title)}">${escapeHtml(title)}</h2>`
 
+/**
+ * Dış denetim bulgusu (2026-08-31, Faz C) — önceden `:root { color-scheme: light; }` ile sabit
+ * hex renkler yazılıydı, koyu temada rapor okuyanlar (çoğu e-posta/tarayıcı istemcisi artık
+ * varsayılan koyu) göz yakan beyaz bir sayfa görüyordu. Renkler CSS custom property'ye alındı;
+ * `@media (prefers-color-scheme: dark)` yalnız DEĞERLERİ ezer, seçici/yerleşim aynı kalır.
+ * `CWV_SECTION_STYLE` (cwvSection.ts) de aynı değişkenleri kullanır — tek palet, iki dosya.
+ */
 const STYLE = `
-  :root { color-scheme: light; }
-  body { font-family: -apple-system, 'Segoe UI', sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; color: #1a202c; line-height: 1.5; }
-  h1 { font-size: 1.5rem; border-bottom: 2px solid #2b6cb0; padding-bottom: .5rem; }
-  h2 { font-size: 1.15rem; margin-top: 2rem; color: #2b6cb0; }
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #1a202c;
+    --border: #e2e8f0;
+    --accent: #2b6cb0;
+    --muted: #718096;
+    --card-bg: #f7fafc;
+    --row-alt: #fafafa;
+    --banner-mock-bg: #fffbea;
+    --banner-mock-border: #f6ad55;
+    --banner-error-bg: #fff5f5;
+    --banner-error-border: #fc8181;
+    --badge-ok-bg: #c6f6d5;
+    --badge-ok-fg: #22543d;
+    --badge-fail-bg: #fed7d7;
+    --badge-fail-fg: #742a2a;
+    --action-border: #cbd5e0;
+    --p1: #e53e3e;
+    --p2: #d69e2e;
+    --p3: #4299e1;
+    --bar-bg: #edf2f7;
+    --code-bg: #1a202c;
+    --code-fg: #e2e8f0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181d;
+      --fg: #e2e8f0;
+      --border: #2d3748;
+      --accent: #63b3ed;
+      --muted: #a0aec0;
+      --card-bg: #1e2229;
+      --row-alt: #1a1d23;
+      --banner-mock-bg: #332701;
+      --banner-mock-border: #b7791f;
+      --banner-error-bg: #3a1414;
+      --banner-error-border: #c53030;
+      --badge-ok-bg: #22543d;
+      --badge-ok-fg: #c6f6d5;
+      --badge-fail-bg: #742a2a;
+      --badge-fail-fg: #fed7d7;
+      --action-border: #4a5568;
+      --bar-bg: #2d3748;
+      --code-bg: #0d0f12;
+      --code-fg: #e2e8f0;
+    }
+  }
+  body { font-family: -apple-system, 'Segoe UI', sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; background: var(--bg); color: var(--fg); line-height: 1.5; }
+  h1 { font-size: 1.5rem; border-bottom: 2px solid var(--accent); padding-bottom: .5rem; }
+  h2 { font-size: 1.15rem; margin-top: 2rem; color: var(--accent); }
   table { border-collapse: collapse; width: 100%; font-size: .875rem; margin: .75rem 0; }
-  th, td { border: 1px solid #e2e8f0; padding: .4rem .6rem; text-align: left; }
-  th { background: #f7fafc; }
-  tr:nth-child(even) { background: #fafafa; }
+  th, td { border: 1px solid var(--border); padding: .4rem .6rem; text-align: left; }
+  th { background: var(--card-bg); }
+  tr:nth-child(even) { background: var(--row-alt); }
   .banner { padding: .75rem 1rem; border-radius: 8px; margin: 1rem 0; }
-  .banner.mock { background: #fffbea; border: 1px solid #f6ad55; }
-  .banner.error { background: #fff5f5; border: 1px solid #fc8181; }
+  .banner.mock { background: var(--banner-mock-bg); border: 1px solid var(--banner-mock-border); }
+  .banner.error { background: var(--banner-error-bg); border: 1px solid var(--banner-error-border); }
   .badge { display: inline-block; padding: .05rem .45rem; border-radius: 999px; font-size: .75rem; }
-  .badge.ok { background: #c6f6d5; color: #22543d; }
-  .badge.fail { background: #fed7d7; color: #742a2a; }
-  .action { margin: .4rem 0; padding: .5rem .75rem; border-left: 4px solid #cbd5e0; background: #f7fafc; border-radius: 0 6px 6px 0; }
-  .action.p1 { border-color: #e53e3e; }
-  .action.p2 { border-color: #d69e2e; }
-  .bar { display: inline-block; width: 90px; height: 8px; background: #edf2f7; border-radius: 4px; vertical-align: middle; margin-right: .4rem; }
-  .bar-fill { height: 100%; background: #2b6cb0; border-radius: 4px; }
-  .muted { color: #718096; font-size: .85rem; }
-  .toc { position: sticky; top: 0; background: #fff; z-index: 1; padding: .5rem 0; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; }
+  .badge.ok { background: var(--badge-ok-bg); color: var(--badge-ok-fg); }
+  .badge.fail { background: var(--badge-fail-bg); color: var(--badge-fail-fg); }
+  .action { margin: .4rem 0; padding: .5rem .75rem; border-left: 4px solid var(--action-border); background: var(--card-bg); border-radius: 0 6px 6px 0; }
+  .action.p1 { border-color: var(--p1); }
+  .action.p2 { border-color: var(--p2); }
+  .bar { display: inline-block; width: 90px; height: 8px; background: var(--bar-bg); border-radius: 4px; vertical-align: middle; margin-right: .4rem; }
+  .bar-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+  .muted { color: var(--muted); font-size: .85rem; }
+  .toc { position: sticky; top: 0; background: var(--bg); z-index: 1; padding: .5rem 0; margin-bottom: 1rem; border-bottom: 1px solid var(--border); }
   .toc ul { list-style: none; display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin: 0; padding: 0; }
-  .toc a { color: #2b6cb0; text-decoration: none; font-size: .85rem; }
+  .toc a { color: var(--accent); text-decoration: none; font-size: .85rem; }
   .toc a:hover { text-decoration: underline; }
+  .filterbar { position: sticky; top: 2.4rem; z-index: 1; background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: .5rem .75rem; margin-bottom: 1.25rem; display: flex; flex-wrap: wrap;
+    align-items: center; gap: .15rem .9rem; font-size: .85rem; }
+  .filterbar label { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; cursor: pointer; }
+  .filterbar select, .filterbar input[type="search"] { font: inherit; padding: .2rem .4rem; border: 1px solid var(--border);
+    border-radius: 4px; background: var(--bg); color: var(--fg); }
+  .filterbar input[type="search"] { min-width: 12rem; }
+  details.cwv-card > summary { cursor: pointer; list-style: revert; }
+  details.cwv-card > summary h3 { display: inline; }
 ${CWV_SECTION_STYLE}
 `
+
+/**
+ * Dış denetim bulgusu (2026-08-31, Faz C) — HTML raporu sıfır JS içeriyordu: sıralama,
+ * filtreleme, arama, katlama yoktu; canlı `run13`'te crawl bölümü tek başına yüzlerce URL
+ * kartı içeriyordu. Bu araç çubuğu ciddiyet/kategori/serbest metinle her `data-severity`
+ * taşıyan bulgu kartını (bkz. `findingCardAttrs`, severityLabel.ts) filtreler.
+ */
+const FILTER_TOOLBAR = `<div class="filterbar" id="filterbar">
+  <strong>Filtrele:</strong>
+  <label><input type="checkbox" data-sev="critical" checked> 🔴 Kritik</label>
+  <label><input type="checkbox" data-sev="high" checked> 🟡 Önemli</label>
+  <label><input type="checkbox" data-sev="medium" checked> 🔵 Orta</label>
+  <label><input type="checkbox" data-sev="low" checked> ⚪ Bilgi</label>
+  <select id="filter-category" aria-label="Kategoriye göre filtrele">
+    <option value="">Tüm kategoriler</option>
+    ${Object.entries(CATEGORY_LABEL)
+      .map(([value, label]) => `<option value="${value}">${label}</option>`)
+      .join('')}
+  </select>
+  <input type="search" id="filter-search" placeholder="Bulgularda ara…" aria-label="Bulgularda ara">
+  <span id="filter-count" class="muted"></span>
+</div>`
+
+/**
+ * XSS SINIRI: bu script model verisinden HİÇBİR interpolasyon içermez — statik bir string
+ * olarak gömülür, yalnız DOM'dan `data-*` okur ve `element.hidden` yazar. Arama eşleşmesi
+ * `textContent` ile yapılır, `innerHTML` hiç kullanılmaz. Raporun geri kalanındaki titiz
+ * `escapeHtml` kaçış disiplini bu dosyada bozulmuyor.
+ */
+const FILTER_SCRIPT = `(function () {
+  var toolbar = document.getElementById('filterbar');
+  if (!toolbar) return;
+  var severityBoxes = Array.prototype.slice.call(toolbar.querySelectorAll('input[data-sev]'));
+  var categorySelect = document.getElementById('filter-category');
+  var searchInput = document.getElementById('filter-search');
+  var countLabel = document.getElementById('filter-count');
+  var cards = Array.prototype.slice.call(document.querySelectorAll('[data-severity]'));
+  var groups = Array.prototype.slice.call(document.querySelectorAll('.cwv-card'));
+
+  function activeSeverities() {
+    var set = {};
+    severityBoxes.forEach(function (box) { if (box.checked) set[box.dataset.sev] = true; });
+    return set;
+  }
+
+  function apply() {
+    var severities = activeSeverities();
+    var category = categorySelect.value;
+    var query = searchInput.value.trim().toLowerCase();
+    var visible = 0;
+    cards.forEach(function (card) {
+      var show = !!severities[card.dataset.severity]
+        && (category === '' || card.dataset.category === category)
+        && (query === '' || card.textContent.toLowerCase().indexOf(query) !== -1);
+      card.hidden = !show;
+      if (show) visible += 1;
+    });
+    // Bir grubun (crawlSection.ts'in <details class="cwv-card"> URL kartı gibi) TÜM çocukları
+    // filtrelendiyse grubu da gizle — aksi halde boş bir başlık asılı kalırdı.
+    groups.forEach(function (group) {
+      var children = Array.prototype.slice.call(group.querySelectorAll('[data-severity]'));
+      if (children.length === 0) return;
+      var anyVisible = children.some(function (child) { return !child.hidden; });
+      group.hidden = !anyVisible;
+    });
+    countLabel.textContent = visible + ' / ' + cards.length + ' bulgu gösteriliyor';
+  }
+
+  severityBoxes.forEach(function (box) { box.addEventListener('change', apply); });
+  categorySelect.addEventListener('change', apply);
+  searchInput.addEventListener('input', apply);
+  apply();
+})();`
 
 /** ReportModel → tek dosyalık, harici varlık gerektirmeyen HTML rapor. */
 export const renderHtml = (model: ReportModel): string => {
@@ -232,18 +362,24 @@ export const renderHtml = (model: ReportModel): string => {
   if (model.analysis.gscRows.length === 0) {
     sections.push('<p class="muted">GSC verisi yok.</p>')
   } else {
+    // markdownReport.ts ile aynı gerekçe: sıralanmamış + yuvarlanmamış avgPosition, bkz. oradaki yorum.
+    const sortedGscRows = [...model.analysis.gscRows].sort((a, b) => b.impressions - a.impressions)
+    const overflowNote =
+      sortedGscRows.length > GSC_ROWS_REPORT_LIMIT
+        ? `<p class="muted">+${sortedGscRows.length - GSC_ROWS_REPORT_LIMIT} sorgu daha — tam liste: <code>gsc-run${model.run.id}.csv</code>.</p>`
+        : ''
     sections.push(
-      table(
+      `<details open><summary>Sorgu tablosu (${sortedGscRows.length})</summary>${table(
         ['Sorgu', 'Sayfa', 'Tıklama', 'Gösterim', 'CTR', 'Ort. Sıra'],
-        model.analysis.gscRows.map((row) => [
+        sortedGscRows.slice(0, GSC_ROWS_REPORT_LIMIT).map((row) => [
           escapeHtml(row.query),
           row.page === '' ? '—' : escapeHtml(row.page),
           String(row.clicks),
           row.impressions.toLocaleString('tr-TR'),
           percent(row.ctr),
-          String(row.avgPosition),
+          row.avgPosition.toFixed(1),
         ]),
-      ),
+      )}${overflowNote}</details>`,
     )
   }
 
@@ -303,18 +439,24 @@ export const renderHtml = (model: ReportModel): string => {
           .join('')}</ul>`,
       )
     }
+    // markdownReport.ts ile aynı gerekçe (bkz. oradaki yorum) — dedupe/sırala/kırp, MD paritesi.
+    // Faz C — <details open> ile katlanabilir: liste kapaklı ama varsayılan açık, tıklanınca kapatılabilir.
     if (model.diff.resolvedFindings.length > 0) {
+      const { shown, hiddenCount } = capFindingsForDisplay(model.diff.resolvedFindings, DIFF_FINDINGS_REPORT_LIMIT)
+      const overflowLine = hiddenCount > 0 ? `<li class="muted">+${hiddenCount} bulgu daha — tam liste yukarıdaki bölümlerde.</li>` : ''
       sections.push(
-        `<p class="muted">✅ Düzelen bulgular (${model.diff.resolvedFindings.length}):</p><ul>${model.diff.resolvedFindings
+        `<details open><summary>✅ Düzelen bulgular (${shown.length + hiddenCount})</summary><ul>${shown
           .map((f) => `<li>${escapeHtml(f.title)}${f.url === null ? '' : ` — ${escapeHtml(f.url)}`}</li>`)
-          .join('')}</ul>`,
+          .join('')}${overflowLine}</ul></details>`,
       )
     }
     if (model.diff.newFindings.length > 0) {
+      const { shown, hiddenCount } = capFindingsForDisplay(model.diff.newFindings, DIFF_FINDINGS_REPORT_LIMIT)
+      const overflowLine = hiddenCount > 0 ? `<li class="muted">+${hiddenCount} bulgu daha — tam liste yukarıdaki bölümlerde.</li>` : ''
       sections.push(
-        `<p class="muted">🆕 Yeni açılan bulgular (${model.diff.newFindings.length}):</p><ul>${model.diff.newFindings
+        `<details open><summary>🆕 Yeni açılan bulgular (${shown.length + hiddenCount})</summary><ul>${shown
           .map((f) => `<li>${escapeHtml(SEVERITY_LABEL[f.severity])} ${escapeHtml(f.title)}${f.url === null ? '' : ` — ${escapeHtml(f.url)}`}</li>`)
-          .join('')}</ul>`,
+          .join('')}${overflowLine}</ul></details>`,
       )
     }
   }
@@ -331,8 +473,10 @@ export const renderHtml = (model: ReportModel): string => {
 <h1>SEO Araştırma Raporu — ${escapeHtml(model.brandName)} <span class="muted">(${escapeHtml(model.domain)})</span></h1>
 <p class="muted">Çalıştırma #${model.run.id} · ${escapeHtml(model.run.startedAt)}${model.previousRunId === null ? '' : ` · Karşılaştırma: #${model.previousRunId}`}</p>
 <nav class="toc"><ul>${TOC_SECTIONS.map((title) => `<li><a href="#${slugAnchor(title)}">${escapeHtml(title)}</a></li>`).join('')}</ul></nav>
+${FILTER_TOOLBAR}
 ${sections.join('\n')}
 <hr><p class="muted">Rapor ${escapeHtml(model.generatedAt)} tarihinde SEO Komuta Merkezi tarafından üretildi.</p>
+<script>${FILTER_SCRIPT}</script>
 </body>
 </html>`
 }

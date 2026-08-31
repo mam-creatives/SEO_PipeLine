@@ -1,6 +1,6 @@
 import { sortFindings, type Finding } from '../core/findings.js'
 import { escapeHtml } from './htmlEscape.js'
-import { impactEffortLabel, SEVERITY_LABEL } from './severityLabel.js'
+import { findingCardAttrs, impactEffortLabel, SEVERITY_LABEL } from './severityLabel.js'
 
 /**
  * `crawlSection.ts`/`indexingSection.ts`'ten farklı olarak `url` DEĞİL `codeLocation.file` ile
@@ -54,7 +54,7 @@ export const renderCodeAuditFindingsHtml = (findings: readonly Finding[]): strin
         const location = locationLabel(finding)
         const snippet = finding.fixSnippet === null ? '' : `<pre><code>${escapeHtml(finding.fixSnippet)}</code></pre>`
         return (
-          `<div class="action p${priority}">` +
+          `<div class="action p${priority}" ${findingCardAttrs(finding)}>` +
           `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}${escapeHtml(location)}</strong>` +
           ` <span class="muted">(${escapeHtml(impactEffortLabel(finding))})</span>` +
           `<p>${escapeHtml(finding.explanation)}</p><p class="muted">${escapeHtml(finding.evidence)}</p>${snippet}</div>`

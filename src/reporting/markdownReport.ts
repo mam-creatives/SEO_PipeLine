@@ -1,4 +1,6 @@
-import { COMPETITOR_REPORT_LIMIT } from '../config/constants.js'
+import { COMPETITOR_REPORT_LIMIT, DIFF_FINDINGS_REPORT_LIMIT, GSC_ROWS_REPORT_LIMIT } from '../config/constants.js'
+import { capFindingsForDisplay } from '../core/findings.js'
+import { slugAnchor } from './anchor.js'
 import { renderCannibalizationFindingsMarkdown } from './cannibalizationSection.js'
 import { renderCodeAuditFindingsMarkdown } from './codeAuditSection.js'
 import { renderCrawlFindingsMarkdown } from './crawlSection.js'
@@ -19,20 +21,6 @@ const serpFeaturesLabel = (features: { readonly hasAiOverview: boolean; readonly
   if (features.hasFeaturedSnippet) badges.push('Featured Snippet')
   return badges.length > 0 ? badges.join(', ') : '—'
 }
-
-/**
- * Faz 5.6 — GitHub'ın kendi başlık→anchor algoritmasını taklit eder (lowercase, harf/rakam/
- * boşluk/tire dışını at, boşlukları tireye çevir) — Unicode harfleri (ı/ğ/ü/ş/ö/ç) ASCII'ye
- * katlamaz, GitHub da katlamıyor. Bilerek `normalizeTr` KULLANMAZ: GitHub/çoğu görüntüleyici
- * heading→anchor dönüşümünde locale-aware değil düz `toLowerCase()` kullanıyor — "AI" Türkçe
- * kuralıyla "aı" olurdu ama gerçek anchor "ai" oluyor, link kırılırdı. En iyi çaba.
- */
-const slugAnchor = (title: string): string =>
-  title
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N} -]+/gu, '')
-    .trim()
-    .replace(/\s+/g, '-')
 
 /** 1052 satırlık raporda gezinmeyi kolaylaştırır — yalnız her zaman basılan ## bölümleri listeler, ### alt bölümler burada değil. */
 const TOC_SECTIONS: readonly string[] = [
@@ -218,10 +206,20 @@ export const renderMarkdown = (model: ReportModel): string => {
   if (model.analysis.gscRows.length === 0) {
     push('_GSC verisi yok._')
   } else {
+    // Dış denetim bulgusu (2026-08-31, Faz C) — 252 satır sıralanmadan basılıyordu ve
+    // avgPosition raporun tek yuvarlanmamış sayısıydı (`1.0415704387990763`). Gösterime
+    // göre azalan sıralı top-N; tam veri gsc-run<id>.csv'de (bkz. writeReports.ts).
+    const sortedGscRows = [...model.analysis.gscRows].sort((a, b) => b.impressions - a.impressions)
     push('| Sorgu | Sayfa | Tıklama | Gösterim | CTR | Ort. Sıra |')
     push('|-------|-------|--------:|---------:|----:|----------:|')
-    for (const row of model.analysis.gscRows) {
-      push(`| ${row.query} | ${row.page || '—'} | ${row.clicks} | ${row.impressions.toLocaleString('tr-TR')} | ${percent(row.ctr)} | ${row.avgPosition} |`)
+    for (const row of sortedGscRows.slice(0, GSC_ROWS_REPORT_LIMIT)) {
+      push(
+        `| ${row.query} | ${row.page || '—'} | ${row.clicks} | ${row.impressions.toLocaleString('tr-TR')} | ${percent(row.ctr)} | ${row.avgPosition.toFixed(1)} |`,
+      )
+    }
+    if (sortedGscRows.length > GSC_ROWS_REPORT_LIMIT) {
+      push()
+      push(`_+${sortedGscRows.length - GSC_ROWS_REPORT_LIMIT} sorgu daha — tam liste: \`gsc-run${model.run.id}.csv\`._`)
     }
   }
   push()
@@ -277,15 +275,23 @@ export const renderMarkdown = (model: ReportModel): string => {
         push(`- "${delta.query}": ${percent(delta.previousRate)} → ${percent(delta.currentRate)}`)
       }
     }
+    // Dış denetim bulgusu (2026-08-31, Faz C) — bu iki liste diğer her bulgu bölümünün aldığı
+    // dedupe/sırala/kırp muamelesini hiç almıyordu; canlı `run13`'te "🆕 Yeni açılan bulgular"
+    // tek başına 1934 satır (raporun %60'ı) üretti. Sayı gösterilen toplam DEDUPE SONRASI
+    // gerçek bulgu sayısı — ham (pre-dedup) sayı okuyucuyu yanıltırdı.
     if (model.diff.resolvedFindings.length > 0) {
+      const { shown, hiddenCount } = capFindingsForDisplay(model.diff.resolvedFindings, DIFF_FINDINGS_REPORT_LIMIT)
       push()
-      push(`✅ Düzelen bulgular (${model.diff.resolvedFindings.length}):`)
-      for (const f of model.diff.resolvedFindings) push(`- ${f.title}${f.url === null ? '' : ` — ${f.url}`}`)
+      push(`✅ Düzelen bulgular (${shown.length + hiddenCount}):`)
+      for (const f of shown) push(`- ${f.title}${f.url === null ? '' : ` — ${f.url}`}`)
+      if (hiddenCount > 0) push(`- _+${hiddenCount} bulgu daha — tam liste yukarıdaki bölümlerde._`)
     }
     if (model.diff.newFindings.length > 0) {
+      const { shown, hiddenCount } = capFindingsForDisplay(model.diff.newFindings, DIFF_FINDINGS_REPORT_LIMIT)
       push()
-      push(`🆕 Yeni açılan bulgular (${model.diff.newFindings.length}):`)
-      for (const f of model.diff.newFindings) push(`- ${SEVERITY_LABEL[f.severity]} ${f.title}${f.url === null ? '' : ` — ${f.url}`}`)
+      push(`🆕 Yeni açılan bulgular (${shown.length + hiddenCount}):`)
+      for (const f of shown) push(`- ${SEVERITY_LABEL[f.severity]} ${f.title}${f.url === null ? '' : ` — ${f.url}`}`)
+      if (hiddenCount > 0) push(`- _+${hiddenCount} bulgu daha — tam liste yukarıdaki bölümlerde._`)
     }
   }
   push()

@@ -3,7 +3,7 @@ import { lcpPhaseShares, type LcpAttribution } from '../core/cwv.js'
 import { extractRootDomain } from '../core/text.js'
 import type { FieldCwv } from '../core/types.js'
 import { escapeHtml } from './htmlEscape.js'
-import { mockBadgeLabel, SEVERITY_LABEL } from './severityLabel.js'
+import { findingCardAttrs, mockBadgeLabel, SEVERITY_LABEL } from './severityLabel.js'
 
 const PHASE_LABEL: Readonly<Record<string, string>> = {
   timeToFirstByte: 'Sunucu yanıtı',
@@ -126,7 +126,7 @@ export const renderCwvDiagnosisHtml = (evaluations: readonly TechEvaluation[]): 
         const snippet =
           finding.fixSnippet === null ? '' : `<pre><code>${escapeHtml(finding.fixSnippet)}</code></pre>`
         return (
-          `<div class="action p${priority}">` +
+          `<div class="action p${priority}" ${findingCardAttrs(finding)}>` +
           `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}${escapeHtml(mockBadgeLabel(finding))}</strong>` +
           `<p>${escapeHtml(finding.explanation)}</p>${snippet}</div>`
         )

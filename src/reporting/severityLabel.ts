@@ -1,4 +1,4 @@
-import type { Finding, FindingEffort, FindingSeverity } from '../core/findings.js'
+import type { Finding, FindingCategory, FindingEffort, FindingSeverity } from '../core/findings.js'
 
 /** Rapor genelinde ciddiyet gösterimi — cwvSection/seoSection/indexingSection üçü de kullanır. */
 export const SEVERITY_LABEL: Readonly<Record<FindingSeverity, string>> = {
@@ -7,6 +7,23 @@ export const SEVERITY_LABEL: Readonly<Record<FindingSeverity, string>> = {
   medium: '🔵 ORTA',
   low: '⚪ BİLGİ',
 }
+
+/** HTML raporundaki kategori filtre dropdown'unun seçenekleri — `FindingCategory` ile elle senkron. */
+export const CATEGORY_LABEL: Readonly<Record<FindingCategory, string>> = {
+  cwv: 'Core Web Vitals',
+  onpage: 'On-Page',
+  indexing: 'İndeksleme',
+  content: 'İçerik',
+  links: 'Linkler',
+}
+
+/**
+ * Dış denetim bulgusu (2026-08-31, Faz C) — HTML raporunda severity/kategori filtresi için
+ * her bulgu kartına eklenen `data-*` öznitelikleri. Değerler kapalı bir enum'dan geldiği
+ * (`FindingSeverity`/`FindingCategory`) için `escapeHtml` GEREKMEZ — kullanıcı/3. parti
+ * girdisi değil, kod tabanının kendi sabit değer kümesi.
+ */
+export const findingCardAttrs = (finding: Finding): string => `data-severity="${finding.severity}" data-category="${finding.category}"`
 
 /** Bulgu başlığının yanına eklenen emek rozeti — impact/effort önceliklendirmesini görünür kılar. */
 export const EFFORT_LABEL: Readonly<Record<FindingEffort, string>> = {

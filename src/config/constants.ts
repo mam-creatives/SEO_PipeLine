@@ -83,6 +83,20 @@ export const TOP_N_SERP = 10
 export const OPPORTUNITY_TOP_COUNT = 5
 
 /**
+ * Dış denetim bulgusu (2026-08-31, Faz C) — "Son Çalıştırmadan Bu Yana Değişenler" bölümü
+ * canlı bir koşuda (run13) raporun %60'ını (1992/3296 satır) tek başına oluşturuyordu:
+ * `resolvedFindings`/`newFindings` diğer tüm bulgu listelerinin aldığı muameleyi (dedupe/sırala/
+ * kırp) hiç almıyordu. Diğer bulgu bölümleriyle tutarlı bir üst sınır.
+ */
+export const DIFF_FINDINGS_REPORT_LIMIT = 15
+
+/**
+ * Dış denetim bulgusu (2026-08-31, Faz C) — GSC tablosu 252 satır, sıralanmamış basılıyordu.
+ * Tam veri kaybolmasın diye `gsc-run<id>.csv`'ye ayrıca yazılır (bkz. writeReports.ts).
+ */
+export const GSC_ROWS_REPORT_LIMIT = 30
+
+/**
  * Google'ın "iyi" eşikleri: LCP 2.5s, INP 200ms, CLS 0.1.
  * Tek kaynaktan (core/cwv.ts) türetilir ki üçlü bant ile ikili geçti/kaldı asla ayrışmasın.
  */

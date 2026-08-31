@@ -1,7 +1,7 @@
 import type { TechEvaluation } from '../analysis/runAnalysis.js'
 import { sortFindings } from '../core/findings.js'
 import { escapeHtml } from './htmlEscape.js'
-import { impactEffortLabel, SEVERITY_LABEL } from './severityLabel.js'
+import { findingCardAttrs, impactEffortLabel, SEVERITY_LABEL } from './severityLabel.js'
 
 /** Yalnız SEO bulgusu olan denetimler — Lighthouse SEO kategorisi çalışmadıysa (PSI/mock) sessizce atlanır. */
 const withSeoFindings = (evaluations: readonly TechEvaluation[]): readonly TechEvaluation[] =>
@@ -55,7 +55,7 @@ export const renderSeoFindingsHtml = (evaluations: readonly TechEvaluation[]): s
         const snippet =
           finding.fixSnippet === null ? '' : `<pre><code>${escapeHtml(finding.fixSnippet)}</code></pre>`
         return (
-          `<div class="action p${priority}">` +
+          `<div class="action p${priority}" ${findingCardAttrs(finding)}>` +
           `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}</strong>` +
           ` <span class="muted">(${escapeHtml(impactEffortLabel(finding))})</span>` +
           `<p>${escapeHtml(finding.explanation)}</p>${culprit}${codeLocationLine}${snippet}</div>`

@@ -123,7 +123,8 @@ describe('cross-page bulgu dedupe (widespread findings)', () => {
   test('HTML render\'da da aynı şekilde tek karta toplanır', () => {
     const html = renderCrawlFindingsHtml(widespreadFindings)
     expect(html).toContain('6 sayfada tespit edildi')
-    expect((html.match(/<div class="cwv-card">/g) ?? []).length).toBe(1)
+    // Faz C — URL grupları artık <details class="cwv-card"> (katlanabilir), <div> değil.
+    expect((html.match(/<details class="cwv-card"/g) ?? []).length).toBe(1)
   })
 
   test('farklı başlıklı bulgular ayrı gruplanır, birbirini etkilemez', () => {
