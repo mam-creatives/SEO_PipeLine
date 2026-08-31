@@ -40,6 +40,18 @@ export const TECH_AUDIT_COMPETITOR_COUNT = 3
 export const KEYWORD_GAP_COMPETITOR_COUNT = 3
 
 /**
+ * Dış denetim bulgusu: backlink dalı diğer tüm ücretli kategorilerin aksine sınırsız
+ * büyüyordu — `backlinkDomains = domain + seedCompetitors + TÜM keşfedilen rakipler`,
+ * her biri ayrı bir DataForSEO çağrısı. Bir koşuda 90+ rakip keşfedilebildiği
+ * (COMPETITOR_REPORT_LIMIT yorumu) doğrulandı; bu tek koşuda onlarca gereksiz ücretli
+ * çağrı demek. `config.domain` + `seedCompetitors` her zaman dahil edilir (kullanıcının
+ * bilerek belirttiği rakipler); yalnız KEŞFEDİLEN rakipler bu sınırla kırpılır.
+ */
+export const BACKLINK_DOMAIN_LIMIT = 5
+/** Backlink çağrıları artık sınırsız Promise.all değil — diğer ücretli/kotalı dallarla tutarlı. */
+export const BACKLINK_CONCURRENCY = 4
+
+/**
  * Lighthouse aynı Node sürecinde EŞZAMANLI ÇALIŞTIRILAMAZ.
  *
  * Süreç-global `performance.mark()` kullandığı için paralel koşular birbirinin

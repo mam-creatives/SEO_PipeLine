@@ -1,4 +1,4 @@
-import { AI_SAMPLES_PER_QUERY, CRUX_CONCURRENCY, INDEXING_CONCURRENCY, TECH_AUDIT_CONCURRENCY } from '../config/constants.js'
+import { AI_SAMPLES_PER_QUERY, BACKLINK_CONCURRENCY, CRUX_CONCURRENCY, INDEXING_CONCURRENCY, TECH_AUDIT_CONCURRENCY } from '../config/constants.js'
 import { mapWithConcurrency } from '../core/concurrency.js'
 import type { ProjectConfig } from '../config/schema.js'
 import { ProviderError } from '../core/errors.js'
@@ -35,11 +35,18 @@ export const collectSerps = async (
   return ok(results.flatMap((result) => (result.ok ? [result.value] : [])))
 }
 
+/**
+ * Dış denetim bulgusu (2026-08-31) — sınırsız Promise.all, keşfedilen her rakip için
+ * ayrı bir ücretli DataForSEO çağrısı demekti; diğer tüm ücretli/kotalı dallarda
+ * concurrency sınırı vardı, bunda yoktu. Domain listesi çağıran tarafta
+ * (runAllCollectors.ts) BACKLINK_DOMAIN_LIMIT ile zaten kırpılır — bu concurrency
+ * sınırı ayrıca ani burst'ü de önler.
+ */
 export const collectBacklinks = async (
   providers: ProviderSet,
   domains: readonly string[],
 ): Promise<Result<readonly BacklinkProfile[], ProviderError>> => {
-  const results = await Promise.all(domains.map((domain) => providers.backlink.fetchProfile(domain)))
+  const results = await mapWithConcurrency(domains, BACKLINK_CONCURRENCY, (domain) => providers.backlink.fetchProfile(domain))
   const failed = results.find((result) => !result.ok)
   if (failed !== undefined && !failed.ok) {
     return err(failed.error)
