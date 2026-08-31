@@ -76,3 +76,24 @@ export const getRunById = (db: Db, runId: number): RunMeta | null => {
   const row = db.prepare(`SELECT * FROM runs WHERE id = ?`).get(runId) as RunRow | undefined
   return row === undefined ? null : rowToRunMeta(row)
 }
+
+/**
+ * Dış denetim bulgusu (2026-08-31) — `src/` genelinde retention, pruning, DELETE, VACUUM
+ * hiç yoktu. `pages.bodyText` sayfa başına 20 KB'a kadar × 300 sayfa = koşu başına ~6 MB;
+ * günlük systemd timer ile müşteri başına yılda ~2 GB'a kadar büyür.
+ *
+ * Yalnız en yeni `keepCount` run tutulur, gerisi silinir. Her fact tablosu `runId`'yi
+ * `ON DELETE CASCADE` ile referans ettiği için (bkz. migrations.ts) ve `db.ts` her zaman
+ * `PRAGMA foreign_keys = ON` ayarladığı için `runs` satırını silmek tüm bağlı satırları
+ * (keyword_snapshots, pages, page_links, sitemap_urls, ...) da temizler — ayrı ayrı
+ * DELETE yazmaya gerek yok.
+ *
+ * `status`'e BAKMAKSIZIN sıralar — durumu ne olursa olsun en eski run'lar budanır; bir
+ * `failed` run'ın sonsuza dek saklanması için özel bir gerekçe yok.
+ */
+export const pruneOldRuns = (db: Db, keepCount: number): number => {
+  const result = db
+    .prepare(`DELETE FROM runs WHERE id NOT IN (SELECT id FROM runs ORDER BY id DESC LIMIT ?)`)
+    .run(keepCount)
+  return result.changes
+}

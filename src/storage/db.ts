@@ -22,3 +22,17 @@ export const openDatabase = (dbPath: string): Db => {
     throw new StorageError(`Veritabanı açılamadı: ${dbPath}`, { cause })
   }
 }
+
+/**
+ * Dış denetim bulgusu (2026-08-31) — `pruneOldRuns` eski run'ları CASCADE ile siler ama
+ * SQLite silinen sayfaları hemen diske geri vermez (freelist'e eklenir, dosya küçülmez).
+ * `researchPipeline.ts` budamadan SONRA çağırır — bir açık transaction/statement YOKKEN
+ * çalışmalı, aksi halde SQLite `VACUUM` hata verir.
+ */
+export const vacuumDatabase = (db: Db): void => {
+  try {
+    db.exec('VACUUM')
+  } catch (cause) {
+    throw new StorageError('VACUUM başarısız oldu', { cause })
+  }
+}

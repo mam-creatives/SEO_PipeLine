@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { StorageError } from '../core/errors.js'
 import type { Finding } from '../core/findings.js'
 import type { CrawledPage, FieldCwv, GscRow, IndexStatus, KeywordGap, KeywordSnapshotRow, PageLink, SerpSnapshot, TechAudit } from '../core/types.js'
-import { openDatabase, type Db } from './db.js'
+import { openDatabase, vacuumDatabase, type Db } from './db.js'
 import { applyMigrations, MIGRATIONS } from './migrations.js'
 import { getRunSnapshot } from './queryRepository.js'
-import { createRun, finishRun, getLatestCompletedRun, getLatestRun, getPreviousCompletedRun } from './runRepository.js'
+import { createRun, finishRun, getLatestCompletedRun, getLatestRun, getPreviousCompletedRun, pruneOldRuns } from './runRepository.js'
 import {
   insertAiSamples,
   insertFieldCwv,
@@ -307,5 +307,47 @@ describe('storage', () => {
     } finally {
       legacyDb.close()
     }
+  })
+
+  // Dış denetim bulgusu (2026-08-31) — src/ genelinde retention/pruning/VACUUM hiç yoktu;
+  // DB müşteri başına yılda ~2 GB'a kadar büyüyebiliyordu.
+  describe('pruneOldRuns', () => {
+    test('yalnız en yeni keepCount run tutulur, gerisi silinir', () => {
+      const ids = Array.from({ length: 5 }, () => createRun(db, 'h', []).id)
+      const deleted = pruneOldRuns(db, 2)
+
+      expect(deleted).toBe(3)
+      const remaining = db.prepare('SELECT id FROM runs ORDER BY id').all() as { id: number }[]
+      expect(remaining.map((r) => r.id)).toEqual(ids.slice(-2))
+    })
+
+    test('ON DELETE CASCADE ile silinen run\'a bağlı tüm satırlar da temizlenir', () => {
+      const run = createRun(db, 'h', [])
+      insertKeywordSnapshots(db, run.id, [sampleKeyword])
+      insertPages(db, run.id, [sampleCrawledPage])
+      insertSitemapUrls(db, run.id, ['https://ornekayakkabi.com.tr/sitemap.xml'])
+      createRun(db, 'h', []) // keepCount=1 için tutulacak en yeni run
+
+      pruneOldRuns(db, 1)
+
+      const keywordCount = db.prepare('SELECT COUNT(*) AS n FROM keyword_snapshots WHERE runId = ?').get(run.id) as { n: number }
+      const pageCount = db.prepare('SELECT COUNT(*) AS n FROM pages WHERE runId = ?').get(run.id) as { n: number }
+      const sitemapCount = db.prepare('SELECT COUNT(*) AS n FROM sitemap_urls WHERE runId = ?').get(run.id) as { n: number }
+      expect(keywordCount.n).toBe(0)
+      expect(pageCount.n).toBe(0)
+      expect(sitemapCount.n).toBe(0)
+    })
+
+    test('run sayısı keepCount\'un altındaysa hiçbir şey silinmez', () => {
+      createRun(db, 'h', [])
+      createRun(db, 'h', [])
+      const deleted = pruneOldRuns(db, 90)
+      expect(deleted).toBe(0)
+    })
+
+    test('vacuumDatabase hata fırlatmadan çalışır', () => {
+      createRun(db, 'h', [])
+      expect(() => vacuumDatabase(db)).not.toThrow()
+    })
   })
 })

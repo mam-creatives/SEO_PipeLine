@@ -4,6 +4,7 @@ import { allFindings, runAnalysis } from '../analysis/runAnalysis.js'
 import { selectAuditUrls } from '../analysis/selectAuditUrls.js'
 import { runAllCollectors } from '../collectors/runAllCollectors.js'
 import { snapshotToCollectedData } from '../collectors/snapshotToCollectedData.js'
+import { RETENTION_RUNS } from '../config/constants.js'
 import { loadEnv } from '../config/env.js'
 import { computeConfigHash, loadProjectConfig } from '../config/loadConfig.js'
 import { createLogger } from '../core/logger.js'
@@ -11,9 +12,9 @@ import type { FieldCwv, KeywordGap, PageLink } from '../core/types.js'
 import { selectProviders } from '../providers/registry.js'
 import { buildReportModel } from '../reporting/reportModel.js'
 import { writeReports } from '../reporting/writeReports.js'
-import { openDatabase } from '../storage/db.js'
+import { openDatabase, vacuumDatabase } from '../storage/db.js'
 import { getRunSnapshot } from '../storage/queryRepository.js'
-import { createRun, finishRun, getPreviousCompletedRun } from '../storage/runRepository.js'
+import { createRun, finishRun, getPreviousCompletedRun, pruneOldRuns } from '../storage/runRepository.js'
 import {
   insertAiSamples,
   insertBacklinks,
@@ -161,6 +162,16 @@ export const runResearch = async (options: ResearchOptions): Promise<ResearchOut
       const written = writeReports(model, options.reportsDir)
 
       logger.info(`Run #${run.id} tamamlandı. Rapor: ${written.markdownPath}`)
+
+      // Dış denetim bulgusu (2026-08-31) — retention/VACUUM hiç yoktu, DB müşteri başına
+      // yılda ~2 GB'a kadar büyüyebiliyordu (bkz. runRepository.ts pruneOldRuns yorumu).
+      // Rapor ZATEN yazıldıktan SONRA çalışır — bu run'ın kendi verisini asla etkilemez.
+      const prunedCount = pruneOldRuns(db, RETENTION_RUNS)
+      if (prunedCount > 0) {
+        logger.info(`${prunedCount} eski run silindi (retention: ${RETENTION_RUNS} run) — VACUUM çalıştırılıyor.`)
+        vacuumDatabase(db)
+      }
+
       return {
         runId: run.id,
         markdownPath: written.markdownPath,

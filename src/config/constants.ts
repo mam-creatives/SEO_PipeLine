@@ -52,6 +52,14 @@ export const BACKLINK_DOMAIN_LIMIT = 5
 export const BACKLINK_CONCURRENCY = 4
 
 /**
+ * Dış denetim bulgusu (2026-08-31) — retention/pruning/VACUUM hiç yoktu; `pages.bodyText`
+ * sayfa başına 20 KB'a kadar × 300 sayfa = koşu başına ~6 MB, günlük systemd timer ile
+ * müşteri başına yılda ~2 GB'a kadar büyür. 90 gün ≈ günlük koşuda 90 run — trend
+ * karşılaştırması için fazlasıyla yeterli bir pencere, disk büyümesini sınırlar.
+ */
+export const RETENTION_RUNS = 90
+
+/**
  * Lighthouse aynı Node sürecinde EŞZAMANLI ÇALIŞTIRILAMAZ.
  *
  * Süreç-global `performance.mark()` kullandığı için paralel koşular birbirinin
