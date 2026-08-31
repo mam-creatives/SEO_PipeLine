@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ProviderError, summarizeZodError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
+import { fetchWithRetry } from '../../core/retry.js'
 import type { BacklinkProfile, KeywordGap, KeywordMetric } from '../../core/types.js'
 import type { BacklinkProvider, KeywordGapProvider, KeywordProvider } from '../types.js'
 
@@ -262,12 +263,12 @@ export const dataForSeoResponseToKeywordGaps = (raw: unknown, competitorDomain: 
 }
 
 const postToDataForSeo = async (endpoint: string, authHeader: string, body: string): Promise<Response> =>
-  fetch(endpoint, {
+  fetchWithRetry(endpoint, () => ({
     method: 'POST',
     headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
     body,
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  })
+  }))
 
 const statusHint = (status: number): string => {
   if (status === 401) return ' (kimlik bilgileri geçersiz)'

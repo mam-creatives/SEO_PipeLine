@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ProviderError, summarizeZodError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
+import { fetchWithRetry } from '../../core/retry.js'
 import type { FieldCwv } from '../../core/types.js'
 import type { CruxProvider } from '../types.js'
 
@@ -75,12 +76,12 @@ const queryOnce = async (
   value: string,
 ): Promise<Result<FieldCwv, ProviderError> | 'not-found'> => {
   try {
-    const response = await fetch(`${QUERY_ENDPOINT}?key=${apiKey}`, {
+    const response = await fetchWithRetry(`${QUERY_ENDPOINT}?key=${apiKey}`, () => ({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: buildCruxRequestBody(key, value),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
+    }))
     if (response.status === 404) return 'not-found'
     if (!response.ok) {
       return err(new ProviderError(PROVIDER_NAME, `'${value}' sorgusu ${response.status} döndü.`))

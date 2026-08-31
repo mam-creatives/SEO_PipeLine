@@ -2,6 +2,7 @@ import { createSign } from 'node:crypto'
 import { z } from 'zod'
 import { ProviderError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
+import { fetchWithRetry } from '../../core/retry.js'
 import { extractRootDomain } from '../../core/text.js'
 
 const PROVIDER_NAME = 'google-search-console'
@@ -101,7 +102,7 @@ export const createGscAuth = (clientEmail: string, privateKey: string): GscAuth 
       )
     }
 
-    const response = await fetch(TOKEN_ENDPOINT, {
+    const response = await fetchWithRetry(TOKEN_ENDPOINT, () => ({
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -109,7 +110,7 @@ export const createGscAuth = (clientEmail: string, privateKey: string): GscAuth 
         assertion,
       }).toString(),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
+    }))
 
     const parsed = TokenResponseSchema.safeParse(await response.json())
     if (!parsed.success || parsed.data.access_token === undefined) {
@@ -127,10 +128,10 @@ export const createGscAuth = (clientEmail: string, privateKey: string): GscAuth 
   }
 
   const resolveSiteUrl = async (token: string, domain: string): Promise<Result<string, ProviderError>> => {
-    const response = await fetch(SITES_ENDPOINT, {
+    const response = await fetchWithRetry(SITES_ENDPOINT, () => ({
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
+    }))
     if (!response.ok) {
       return err(new ProviderError(PROVIDER_NAME, `Mülk listesi alınamadı (${response.status}).`))
     }

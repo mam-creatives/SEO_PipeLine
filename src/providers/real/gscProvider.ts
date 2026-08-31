@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ProviderError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
+import { fetchWithRetry } from '../../core/retry.js'
 import type { GscRow } from '../../core/types.js'
 import type { SearchConsoleProvider } from '../types.js'
 import type { GscAuth } from './gscAuth.js'
@@ -94,12 +95,12 @@ export const createGscProvider = (auth: GscAuth): SearchConsoleProvider => ({
       if (!siteUrl.ok) return siteUrl
 
       const range = buildDateRange()
-      const response = await fetch(buildGscQueryEndpoint(siteUrl.value), {
+      const response = await fetchWithRetry(buildGscQueryEndpoint(siteUrl.value), () => ({
         method: 'POST',
         headers: { Authorization: `Bearer ${token.value}`, 'Content-Type': 'application/json' },
         body: buildGscRequestBody(range.startDate, range.endDate),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      })
+      }))
       if (!response.ok) {
         return err(
           new ProviderError(

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ProviderError, summarizeZodError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
+import { fetchWithRetry } from '../../core/retry.js'
 import type { IndexStatus } from '../../core/types.js'
 import type { IndexingProvider } from '../types.js'
 import type { GscAuth } from './gscAuth.js'
@@ -89,12 +90,12 @@ export const createGscUrlInspectionProvider = (auth: GscAuth): IndexingProvider 
       const siteUrl = await auth.resolveSiteUrl(token.value, url)
       if (!siteUrl.ok) return siteUrl
 
-      const response = await fetch(INSPECT_ENDPOINT, {
+      const response = await fetchWithRetry(INSPECT_ENDPOINT, () => ({
         method: 'POST',
         headers: { Authorization: `Bearer ${token.value}`, 'Content-Type': 'application/json' },
         body: buildInspectRequestBody(url, siteUrl.value),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      })
+      }))
       if (!response.ok) {
         const hint =
           response.status === 403 ? ' (servis hesabının bu mülke erişimi yok ya da Search Console API etkin değil)' : ''
