@@ -161,6 +161,38 @@ describe('storage', () => {
     expect(db.pragma('user_version', { simple: true })).toBe(MIGRATIONS.length)
   })
 
+  // Dış denetim bulgusu (2026-08-31) — bu 10 index UNIQUE(runId, ...) autoindex'iyle
+  // çakışıyordu; her INSERT'te sıfır okuma faydası için fazladan B-tree yazımıydı.
+  test('gereksiz runId index\'leri kaldırıldı, UNIQUE kısıtı hâlâ çalışıyor', () => {
+    const redundantIndexNames = [
+      'idx_keyword_snapshots_run',
+      'idx_serp_results_run',
+      'idx_ai_samples_run',
+      'idx_tech_audits_run',
+      'idx_index_status_run',
+      'idx_gsc_metrics_run',
+      'idx_field_cwv_run',
+      'idx_pages_run',
+      'idx_page_links_run',
+      'idx_keyword_gaps_run',
+    ]
+    const existing = db
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'index' AND name IN (${redundantIndexNames.map(() => '?').join(',')})`)
+      .all(...redundantIndexNames)
+    expect(existing).toEqual([])
+
+    // rum_samples'ın UNIQUE'i yok — idx_rum_samples_lookup GERÇEKTEN gerekli, dokunulmadı.
+    const rumIndex = db
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_rum_samples_lookup'`)
+      .get()
+    expect(rumIndex).toBeDefined()
+
+    // UNIQUE kısıtı (autoindex) hâlâ çalışıyor mu — indeksi kaldırmak kısıtı bozmamalı.
+    const run = createRun(db, 'h', [])
+    insertKeywordSnapshots(db, run.id, [sampleKeyword])
+    expect(() => insertKeywordSnapshots(db, run.id, [sampleKeyword])).toThrow(StorageError)
+  })
+
   test('run yaşam döngüsü: create → finish → latest completed', () => {
     const run = createRun(db, 'hash123', ['keyword'])
     expect(run.status).toBe('running')
