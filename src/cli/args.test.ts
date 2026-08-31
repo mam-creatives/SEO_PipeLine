@@ -7,9 +7,15 @@ const failIfCalled = (): string => {
 }
 
 describe('resolveCliPaths', () => {
-  test('argüman yoksa mevcut varsayılan yolları döndürür', () => {
-    const paths = resolveCliPaths([], failIfCalled)
-    expect(paths).toEqual({ configPath: 'config/project.json', dbPath: 'data/seo.db' })
+  // Dış denetim bulgusu (2026-08-31, BLOKER 2) — bu test önceden `--config` verilmeden
+  // sabit `data/seo.db`'ye düştüğünü doğruluyordu; `npm run research` ve
+  // `npm run research -- --config config/project.json` AYNI müşteri için İKİ FARKLI
+  // veritabanına yazıyordu (trend geçmişi çatallanıyordu). Artık `--config` verilmese
+  // bile varsayılan config dosyası okunur ve dbPath domain'den türer — tıpkı `--config`
+  // açıkça verildiğinde olduğu gibi.
+  test('argüman yoksa varsayılan config yolu kullanılır ve dbPath domain\'den türer', () => {
+    const paths = resolveCliPaths([], () => 'mamcreatives.com')
+    expect(paths).toEqual({ configPath: 'config/project.json', dbPath: 'data/mamcreatives-com.db' })
   })
 
   test('--config <yol> verilince dbPath domain\'den türer', () => {
@@ -35,17 +41,17 @@ describe('resolveCliPaths', () => {
   })
 
   test('--code <yol> verilince codePathOverride dolar', () => {
-    const paths = resolveCliPaths(['--code', '/Users/x/site'], failIfCalled)
+    const paths = resolveCliPaths(['--code', '/Users/x/site'], () => 'mamcreatives.com')
     expect(paths.codePathOverride).toBe('/Users/x/site')
   })
 
   test('--code=<yol> biçimi de kabul edilir', () => {
-    const paths = resolveCliPaths(['--code=/Users/x/site'], failIfCalled)
+    const paths = resolveCliPaths(['--code=/Users/x/site'], () => 'mamcreatives.com')
     expect(paths.codePathOverride).toBe('/Users/x/site')
   })
 
   test('--code verilmezse codePathOverride undefined olur', () => {
-    const paths = resolveCliPaths([], failIfCalled)
+    const paths = resolveCliPaths([], () => 'mamcreatives.com')
     expect(paths.codePathOverride).toBeUndefined()
   })
 
