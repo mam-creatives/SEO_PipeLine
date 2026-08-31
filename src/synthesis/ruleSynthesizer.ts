@@ -1,7 +1,7 @@
 import type { TrendDiff } from '../analysis/diffRuns.js'
 import type { AnalysisResult } from '../analysis/runAnalysis.js'
 import { CWV_THRESHOLDS, OPPORTUNITY_TOP_COUNT } from '../config/constants.js'
-import { sortFindings, type Finding } from '../core/findings.js'
+import { dedupeWidespreadFindings, sortFindings, type Finding } from '../core/findings.js'
 
 export type ActionCategory =
   | 'trend'
@@ -76,7 +76,10 @@ export const synthesizeWithRules = (analysis: AnalysisResult, diff: TrendDiff): 
   // 3) Müşteri sitesinin Core Web Vitals ihlalleri
   for (const evaluation of analysis.techEvaluations.filter((item) => item.isClient)) {
     // Teşhis varsa eşik tekrarı yerine baskın fazı ve suçlu elementi söyle — aksiyon alınabilir olan bu.
-    const topFindings = evaluation.diagnosis?.findings.slice(0, 2) ?? []
+    // Dış denetim düzeltmesi (2026-08-31): mock kaynaklı bulgular (Finding.isMock) yönetici
+    // özetine hiç girmez — özet "gerçek bulgu" varsayımıyla okunur, sentetik olan gizlenmemeli
+    // ama ÖNCELİKLİ AKSİYON listesine de girmemeli (rapor gövdesinde 🧪 rozetiyle görünür kalır).
+    const topFindings = (evaluation.diagnosis?.findings ?? []).filter((finding) => !finding.isMock).slice(0, 2)
     if (topFindings.length > 0) {
       for (const finding of topFindings) {
         const culprit = finding.culpritSelector === null ? '' : ` Suçlu element: ${finding.culpritSelector}.`
@@ -107,7 +110,10 @@ export const synthesizeWithRules = (analysis: AnalysisResult, diff: TrendDiff): 
   // impact === estimateImpact(severity) (phaseShare'siz) olduğu için sortFindings burada
   // severity sırasıyla aynı zamanda impact sırasıdır.
   const onPageFindings = sortFindings(
-    analysis.techEvaluations.filter((item) => item.isClient).flatMap((item) => item.audit.seoFindings ?? []),
+    analysis.techEvaluations
+      .filter((item) => item.isClient)
+      .flatMap((item) => item.audit.seoFindings ?? [])
+      .filter((finding) => !finding.isMock),
   ).slice(0, TOP_ONPAGE_FINDINGS)
   for (const finding of onPageFindings) {
     actions.push({
@@ -119,7 +125,8 @@ export const synthesizeWithRules = (analysis: AnalysisResult, diff: TrendDiff): 
 
   // 5) İndeksleme sorunları — hepsi zaten critical (bkz. detectIndexingIssues.ts),
   // her zaman öncelik 1: indekslenmeyen sayfa için diğer her şey anlamsızdır.
-  for (const finding of analysis.indexingFindings) {
+  // Mock ('indexing' kategorisi mock ise) bulgular özete girmez — aynı gerekçe, bkz. üstteki not.
+  for (const finding of analysis.indexingFindings.filter((finding) => !finding.isMock)) {
     actions.push({
       priority: 1,
       category: 'indeksleme',
@@ -130,12 +137,25 @@ export const synthesizeWithRules = (analysis: AnalysisResult, diff: TrendDiff): 
   // 6) Crawler bulguları — on-page + link grafiği + taranabilirlik, en yüksek etkili N tanesi.
   // impact === estimateImpact(severity) (phaseShare'siz) olduğu için sortFindings burada da
   // severity sırasıyla aynı zamanda impact sırasıdır (onPageFindings bloğuyla aynı gerekçe).
-  const topCrawlFindings = sortFindings(analysis.crawlFindings).slice(0, TOP_CRAWL_FINDINGS)
+  // Dış denetim düzeltmesi (2026-08-31, BLOKER 1): mock crawler'ın gerçek müşteri domaini
+  // üzerinde ürettiği sahte kritik bulgular (title/H1/meta "eksik") yönetici özetine hiç
+  // girmesin — rapor gövdesinde 🧪 rozetiyle görünür kalır, ama önceliklendirilmiş aksiyon
+  // listesi yalnız gerçek veriden gelen bulguları içerir.
+  // ORTA 7 (2026-08-31) — dedupeWidespreadFindings ÖNCE çalışır: aynı şablon (ör. "title
+  // eksik") onlarca URL'de tekrar ediyorsa özet TEK satır gösterir, 5 URL varyantıyla
+  // 12 slotluk özeti doldurmaz (bkz. core/findings.ts yorumu).
+  const topCrawlFindings = sortFindings(dedupeWidespreadFindings(analysis.crawlFindings.filter((finding) => !finding.isMock))).slice(
+    0,
+    TOP_CRAWL_FINDINGS,
+  )
   for (const finding of topCrawlFindings) {
+    // dedupeWidespreadFindings ile toplanmış bulgular (url:null) etkilenen sayfa listesini
+    // `evidence`'ta taşır — özet metninde görünmezse "site geneli" tek başına anlamsız kalır.
+    const evidenceNote = finding.url === null ? ` (${finding.evidence})` : ''
     actions.push({
       priority: finding.severity === 'critical' ? 1 : 2,
       category: crawlActionCategory(finding.category),
-      text: `${finding.url ?? '(site geneli)'} — ${finding.title}. ${finding.explanation}`,
+      text: `${finding.url ?? '(site geneli)'} — ${finding.title}. ${finding.explanation}${evidenceNote}`,
     })
   }
 

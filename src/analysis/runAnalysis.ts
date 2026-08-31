@@ -6,7 +6,7 @@ import { CWV_THRESHOLDS } from '../config/constants.js'
 import type { ProjectConfig } from '../config/schema.js'
 import { extractRootDomain } from '../core/text.js'
 import type { Competitor, FieldCwv, GscRow, KeywordGap, KeywordPageMatch, KeywordSnapshotRow, TechAudit } from '../core/types.js'
-import type { Finding } from '../core/findings.js'
+import { withMockFlag, type Finding } from '../core/findings.js'
 import { buildClusters, buildKeywordRows, type KeywordCluster } from './clusterKeywords.js'
 import { diagnoseCwv } from './cwv/diagnose.js'
 import type { CwvDiagnosis } from './cwv/types.js'
@@ -71,6 +71,20 @@ const enrichWithCodeLocation = (evaluation: TechEvaluation, sourceFiles: readonl
 }
 
 /**
+ * Dış denetim bulgusu (2026-08-31) — `tech` kategorisi mock'taysa CWV teşhisi ve Lighthouse
+ * SEO bulguları da sentetiktir; `enrichWithCodeLocation`'la aynı iki alanı (`diagnosis.findings`,
+ * `audit.seoFindings`) `withMockFlag` ile damgalar.
+ */
+const stampTechMock = (evaluation: TechEvaluation, isMock: boolean): TechEvaluation => {
+  if (!isMock) return evaluation
+  return {
+    ...evaluation,
+    audit: { ...evaluation.audit, seoFindings: withMockFlag(evaluation.audit.seoFindings ?? [], true) },
+    diagnosis: evaluation.diagnosis === null ? null : { ...evaluation.diagnosis, findings: withMockFlag(evaluation.diagnosis.findings, true) },
+  }
+}
+
+/**
  * Faz 5.6 — bulgu-bazlı diff (`diffRuns`) için tüm bulgu kaynaklarını tek diziye toplar.
  * `crawlFindings` zaten on-page/link/taranabilirlik/canonical/schema/keyword-içerik
  * bulgularının birleşimi (Faz 5.1-5.4); CWV per-page teşhis bulguları (`techEvaluations`
@@ -84,12 +98,21 @@ export const allFindings = (analysis: AnalysisResult): readonly Finding[] => [
   ...analysis.codeAuditFindings,
 ]
 
-/** Toplanan ham veriyi rapora hazır analiz sonucuna dönüştürür — tamamı saf hesap. */
-export const runAnalysis = (collected: CollectedData, config: ProjectConfig): AnalysisResult => {
+/**
+ * Toplanan ham veriyi rapora hazır analiz sonucuna dönüştürür — tamamı saf hesap.
+ *
+ * `mockCategories` (2026-08-31 dış denetim düzeltmesi) — hangi sağlayıcı kategorilerinin
+ * mock çalıştığı; ilgili kategoriden türeyen bulgu ailelerine `Finding.isMock` damgalanır
+ * ki rapor katmanı (rozet) ve sentez katmanı (özetten hariç tutma) ayırt edebilsin.
+ * Varsayılan `[]` — geriye dönük uyumlu, eski çağrılar "hiçbir şey mock değil" davranır.
+ */
+export const runAnalysis = (collected: CollectedData, config: ProjectConfig, mockCategories: readonly string[] = []): AnalysisResult => {
   const rows = buildKeywordRows(collected.keywords, collected.serps, config)
   const competitors = discoverCompetitors(collected.serps, config)
   const reals = realCompetitorDomains(competitors)
   const keywordPageMatches = matchKeywordsToPages(rows, collected.crawledPages, collected.gscRows, collected.serps, config.domain)
+  const isTechMock = mockCategories.includes('tech')
+  const isCrawlMock = mockCategories.includes('crawl')
 
   return {
     rows,
@@ -108,22 +131,26 @@ export const runAnalysis = (collected: CollectedData, config: ProjectConfig): An
         isClient: extractRootDomain(audit.url) === config.domain,
         diagnosis: diagnoseCwv(audit),
       }))
-      .map((evaluation) => enrichWithCodeLocation(evaluation, collected.sourceFiles)),
+      .map((evaluation) => enrichWithCodeLocation(evaluation, collected.sourceFiles))
+      .map((evaluation) => stampTechMock(evaluation, isTechMock)),
     gscRows: collected.gscRows,
-    indexingFindings: detectIndexingIssues(collected.indexStatuses),
-    cannibalizationFindings: detectCannibalization(collected.gscRows),
+    indexingFindings: withMockFlag(detectIndexingIssues(collected.indexStatuses), mockCategories.includes('indexing')),
+    cannibalizationFindings: withMockFlag(detectCannibalization(collected.gscRows), mockCategories.includes('searchConsole')),
     fieldCwv: collected.fieldCwv,
     keywordGaps: collected.keywordGaps,
     keywordPageMatches,
-    crawlFindings: [
-      ...detectOnPageIssues(collected.crawledPages),
-      ...detectLinkIssues(collected.crawledPages, collected.crawlSeedUrls, collected.sitemapUrls),
-      ...detectCrawlabilityIssues(collected.crawledPages, collected.sitemapUrls),
-      ...detectCrossPageIssues(collected.crawledPages),
-      ...detectCanonicalIssues(collected.crawledPages),
-      ...detectSchemaIssues(collected.crawledPages),
-      ...detectKeywordContentIssues(keywordPageMatches, collected.crawledPages),
-    ],
+    crawlFindings: withMockFlag(
+      [
+        ...detectOnPageIssues(collected.crawledPages),
+        ...detectLinkIssues(collected.crawledPages, collected.crawlSeedUrls, collected.sitemapUrls),
+        ...detectCrawlabilityIssues(collected.crawledPages, collected.sitemapUrls),
+        ...detectCrossPageIssues(collected.crawledPages),
+        ...detectCanonicalIssues(collected.crawledPages),
+        ...detectSchemaIssues(collected.crawledPages),
+        ...detectKeywordContentIssues(keywordPageMatches, collected.crawledPages),
+      ],
+      isCrawlMock,
+    ),
     codeAuditFindings: computeCodeAuditFindings(collected.sourceFiles, collected.detectedStacks),
   }
 }

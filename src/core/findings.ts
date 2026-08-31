@@ -48,6 +48,13 @@ export interface Finding {
   readonly phase?: string
   readonly phaseShare?: number | null
   readonly codeLocation?: CodeLocation | null
+  /**
+   * Dış denetim bulgusu (2026-08-31) — bulguyu üreten kategori mock sağlayıcıdan geldiyse
+   * true. Belirtilmezse (undefined) gerçek veri sayılır — mevcut tüm Finding kurucuları
+   * bu alanı hiç bilmediğinden geriye dönük uyumlu. `runAnalysis.ts`'te kategori bazında
+   * damgalanır (`withMockFlag`), tekil dedektörler mock/gerçek ayrımını bilmez.
+   */
+  readonly isMock?: boolean
 }
 
 const SEVERITY_ORDER: Readonly<Record<FindingSeverity, number>> = {
@@ -68,6 +75,55 @@ export const sortFindings = <T extends Finding>(findings: readonly T[]): readonl
   )
 
 export const percentLabel = (share: number): string => `%${Math.round(share * 100)}`
+
+/**
+ * Dış denetim bulgusu (2026-08-31) — bir bulgu ailesinin tamamı tek bir sağlayıcı
+ * kategorisinden türediğinde (ör. crawlFindings ← 'crawl'), o kategori mock'taysa
+ * `isMock: true` damgalanır. `isMock: false` iken yeni obje üretmez — gereksiz
+ * allocation'dan kaçınmak için no-op.
+ */
+export const withMockFlag = <T extends Finding>(findings: readonly T[], isMock: boolean): readonly T[] =>
+  isMock ? findings.map((finding) => ({ ...finding, isMock: true })) : findings
+
+/** Aynı şablon (category+title) bu kadar sayfayı AŞARSA "site geneli" tek bulguya toplanır. */
+const WIDESPREAD_FINDING_THRESHOLD = 3
+/** Toplanmış bulguda gösterilecek azami URL — crawlability bulgularındaki "ilk 5, +N daha" deseniyle tutarlı. */
+const URL_PREVIEW_LIMIT = 5
+
+/**
+ * Dış denetim bulgusu (2026-08-31, ORTA 7) — canlı bir koşuda (300 sayfa taranınca) aynı
+ * şablon hatası (ör. "<title> etiketi eksik") onlarca sayfada TAM METNİYLE tekrar tekrar
+ * basılıyordu: hem 3.5 MB'lık kullanılamaz bir crawl bölümü, hem de yönetici özetinin
+ * 12 slotundan 5'inin aynı bulgunun URL varyantlarıyla dolması (ruleSynthesizer.ts'in
+ * `topCrawlFindings`'i ham diziden seçtiği için). Aynı (category, title) şablonu
+ * `WIDESPREAD_FINDING_THRESHOLD`'tan FAZLA sayfada tekrar ediyorsa TEK bir "site geneli"
+ * bulguya toplanır (url: null) — etkilenen URL'lerin ilk `URL_PREVIEW_LIMIT`'i + kalan sayı.
+ * Az sayıda sayfayı etkileyen bulgular DOKUNULMADAN kalır — "bu sayfada tam olarak ne var"
+ * görünümü küçük/orta ölçekli denetimlerde (asıl `auditUrls` senaryosu) hâlâ değerli.
+ *
+ * `crawlSection.ts` (rapor gövdesi) ve `ruleSynthesizer.ts` (yönetici özeti) İKİSİ de bunu
+ * çağırır — tek yerden, iki yüzeyde de tutarlı.
+ */
+export const dedupeWidespreadFindings = <T extends Finding>(findings: readonly T[]): readonly T[] => {
+  const byTemplate = new Map<string, T[]>()
+  for (const finding of findings) {
+    const key = `${finding.category}|${finding.title}`
+    const existing = byTemplate.get(key)
+    if (existing === undefined) byTemplate.set(key, [finding])
+    else existing.push(finding)
+  }
+
+  return [...byTemplate.values()].flatMap((group): readonly T[] => {
+    const urls = group.map((finding) => finding.url).filter((url): url is string => url !== null)
+    // Grup içinde zaten url:null olan (site geneli) bir bulgu varsa ya da eşik aşılmadıysa dokunma.
+    if (urls.length !== group.length || urls.length <= WIDESPREAD_FINDING_THRESHOLD) return group
+
+    const preview = urls.slice(0, URL_PREVIEW_LIMIT).join(', ')
+    const remainder = urls.length > URL_PREVIEW_LIMIT ? ` (+${urls.length - URL_PREVIEW_LIMIT} daha)` : ''
+    const representative = group[0]!
+    return [{ ...representative, url: null, evidence: `${urls.length} sayfada tespit edildi: ${preview}${remainder}` }]
+  })
+}
 
 const SEVERITY_IMPACT_BASE: Readonly<Record<FindingSeverity, number>> = {
   critical: 70,

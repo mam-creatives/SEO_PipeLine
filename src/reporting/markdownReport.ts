@@ -61,6 +61,7 @@ export const renderMarkdown = (model: ReportModel): string => {
   if (model.mockCategories.length > 0) {
     push(`> ⚠ **MOCK MODE** — Şu kategoriler örnek (sentetik) veriyle çalıştı: ${model.mockCategories.join(', ')}.`)
     push(`> Gerçek veri için .env dosyasına ilgili API anahtarlarını ekleyin (.env.example'a bakın).`)
+    push(`> Bu kategorilerden gelen tekil bulgular aşağıda **· 🧪 ÖRNEK VERİ** rozetiyle işaretlenir ve Yönetici Özeti'ne hiç girmez.`)
     push()
   }
   for (const failed of model.failedBranches) {

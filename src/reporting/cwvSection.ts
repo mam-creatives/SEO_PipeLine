@@ -3,7 +3,7 @@ import { lcpPhaseShares, type LcpAttribution } from '../core/cwv.js'
 import { extractRootDomain } from '../core/text.js'
 import type { FieldCwv } from '../core/types.js'
 import { escapeHtml } from './htmlEscape.js'
-import { SEVERITY_LABEL } from './severityLabel.js'
+import { mockBadgeLabel, SEVERITY_LABEL } from './severityLabel.js'
 
 const PHASE_LABEL: Readonly<Record<string, string>> = {
   timeToFirstByte: 'Sunucu yanıtı',
@@ -86,7 +86,7 @@ export const renderCwvDiagnosisMarkdown = (evaluations: readonly TechEvaluation[
     }
 
     for (const finding of diagnosis.findings) {
-      lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}**`, '')
+      lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}${mockBadgeLabel(finding)}**`, '')
       lines.push(finding.explanation, '')
       if (finding.fixSnippet !== null) {
         lines.push('```', finding.fixSnippet, '```', '')
@@ -127,7 +127,7 @@ export const renderCwvDiagnosisHtml = (evaluations: readonly TechEvaluation[]): 
           finding.fixSnippet === null ? '' : `<pre><code>${escapeHtml(finding.fixSnippet)}</code></pre>`
         return (
           `<div class="action p${priority}">` +
-          `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}</strong>` +
+          `<strong>${escapeHtml(SEVERITY_LABEL[finding.severity])} — ${escapeHtml(finding.title)}${escapeHtml(mockBadgeLabel(finding))}</strong>` +
           `<p>${escapeHtml(finding.explanation)}</p>${snippet}</div>`
         )
       })

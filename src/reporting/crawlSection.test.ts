@@ -89,6 +89,55 @@ describe('codeLocation gösterimi', () => {
   })
 })
 
+// Dış denetim bulgusu (2026-08-31, ORTA 7) — 300 sayfalık canlı bir koşu, aynı şablon
+// hatasını (ör. title eksik) onlarca sayfada TAM METNİYLE tekrarlayıp 3.5 MB'lık kullanılamaz
+// bir rapor üretti. Aynı (category, title) 3'ten FAZLA sayfada tekrar ediyorsa tek karta toplanır.
+describe('cross-page bulgu dedupe (widespread findings)', () => {
+  const widespreadFindings: Finding[] = Array.from({ length: 6 }, (_, index) => ({
+    ...onPageFinding,
+    url: `https://ornek.com/sayfa-${index + 1}`,
+  }))
+
+  test('4+ sayfayı etkileyen aynı şablon TEK "(site geneli)" kartına toplanır', () => {
+    const markdown = renderCrawlFindingsMarkdown(widespreadFindings)
+    expect(markdown.match(/#### /g)).toHaveLength(1)
+    expect(markdown).toContain('#### (site geneli)')
+    expect(markdown).toContain('6 sayfada tespit edildi')
+  })
+
+  test('toplanmış kartta URL listesi ilk 5 ile sınırlanır, kalan sayı belirtilir', () => {
+    const markdown = renderCrawlFindingsMarkdown(widespreadFindings)
+    expect(markdown).toContain('sayfa-1')
+    expect(markdown).toContain('sayfa-5')
+    expect(markdown).not.toContain('sayfa-6')
+    expect(markdown).toContain('(+1 daha)')
+  })
+
+  test('3 veya daha az sayfayı etkileyen şablon per-sayfa gösterimde KALIR (küçük denetimlerde değerli)', () => {
+    const smallGroup = widespreadFindings.slice(0, 3)
+    const markdown = renderCrawlFindingsMarkdown(smallGroup)
+    expect(markdown.match(/#### https:\/\/ornek\.com\/sayfa-/g)).toHaveLength(3)
+    expect(markdown).not.toContain('sayfada tespit edildi')
+  })
+
+  test('HTML render\'da da aynı şekilde tek karta toplanır', () => {
+    const html = renderCrawlFindingsHtml(widespreadFindings)
+    expect(html).toContain('6 sayfada tespit edildi')
+    expect((html.match(/<div class="cwv-card">/g) ?? []).length).toBe(1)
+  })
+
+  test('farklı başlıklı bulgular ayrı gruplanır, birbirini etkilemez', () => {
+    const otherTemplate: Finding[] = Array.from({ length: 5 }, (_, index) => ({
+      ...onPageFinding,
+      title: 'Meta description eksik',
+      url: `https://ornek.com/diger-${index + 1}`,
+    }))
+    const markdown = renderCrawlFindingsMarkdown([...widespreadFindings, ...otherTemplate])
+    expect(markdown).toContain('6 sayfada tespit edildi')
+    expect(markdown).toContain('5 sayfada tespit edildi')
+  })
+})
+
 describe('renderCrawlFindingsHtml', () => {
   test('bulgu yoksa boş string döner', () => {
     expect(renderCrawlFindingsHtml([])).toBe('')

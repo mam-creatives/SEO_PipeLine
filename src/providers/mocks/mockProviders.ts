@@ -267,17 +267,28 @@ export const createMockCruxProvider = (): CruxProvider => ({
 })
 
 /**
- * Müşterinin anasayfası BİLİNÇLİ olarak kusurlu döner (title/h1/schema yok) —
- * `mockSearchConsoleProvider`'daki yamyamlık örneğiyle aynı gerekçe: aksi halde
- * crawlFindings mock/e2e testte hep boş çıkar ve rapor bölümü sessizce ölü kalır.
- * Ayrıca gerçek mamcreatives.com'da fiilen var olan kusurları yansıtır (bkz.
- * crawlHtmlParser fixture'ı) — mock uydurma değil, bilinen gerçek bir örüntüyü taklit ediyor.
+ * Dış denetim bulgusu (2026-08-31, BLOKER 1) — bu fonksiyon önceden müşterinin GERÇEK
+ * anasayfasını (`config.domain` + `/`) bilinçli olarak kusurlu döndürüyordu (title/h1/schema
+ * yok). Sonuç: `CRAWL_PROVIDER=live` unutulduğunda (tam olarak `.env`'de eksik kalınca olan
+ * şey) rapor, müşterinin GERÇEK domaininde "title yok / H1 yok / meta description yok" diye
+ * KRİTİK bulgu yayınlıyordu — canlı siteden `curl` ile doğrulandığında üçü de yanlıştı.
+ * README'nin kendi ifadesiyle bu "en tehlikeli sessiz hata".
+ *
+ * Düzeltme: anasayfa artık SAĞLIKLI şablonu alır (aşağıdaki "diğer URL'ler" dalıyla aynı
+ * şekil). "Kusurlu sayfa" demosu — crawlFindings'in mock/e2e testte boş kalmaması için hâlâ
+ * gerekli — artık anasayfadan linklenen, adından bile mock olduğu belli AYRI bir sentinel yola
+ * taşındı: `/ornek-mock-sayfa`. `crawlSite.ts`'in BFS'i yalnız aynı-site linkleri takip ettiği
+ * için (`isSameSite`) tamamen ayrı bir domain kullanılamıyor — bu yüzden aynı domain altında
+ * ama gerçek bir sayfa olamayacak kadar belirgin bir yol seçildi.
  */
+const MOCK_DEMO_FINDING_PATH = '/ornek-mock-sayfa'
+
 export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider => ({
   name: 'mock-crawl',
   isMock: true,
   fetchPage: async (url) => {
-    if (extractRootDomain(url) === config.domain && new URL(url).pathname === '/') {
+    const isDemoFindingPage = extractRootDomain(url) === config.domain && new URL(url).pathname === MOCK_DEMO_FINDING_PATH
+    if (isDemoFindingPage) {
       return ok({
         url,
         statusCode: 200,
@@ -294,9 +305,48 @@ export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider =>
         ogComplete: false,
         imagesMissingAlt: 1,
         wordCount: 120,
-        bodyText: 'Genel içerik metni burada yer alıyor, hedef keyword genelde geçmez.',
+        bodyText: 'Bu, mock crawler\'ın örnek bulgu üretmek için ürettiği sentetik bir sayfadır — gerçek sitede yoktur.',
         metaRobots: null,
-        internalLinks: ['hakkimizda', 'hizmetlerimiz'].map((path) => ({
+        internalLinks: [],
+        externalLinkCount: 2,
+        likelyClientRendered: false,
+        depth: 0,
+        hreflangs: [],
+        xRobotsTag: null,
+        contentType: 'text/html',
+        headerHreflangs: [],
+        securityHeaders: [],
+        redirectChain: [],
+        redirectLoop: false,
+        viewportMeta: null,
+        langAttribute: null,
+        mixedContentCount: 0,
+        imagesMissingDimensions: 1,
+      })
+    }
+    const isRealHomepage = extractRootDomain(url) === config.domain && new URL(url).pathname === '/'
+    if (isRealHomepage) {
+      return ok({
+        url,
+        statusCode: 200,
+        finalUrl: url,
+        fetchError: null,
+        title: `Sayfa — ${url}`,
+        metaDescription: 'Örnek açıklama metni.',
+        canonicalUrl: url,
+        h1s: ['Ana Başlık'],
+        headingOrder: ['h1', 'h2'],
+        hasSchemaOrg: true,
+        schemaTypes: ['WebPage'],
+        schemaFields: [{ type: 'WebPage', keys: [] }],
+        ogComplete: true,
+        imagesMissingAlt: 0,
+        wordCount: 400,
+        bodyText: `Ana Başlık ile ilgili örnek içerik. ${url} sayfasının açıklaması ve detayları burada yer alır.`,
+        metaRobots: null,
+        // MOCK_DEMO_FINDING_PATH linki BURADA — BFS anasayfadan başladığı için sentinel
+        // sayfa yalnız buradan erişilebilir olmalı, aksi halde crawlFindings mock modda hep boş kalır.
+        internalLinks: ['hakkimizda', 'hizmetlerimiz', MOCK_DEMO_FINDING_PATH.slice(1)].map((path) => ({
           sourceUrl: url,
           targetUrl: `https://${config.domain}/${path}`,
           anchorText: path,
@@ -312,10 +362,10 @@ export const createMockCrawlProvider = (config: ProjectConfig): CrawlProvider =>
         securityHeaders: [],
         redirectChain: [],
         redirectLoop: false,
-        viewportMeta: null,
-        langAttribute: null,
+        viewportMeta: 'width=device-width, initial-scale=1',
+        langAttribute: 'tr',
         mixedContentCount: 0,
-        imagesMissingDimensions: 1,
+        imagesMissingDimensions: 0,
       })
     }
     const rng = mulberry32(hashString(url))
