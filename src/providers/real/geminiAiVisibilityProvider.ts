@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ProviderError, summarizeZodError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
+import { fetchWithRetry } from '../../core/retry.js'
 import type { AiAnswer } from '../../core/types.js'
 import type { AiVisibilityProvider } from '../types.js'
 
@@ -90,12 +91,12 @@ export const createGeminiAiVisibilityProvider = (apiKey: string): AiVisibilityPr
   isMock: false,
   askQuery: async (query: string): Promise<Result<AiAnswer, ProviderError>> => {
     try {
-      const response = await fetch(buildGeminiUrl(apiKey), {
+      const response = await fetchWithRetry(buildGeminiUrl(apiKey), () => ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: buildGeminiRequestBody(query),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      })
+      }))
       if (!response.ok) {
         const hint = response.status === 429 ? ' (oran sınırı — çağrılar paralel gidiyor)' : ''
         return err(new ProviderError(GEMINI_MODEL, `'${query}' için Gemini ${response.status} döndü${hint}.`))

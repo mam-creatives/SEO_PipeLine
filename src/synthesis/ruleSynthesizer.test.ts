@@ -253,4 +253,121 @@ describe('synthesizeWithRules', () => {
     const output = synthesizeWithRules(analysis, baselineDiff)
     expect(output.actions.some((action) => action.category === 'keyword-fırsatı')).toBe(false)
   })
+
+  // Dış denetim düzeltmesi (2026-08-31, BLOKER 1) — mock crawler gerçek müşteri domaininde
+  // sahte kritik bulgu üretmişti (title/H1/meta "eksik"). isMock:true damgalı bulgular artık
+  // yönetici özetine hiç girmez; rapor gövdesinde 🧪 rozetiyle görünür kalır ama özet bunları
+  // "gerçek bulgu" gibi öncelik listesine almaz.
+  test('isMock:true crawl bulgusu yönetici özetine girmez', () => {
+    const withMockCrawlFinding = {
+      ...analysis,
+      crawlFindings: [
+        {
+          category: 'onpage' as const,
+          severity: 'critical' as const,
+          url: 'https://ornek.tr/',
+          culpritSelector: null,
+          title: '<title> etiketi eksik',
+          explanation: 'test',
+          evidence: 'test',
+          impact: 70,
+          effort: 'trivial' as const,
+          fixSnippet: null,
+          isMock: true,
+        },
+      ],
+    }
+    const output = synthesizeWithRules(withMockCrawlFinding, baselineDiff)
+    expect(output.actions.some((action) => action.text.includes('<title> etiketi eksik'))).toBe(false)
+  })
+
+  test('isMock:true indeksleme bulgusu yönetici özetine girmez', () => {
+    const withMockIndexingFinding = {
+      ...analysis,
+      indexingFindings: [
+        {
+          category: 'indexing' as const,
+          severity: 'critical' as const,
+          url: 'https://ornek.tr/urun',
+          culpritSelector: null,
+          title: 'Sayfa Google tarafından indekslenmesi engelleniyor',
+          explanation: 'test',
+          evidence: 'test',
+          impact: 70,
+          effort: 'small' as const,
+          fixSnippet: null,
+          isMock: true,
+        },
+      ],
+    }
+    const output = synthesizeWithRules(withMockIndexingFinding, baselineDiff)
+    expect(output.actions.some((action) => action.category === 'indeksleme')).toBe(false)
+  })
+
+  test('isMock:true on-page (seoFindings) bulgusu yönetici özetine girmez', () => {
+    const withMockOnPageFinding = {
+      ...analysis,
+      techEvaluations: [
+        {
+          ...analysis.techEvaluations[0]!,
+          audit: {
+            ...analysis.techEvaluations[0]!.audit,
+            seoFindings: [
+              {
+                category: 'onpage' as const,
+                severity: 'critical' as const,
+                url: 'https://ornek.tr/',
+                culpritSelector: null,
+                title: 'Arama motorları sayfayı taramasını engelleyen bir direktif buldu',
+                explanation: 'test',
+                evidence: 'test',
+                impact: 70,
+                effort: 'small' as const,
+                fixSnippet: null,
+                isMock: true,
+              },
+            ],
+          },
+        },
+      ],
+    }
+    const output = synthesizeWithRules(withMockOnPageFinding, baselineDiff)
+    expect(output.actions.some((action) => action.category === 'on-page')).toBe(false)
+  })
+
+  test('isMock:true CWV teşhis bulgusu yönetici özetine girmez', () => {
+    const withMockCwvFinding = {
+      ...analysis,
+      techEvaluations: [
+        {
+          ...analysis.techEvaluations[0]!,
+          diagnosis: {
+            url: 'https://ornek.tr/',
+            source: 'lab' as const,
+            ratings: { LCP: 'poor' as const, CLS: 'good' as const },
+            findings: [
+              {
+                category: 'cwv' as const,
+                severity: 'critical' as const,
+                url: 'https://ornek.tr/',
+                culpritSelector: 'div.hero',
+                title: 'Kaynak hazır ama element geç boyanıyor',
+                explanation: 'test',
+                evidence: 'test',
+                impact: 70,
+                effort: 'medium' as const,
+                fixSnippet: null,
+                metric: 'LCP' as const,
+                phase: 'elementRenderDelay',
+                phaseShare: 1,
+                isMock: true,
+              },
+            ],
+          },
+        },
+      ],
+    }
+    const output = synthesizeWithRules(withMockCwvFinding, baselineDiff)
+    expect(output.actions.some((action) => action.text.includes('Kaynak hazır ama element geç boyanıyor'))).toBe(false)
+  })
 })

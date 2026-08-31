@@ -1,5 +1,6 @@
 import { diffRuns } from '../analysis/diffRuns.js'
 import { allFindings, runAnalysis } from '../analysis/runAnalysis.js'
+import { selectAuditUrls } from '../analysis/selectAuditUrls.js'
 import { snapshotToCollectedData } from '../collectors/snapshotToCollectedData.js'
 import { loadProjectConfig } from '../config/loadConfig.js'
 import { createLogger } from '../core/logger.js'
@@ -28,16 +29,21 @@ const main = async (): Promise<void> => {
       }
 
       const snapshot = getRunSnapshot(db, latest.id)
-      // sitemapUrls/crawlSeedUrls/sourceFiles/detectedStacks kalıcı değil (bkz.
-      // snapshotToCollectedData.ts yorumu) — yeniden toplamadan üretilen raporda sitemap
-      // karşılaştırması ve kod denetimi bölümü boş çıkar, bu beklenen davranış.
-      const analysis = runAnalysis(snapshotToCollectedData(snapshot), config)
+      const deriveAuditUrls = (serps: Parameters<typeof selectAuditUrls>[0]): readonly string[] => selectAuditUrls(serps, config)
+      const analysis = runAnalysis(snapshotToCollectedData(snapshot, config, deriveAuditUrls), config, snapshot.run.mockCategories)
 
       const previousMeta = getPreviousCompletedRun(db, latest.id)
       const previousSnapshot = previousMeta === null ? null : getRunSnapshot(db, previousMeta.id)
       // Faz 5.6 — bulgu-bazlı diff (hangi bulgu düzeldi/yeni açıldı) için önceki run'ın
       // bulguları da ham veriden yeniden hesaplanır — snapshot bulguyu değil ham veriyi taşıyor.
-      const previousAnalysis = previousSnapshot === null ? null : runAnalysis(snapshotToCollectedData(previousSnapshot), config)
+      const previousAnalysis =
+        previousSnapshot === null
+          ? null
+          : runAnalysis(
+              snapshotToCollectedData(previousSnapshot, config, deriveAuditUrls),
+              config,
+              previousSnapshot.run.mockCategories,
+            )
       const diff = diffRuns(
         previousSnapshot,
         snapshot,

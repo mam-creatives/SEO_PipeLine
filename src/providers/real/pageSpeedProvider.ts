@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ProviderError } from '../../core/errors.js'
 import { err, type Result } from '../../core/result.js'
+import { fetchWithRetry } from '../../core/retry.js'
 import type { TechAudit } from '../../core/types.js'
 import { lighthouseResultToTechAudit } from '../lighthouse/lighthouseAdapter.js'
 import type { TechAuditProvider } from '../types.js'
@@ -41,9 +42,9 @@ export const createPageSpeedProvider = (apiKey: string): TechAuditProvider => ({
   isMock: false,
   auditUrl: async (url: string): Promise<Result<TechAudit, ProviderError>> => {
     try {
-      const response = await fetch(buildPageSpeedUrl(apiKey, url), {
+      const response = await fetchWithRetry(buildPageSpeedUrl(apiKey, url), () => ({
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      })
+      }))
       if (!response.ok) {
         const hint = response.status === 429 ? ' (kota aşıldı — lokal Lighthouse kullanmayı düşünün)' : ''
         return err(new ProviderError(PROVIDER_NAME, `'${url}' için PSI ${response.status} döndü${hint}.`))

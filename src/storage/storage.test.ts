@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { StorageError } from '../core/errors.js'
 import type { Finding } from '../core/findings.js'
 import type { CrawledPage, FieldCwv, GscRow, IndexStatus, KeywordGap, KeywordSnapshotRow, PageLink, SerpSnapshot, TechAudit } from '../core/types.js'
-import { openDatabase, type Db } from './db.js'
+import { openDatabase, vacuumDatabase, type Db } from './db.js'
 import { applyMigrations, MIGRATIONS } from './migrations.js'
 import { getRunSnapshot } from './queryRepository.js'
-import { createRun, finishRun, getLatestCompletedRun, getLatestRun, getPreviousCompletedRun } from './runRepository.js'
+import { createRun, finishRun, getLatestCompletedRun, getLatestRun, getPreviousCompletedRun, pruneOldRuns } from './runRepository.js'
 import {
   insertAiSamples,
   insertFieldCwv,
@@ -17,6 +17,7 @@ import {
   insertPageLinks,
   insertPages,
   insertSerpSnapshots,
+  insertSitemapUrls,
   insertTechAudits,
 } from './snapshotRepository.js'
 
@@ -160,6 +161,38 @@ describe('storage', () => {
     expect(db.pragma('user_version', { simple: true })).toBe(MIGRATIONS.length)
   })
 
+  // Dış denetim bulgusu (2026-08-31) — bu 10 index UNIQUE(runId, ...) autoindex'iyle
+  // çakışıyordu; her INSERT'te sıfır okuma faydası için fazladan B-tree yazımıydı.
+  test('gereksiz runId index\'leri kaldırıldı, UNIQUE kısıtı hâlâ çalışıyor', () => {
+    const redundantIndexNames = [
+      'idx_keyword_snapshots_run',
+      'idx_serp_results_run',
+      'idx_ai_samples_run',
+      'idx_tech_audits_run',
+      'idx_index_status_run',
+      'idx_gsc_metrics_run',
+      'idx_field_cwv_run',
+      'idx_pages_run',
+      'idx_page_links_run',
+      'idx_keyword_gaps_run',
+    ]
+    const existing = db
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'index' AND name IN (${redundantIndexNames.map(() => '?').join(',')})`)
+      .all(...redundantIndexNames)
+    expect(existing).toEqual([])
+
+    // rum_samples'ın UNIQUE'i yok — idx_rum_samples_lookup GERÇEKTEN gerekli, dokunulmadı.
+    const rumIndex = db
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_rum_samples_lookup'`)
+      .get()
+    expect(rumIndex).toBeDefined()
+
+    // UNIQUE kısıtı (autoindex) hâlâ çalışıyor mu — indeksi kaldırmak kısıtı bozmamalı.
+    const run = createRun(db, 'h', [])
+    insertKeywordSnapshots(db, run.id, [sampleKeyword])
+    expect(() => insertKeywordSnapshots(db, run.id, [sampleKeyword])).toThrow(StorageError)
+  })
+
   test('run yaşam döngüsü: create → finish → latest completed', () => {
     const run = createRun(db, 'hash123', ['keyword'])
     expect(run.status).toBe('running')
@@ -215,6 +248,7 @@ describe('storage', () => {
     insertPages(db, run.id, [sampleCrawledPage])
     insertPageLinks(db, run.id, [samplePageLink])
     insertKeywordGaps(db, run.id, [sampleKeywordGap])
+    insertSitemapUrls(db, run.id, ['https://ornekayakkabi.com.tr/sitemap-tr.xml'])
     insertAiSamples(db, run.id, [
       {
         query: 'en iyi ayakkabı mağazası',
@@ -239,6 +273,14 @@ describe('storage', () => {
     expect(snapshot.keywordGaps).toEqual([sampleKeywordGap])
     expect(snapshot.aiSamples[0]?.clientMentioned).toBe(true)
     expect(snapshot.aiSamples[0]?.competitorsMentioned).toEqual(['flo.com.tr'])
+    // BLOKER 3 (2026-08-31) — daha önce hiç kalıcı değildi, bkz. migrations.ts v18 yorumu.
+    expect(snapshot.sitemapUrls).toEqual(['https://ornekayakkabi.com.tr/sitemap-tr.xml'])
+  })
+
+  test('aynı run içinde aynı sitemap URL\'i iki kez eklenemez (UNIQUE)', () => {
+    const run = createRun(db, 'h', [])
+    insertSitemapUrls(db, run.id, ['https://ornekayakkabi.com.tr/sitemap.xml'])
+    expect(() => insertSitemapUrls(db, run.id, ['https://ornekayakkabi.com.tr/sitemap.xml'])).toThrow(StorageError)
   })
 
   test('aynı run içinde aynı (keyword, competitorDomain) iki kez eklenemez (UNIQUE)', () => {
@@ -297,5 +339,47 @@ describe('storage', () => {
     } finally {
       legacyDb.close()
     }
+  })
+
+  // Dış denetim bulgusu (2026-08-31) — src/ genelinde retention/pruning/VACUUM hiç yoktu;
+  // DB müşteri başına yılda ~2 GB'a kadar büyüyebiliyordu.
+  describe('pruneOldRuns', () => {
+    test('yalnız en yeni keepCount run tutulur, gerisi silinir', () => {
+      const ids = Array.from({ length: 5 }, () => createRun(db, 'h', []).id)
+      const deleted = pruneOldRuns(db, 2)
+
+      expect(deleted).toBe(3)
+      const remaining = db.prepare('SELECT id FROM runs ORDER BY id').all() as { id: number }[]
+      expect(remaining.map((r) => r.id)).toEqual(ids.slice(-2))
+    })
+
+    test('ON DELETE CASCADE ile silinen run\'a bağlı tüm satırlar da temizlenir', () => {
+      const run = createRun(db, 'h', [])
+      insertKeywordSnapshots(db, run.id, [sampleKeyword])
+      insertPages(db, run.id, [sampleCrawledPage])
+      insertSitemapUrls(db, run.id, ['https://ornekayakkabi.com.tr/sitemap.xml'])
+      createRun(db, 'h', []) // keepCount=1 için tutulacak en yeni run
+
+      pruneOldRuns(db, 1)
+
+      const keywordCount = db.prepare('SELECT COUNT(*) AS n FROM keyword_snapshots WHERE runId = ?').get(run.id) as { n: number }
+      const pageCount = db.prepare('SELECT COUNT(*) AS n FROM pages WHERE runId = ?').get(run.id) as { n: number }
+      const sitemapCount = db.prepare('SELECT COUNT(*) AS n FROM sitemap_urls WHERE runId = ?').get(run.id) as { n: number }
+      expect(keywordCount.n).toBe(0)
+      expect(pageCount.n).toBe(0)
+      expect(sitemapCount.n).toBe(0)
+    })
+
+    test('run sayısı keepCount\'un altındaysa hiçbir şey silinmez', () => {
+      createRun(db, 'h', [])
+      createRun(db, 'h', [])
+      const deleted = pruneOldRuns(db, 90)
+      expect(deleted).toBe(0)
+    })
+
+    test('vacuumDatabase hata fırlatmadan çalışır', () => {
+      createRun(db, 'h', [])
+      expect(() => vacuumDatabase(db)).not.toThrow()
+    })
   })
 })

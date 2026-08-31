@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ProviderError, summarizeZodError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
+import { fetchWithRetry } from '../../core/retry.js'
 import type { AiAnswer } from '../../core/types.js'
 import type { AiVisibilityProvider } from '../types.js'
 
@@ -88,12 +89,12 @@ export const createAnthropicAiVisibilityProvider = (apiKey: string): AiVisibilit
   isMock: false,
   askQuery: async (query: string): Promise<Result<AiAnswer, ProviderError>> => {
     try {
-      const response = await fetch(MESSAGES_ENDPOINT, {
+      const response = await fetchWithRetry(MESSAGES_ENDPOINT, () => ({
         method: 'POST',
         headers: buildAnthropicHeaders(apiKey),
         body: buildAnthropicRequestBody(query),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      })
+      }))
       if (!response.ok) {
         const hint = response.status === 429 ? ' (oran sınırı — çağrılar paralel gidiyor)' : ''
         return err(new ProviderError(ANTHROPIC_MODEL, `'${query}' için Anthropic ${response.status} döndü${hint}.`))

@@ -35,8 +35,9 @@ const SECTION_HEADERS = [
   // (mockProviders.ts) — bu satır o bölümün sessizce boş kalmadığını doğrular.
   '### Sayfa Yamyamlığı',
   '### Gerçek Kullanıcı Verisi (CrUX)',
-  // Mock crawl sağlayıcısı müşteri anasayfasını bilinçli kusurlu üretir (title/h1/schema
-  // yok) — bu satır o bölümün sessizce boş kalmadığını doğrular (Faz 1.3'teki dersle aynı).
+  // Mock crawl sağlayıcısı, "kusurlu sayfa" demosu için adından mock olduğu belli bir
+  // sentinel yol üretir (title/h1/schema yok, bkz. mockProviders.ts MOCK_DEMO_FINDING_PATH)
+  // — bu satır o bölümün sessizce boş kalmadığını doğrular (Faz 1.3'teki dersle aynı).
   '### Site Denetimi (Crawler)',
 ]
 
@@ -73,9 +74,18 @@ describe('runResearch (uçtan uca, mock mod)', () => {
     expect(markdown).toContain('Suçlu element')
     expect(markdown).toContain('fetchpriority="high"')
 
-    // Crawler bölümü de boş kalmamalı: mock müşteri anasayfasını title/h1'siz üretiyor
+    // Crawler bölümü de boş kalmamalı: mock, sentinel demo sayfasını title/h1'siz üretiyor
     expect(markdown).toContain('<title> etiketi eksik')
     expect(markdown).toContain('hiç <h1> yok')
+    // Bu bulgular mock kaynaklı olarak damgalanmalı (BLOKER 1 düzeltmesi, 2026-08-31).
+    expect(markdown).toContain('🧪 ÖRNEK VERİ')
+
+    // BLOKER 1 regresyon nöbetçisi: mock crawler artık GERÇEK müşteri anasayfasını
+    // (`config.domain` + `/`) bozuk göstermiyor — "eksik" bulguları yönetici özetine hiç
+    // girmemeli (mock kaynaklı bulgular özetten filtrelenir, bkz. ruleSynthesizer.ts).
+    const summarySection = markdown.slice(markdown.indexOf('## Yönetici Özeti'), markdown.indexOf('## Fırsatlar'))
+    expect(summarySection).not.toContain('<title> etiketi eksik')
+    expect(summarySection).not.toContain('hiç <h1> yok')
 
     // Faz 5.6 — impact skoru artık basılıyor, İçindekiler her iki formatta da var.
     expect(markdown).toContain('**İçindekiler**')
@@ -112,6 +122,13 @@ describe('runResearch (uçtan uca, mock mod)', () => {
     const markdown = readFileSync(outcome.markdownPath, 'utf-8')
     expect(markdown).toContain('Karşılaştırma: #1')
     expect(markdown).not.toContain('İlk çalıştırma — karşılaştırma yok')
+
+    // BLOKER 3 regresyon nöbetçisi (2026-08-31) — config/mock veri arada değişmedi, bu yüzden
+    // crawl/taranabilirlik bulguları da değişmemeli. Düzeltmeden önce `snapshotToCollectedData`
+    // önceki run'ın sitemapUrls/crawlSeedUrls'ini her zaman boş döndürüyordu, bu da bazı
+    // taranabilirlik bulgularının (sitemap'e duyarlı olanlar) her koşuda sahte "🆕 yeni"
+    // görünmesine yol açıyordu. Artık aynı bulgular aynı `findingKey` ile eşleşmeli.
+    expect(markdown).not.toContain('🆕 Yeni açılan bulgular')
   }, 20000)
 
   test('codePath yapılandırılmışsa Kod Denetimi bölümü dolu gelir (Faz 3)', async () => {

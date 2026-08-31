@@ -241,4 +241,55 @@ describe('collectCrawl', () => {
     const result = await collectCrawl(providersWith(provider), config, [home])
     expect(result.ok).toBe(false)
   })
+
+  // Dış denetim bulgusu (2026-08-31) — `crawlExcludePaths: ['/cv']` önceden `/cv-hazirlama`
+  // gibi TAMAMEN FARKLI bir sayfayı da yanlışlıkla eliyordu (bare startsWith).
+  describe('crawlExcludePaths segment sınırı', () => {
+    const configWithExclude = ProjectConfigSchema.parse({
+      domain: 'ornek.com',
+      brandName: 'Örnek',
+      brandTokens: ['örnek'],
+      seedKeywords: ['x'],
+      crawlMaxPages: 60,
+      crawlMaxDepth: 3,
+      crawlExcludePaths: ['/cv'],
+    })
+
+    test('/cv hariç tutulur, /cv-hazirlama (aynı önekli AMA farklı sayfa) hariç TUTULMAZ', async () => {
+      const home = 'https://ornek.com/'
+      const cv = 'https://ornek.com/cv'
+      const cvHazirlama = 'https://ornek.com/cv-hazirlama'
+      const provider = fakeCrawlProvider({
+        [home]: emptyPage(home, {
+          internalLinks: [
+            { sourceUrl: home, targetUrl: cv, anchorText: 'CV', isInternal: true },
+            { sourceUrl: home, targetUrl: cvHazirlama, anchorText: 'CV Hazırlama', isInternal: true },
+          ],
+        }),
+        [cv]: emptyPage(cv),
+        [cvHazirlama]: emptyPage(cvHazirlama),
+      })
+      const result = await collectCrawl(providersWith(provider), configWithExclude, [home])
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        const urls = result.value.pages.map((p) => p.url)
+        expect(urls).not.toContain(cv)
+        expect(urls).toContain(cvHazirlama)
+      }
+    })
+
+    test('/cv/detay gibi alt-yollar da hariç tutulur (segment devamı)', async () => {
+      const home = 'https://ornek.com/'
+      const cvDetay = 'https://ornek.com/cv/detay'
+      const provider = fakeCrawlProvider({
+        [home]: emptyPage(home, {
+          internalLinks: [{ sourceUrl: home, targetUrl: cvDetay, anchorText: 'CV Detay', isInternal: true }],
+        }),
+        [cvDetay]: emptyPage(cvDetay),
+      })
+      const result = await collectCrawl(providersWith(provider), configWithExclude, [home])
+      expect(result.ok).toBe(true)
+      if (result.ok) expect(result.value.pages.map((p) => p.url)).not.toContain(cvDetay)
+    })
+  })
 })

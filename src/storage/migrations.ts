@@ -301,6 +301,38 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE pages ADD COLUMN mixedContentCount INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE pages ADD COLUMN imagesMissingDimensions INTEGER NOT NULL DEFAULT 0;
   `,
+  // Dış denetim bulgusu (2026-08-31, BLOKER 3) — sitemapUrls hiç kalıcı değildi (v8 yorumu),
+  // bu yüzden önceki run'ın bulguları `snapshotToCollectedData`'dan yeniden hesaplanırken
+  // sitemap her zaman boş dönüyordu ve taranabilirlik/öksüz-sayfa bulguları her koşuda
+  // sahte biçimde "🆕 yeni" işaretleniyordu. Diğer fact tablolarıyla aynı desen — açık
+  // runId index'i EKLENMEDİ (UNIQUE(runId, url) zaten runId'yi soldan kapsayan bir
+  // autoindex üretir, bkz. dış denetim bulgusu Faz B/12).
+  `
+  CREATE TABLE sitemap_urls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    runId INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    UNIQUE (runId, url)
+  );
+  `,
+  // Dış denetim bulgusu (2026-08-31) — bu 10 index'in HEPSİ kendi tablosundaki
+  // UNIQUE(runId, doğalAnahtar) kısıtının otomatik ürettiği autoindex'le birebir çakışıyordu
+  // (autoindex'in en soldaki kolonu zaten runId — `WHERE runId = ?` sorgularını aynı şekilde
+  // karşılıyor). Sonuç: her INSERT'te sıfır okuma faydası için 10 fazladan B-tree yazımı.
+  // sitemap_urls (v18) ve rum_samples (rum_samples'ın UNIQUE'i yok, idx_rum_samples_lookup
+  // GERÇEKTEN gerekli) bu düzeltmeden ETKİLENMİYOR — zaten bu ders alınarak tasarlanmışlardı.
+  `
+  DROP INDEX IF EXISTS idx_keyword_snapshots_run;
+  DROP INDEX IF EXISTS idx_serp_results_run;
+  DROP INDEX IF EXISTS idx_ai_samples_run;
+  DROP INDEX IF EXISTS idx_tech_audits_run;
+  DROP INDEX IF EXISTS idx_index_status_run;
+  DROP INDEX IF EXISTS idx_gsc_metrics_run;
+  DROP INDEX IF EXISTS idx_field_cwv_run;
+  DROP INDEX IF EXISTS idx_pages_run;
+  DROP INDEX IF EXISTS idx_page_links_run;
+  DROP INDEX IF EXISTS idx_keyword_gaps_run;
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {

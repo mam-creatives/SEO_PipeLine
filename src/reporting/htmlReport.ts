@@ -86,7 +86,7 @@ export const renderHtml = (model: ReportModel): string => {
 
   if (model.mockCategories.length > 0) {
     sections.push(
-      `<div class="banner mock"><strong>⚠ MOCK MODE</strong> — Şu kategoriler sentetik veriyle çalıştı: ${escapeHtml(model.mockCategories.join(', '))}. Gerçek veri için <code>.env</code> dosyasına API anahtarlarını ekleyin.</div>`,
+      `<div class="banner mock"><strong>⚠ MOCK MODE</strong> — Şu kategoriler sentetik veriyle çalıştı: ${escapeHtml(model.mockCategories.join(', '))}. Gerçek veri için <code>.env</code> dosyasına API anahtarlarını ekleyin. Bu kategorilerden gelen tekil bulgular <strong>· 🧪 ÖRNEK VERİ</strong> rozetiyle işaretlenir ve Yönetici Özeti'ne hiç girmez.</div>`,
     )
   }
   for (const failed of model.failedBranches) {

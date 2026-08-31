@@ -2,6 +2,7 @@ import { createSign } from 'node:crypto'
 import { z } from 'zod'
 import { ProviderError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
+import { fetchWithRetry } from '../../core/retry.js'
 import { extractRootDomain } from '../../core/text.js'
 
 const PROVIDER_NAME = 'google-search-console'
@@ -101,7 +102,7 @@ export const createGscAuth = (clientEmail: string, privateKey: string): GscAuth 
       )
     }
 
-    const response = await fetch(TOKEN_ENDPOINT, {
+    const response = await fetchWithRetry(TOKEN_ENDPOINT, () => ({
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -109,7 +110,7 @@ export const createGscAuth = (clientEmail: string, privateKey: string): GscAuth 
         assertion,
       }).toString(),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
+    }))
 
     const parsed = TokenResponseSchema.safeParse(await response.json())
     if (!parsed.success || parsed.data.access_token === undefined) {
@@ -126,11 +127,20 @@ export const createGscAuth = (clientEmail: string, privateKey: string): GscAuth 
     return ok(parsed.data.access_token)
   }
 
-  const resolveSiteUrl = async (token: string, domain: string): Promise<Result<string, ProviderError>> => {
-    const response = await fetch(SITES_ENDPOINT, {
+  // Dış denetim bulgusu (2026-08-31) — `resolveSiteUrl` her çağrıda mülk listesini yeniden
+  // çekiyordu; tek bir koşuda 1 (searchAnalytics) + N (URL Inspection, auditUrl başına)
+  // çağrı = 4-5 GEREKSİZ `/sites` GET'i (liste `domain`'e bağlı değil — Bearer token
+  // geçerli olduğu sürece aynı sonucu döner). `cachedToken`'la aynı yaşam döngüsü:
+  // bu `GscAuth` örneği (bir pipeline koşusu) boyunca bir kez çekilir.
+  let cachedSiteUrls: readonly string[] | null = null
+
+  const fetchSiteUrls = async (token: string): Promise<Result<readonly string[], ProviderError>> => {
+    if (cachedSiteUrls !== null) return ok(cachedSiteUrls)
+
+    const response = await fetchWithRetry(SITES_ENDPOINT, () => ({
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
+    }))
     if (!response.ok) {
       return err(new ProviderError(PROVIDER_NAME, `Mülk listesi alınamadı (${response.status}).`))
     }
@@ -140,6 +150,14 @@ export const createGscAuth = (clientEmail: string, privateKey: string): GscAuth 
     }
 
     const siteUrls = (parsed.data.siteEntry ?? []).map((entry) => entry.siteUrl)
+    cachedSiteUrls = siteUrls
+    return ok(siteUrls)
+  }
+
+  const resolveSiteUrl = async (token: string, domain: string): Promise<Result<string, ProviderError>> => {
+    const siteUrlsResult = await fetchSiteUrls(token)
+    if (!siteUrlsResult.ok) return siteUrlsResult
+    const siteUrls = siteUrlsResult.value
     const matched = matchSiteUrl(siteUrls, domain)
     if (matched === null) {
       const visible = siteUrls.length === 0 ? 'hiçbiri' : siteUrls.join(', ')

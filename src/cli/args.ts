@@ -2,7 +2,6 @@ import { ConfigError } from '../core/errors.js'
 import { slugify } from '../core/text.js'
 
 const DEFAULT_CONFIG_PATH = 'config/project.json'
-const DEFAULT_DB_PATH = 'data/seo.db'
 const CONFIG_FLAG = '--config'
 const CODE_FLAG = '--code'
 /** Bilinen bayraklar — extractFlag'in "bilinmeyen argüman" hatası bu ikisini de kabul etmeli. */
@@ -63,11 +62,17 @@ const assertNoUnknownFlags = (argv: readonly string[]): void => {
 }
 
 /**
- * CLI argümanlarını ayrıştırır. `--config` verilmezse bugünkü sabit yollar korunur
- * (geriye dönük uyum: `config/project.json` + `data/seo.db`). Verilirse `dbPath`
- * config'in `domain` alanından türer: `data/<domain-slug>.db` — ikinci müşteride
- * veritabanı çakışmasın diye. `reports/` klasörü değişmez, zaten `<tarih>_<domain-slug>/`
- * alt klasörleriyle müşteriler arası çakışmıyor.
+ * CLI argümanlarını ayrıştırır. `dbPath` HER ZAMAN config'in `domain` alanından türer:
+ * `data/<domain-slug>.db` — `--config` verilmese bile (varsayılan `config/project.json`
+ * okunur). İkinci müşteride veritabanı çakışmasın diye. `reports/` klasörü değişmez,
+ * zaten `<tarih>_<domain-slug>/` alt klasörleriyle müşteriler arası çakışmıyor.
+ *
+ * Dış denetim düzeltmesi (2026-08-31, BLOKER 2) — önceden `--config` verilmediğinde
+ * sabit `data/seo.db`'ye düşülüyordu; `npm run research` ve
+ * `npm run research -- --config config/project.json` AYNI müşteri için İKİ AYRI
+ * veritabanına yazıyordu ve trend geçmişi (diff, "kaçıncı çalıştırma") sessizce
+ * çatallanıyordu — README bunu düzeltmek yerine bir tuzak olarak belgeliyordu.
+ * Artık ikisi de aynı `data/<domain-slug>.db`'ye yazar.
  *
  * `readDomain` enjekte edilir: gerçek dosya okuma CLI giriş noktasında olur, bu
  * fonksiyon saf kalır ve testte sahte bir okuyucuyla doğrulanır.
@@ -77,11 +82,8 @@ export const resolveCliPaths = (
   readDomain: (configPath: string) => string,
 ): CliPaths => {
   assertNoUnknownFlags(argv)
-  const configPath = extractFlagValue(argv, CONFIG_FLAG)
+  const configPath = extractFlagValue(argv, CONFIG_FLAG) ?? DEFAULT_CONFIG_PATH
   const codePathOverride = extractFlagValue(argv, CODE_FLAG) ?? undefined
-  if (configPath === null) {
-    return { configPath: DEFAULT_CONFIG_PATH, dbPath: DEFAULT_DB_PATH, codePathOverride }
-  }
   const domain = readDomain(configPath)
   return { configPath, dbPath: `data/${slugify(domain)}.db`, codePathOverride }
 }

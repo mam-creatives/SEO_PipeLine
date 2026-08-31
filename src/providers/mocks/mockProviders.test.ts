@@ -130,9 +130,35 @@ describe('mockCruxProvider', () => {
 })
 
 describe('mockCrawlProvider', () => {
-  test('müşteri anasayfası bilinçli olarak kusurlu döner (title/h1/schema yok)', async () => {
+  // Dış denetim bulgusu (2026-08-31, BLOKER 1) — bu test önceden anasayfanın BİLİNÇLİ
+  // olarak kusurlu dönmesini bekliyordu; bu davranış, CRAWL_PROVIDER=live unutulduğunda
+  // gerçek müşteri domaininde sahte "title/H1/meta eksik" KRİTİK bulgusu üretiyordu
+  // (canlı `curl` ile doğrulandı — üçü de yanlıştı). Anasayfa artık sağlıklı döner.
+  test('müşteri anasayfası GERÇEKÇİ (sağlıklı) döner — title/h1/schema var', async () => {
     const provider = createMockCrawlProvider(config)
     const result = await provider.fetchPage('https://ornekayakkabi.com.tr/')
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value.title).not.toBeNull()
+      expect(result.value.h1s.length).toBeGreaterThan(0)
+      expect(result.value.hasSchemaOrg).toBe(true)
+      expect(result.value.metaDescription).not.toBe('')
+    }
+  })
+
+  test('anasayfa, "kusurlu sayfa" demosu için adından mock olduğu belli bir sentinel yola linkler', async () => {
+    const provider = createMockCrawlProvider(config)
+    const result = await provider.fetchPage('https://ornekayakkabi.com.tr/')
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      const demoLink = result.value.internalLinks.find((link) => link.targetUrl.endsWith('/ornek-mock-sayfa'))
+      expect(demoLink).toBeDefined()
+    }
+  })
+
+  test('sentinel demo sayfası (/ornek-mock-sayfa) bilinçli olarak kusurlu döner (title/h1/schema yok)', async () => {
+    const provider = createMockCrawlProvider(config)
+    const result = await provider.fetchPage('https://ornekayakkabi.com.tr/ornek-mock-sayfa')
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.value.title).toBeNull()

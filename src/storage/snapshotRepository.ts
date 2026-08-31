@@ -228,6 +228,19 @@ export const insertPageLinks = (db: Db, runId: number, links: readonly PageLink[
   })
 }
 
+/**
+ * Dış denetim bulgusu (2026-08-31, BLOKER 3) — UNIQUE(runId, url); çağıran taraf zaten
+ * `[...new Set(...)]` ile tekilleştirilmiş bir liste verir (bkz. crawlSite.ts resolveSitemapUrls).
+ */
+export const insertSitemapUrls = (db: Db, runId: number, urls: readonly string[]): void => {
+  const stmt = db.prepare(`INSERT INTO sitemap_urls (runId, url) VALUES (?, ?)`)
+  inTransaction(db, 'Sitemap URL\'leri', () => {
+    for (const url of urls) {
+      stmt.run(runId, url)
+    }
+  })
+}
+
 export const insertCompetitors = (db: Db, runId: number, competitors: readonly Competitor[]): void => {
   const stmt = db.prepare(
     `INSERT INTO competitors (runId, domain, appearanceRate, classification, isRealCompetitor, source)

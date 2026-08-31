@@ -11,7 +11,7 @@ değişti" analiziyle Markdown + HTML rapor üretir.
 
 ```bash
 npm install
-npm run research        # tam araştırma → data/seo.db + reports/ altına rapor (--config verilmezse varsayılan tek müşteri)
+npm run research        # tam araştırma → data/<domain-slug>.db + reports/ altına rapor (--config verilmezse config/project.json)
 npm run research        # ikinci çalıştırmada "Değişenler" bölümü dolar
 npm run research-all    # config/ altındaki HER müşteriyi ayrı ayrı çalıştırır (bkz. Operasyonel bölümü)
 npm run status           # her müşterinin son koşu durumunu tek tabloda gösterir
@@ -186,8 +186,10 @@ için bu üç yerin config'ten okunacak şekilde açılması gerekir.
 | Bildirim (yalnız başarısızlıkta) | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Telegram Bot API | ücretsiz |
 
 Gemini birincil AI motoru çünkü Google AI Overviews'ı besleyen model odur — oradaki
-görünürlük doğrudan arama sonuç sayfasına yansır. `ANTHROPIC_API_KEY` tanınır ama
-sağlayıcısı implemente edilmedi; verilirse pipeline sessizce mock'a düşmek yerine hata verir.
+görünürlük doğrudan arama sonuç sayfasına yansır. `ANTHROPIC_API_KEY` **implemente edilmiş
+bir sağlayıcı** — `GEMINI_API_KEY` verilmemişse devreye girer (tek-motor seçimi:
+`registry.ts`'teki `selectAiVisibility`, Gemini varsa Gemini kazanır). *(2026-08-31 dış
+denetimde doküman hatası olarak düzeltildi — sağlayıcı `registry.ts:78`'de zaten çalışıyordu.)*
 
 `CRUX_API_KEY` ayrı bir Google API'si — aynı Google Cloud projesindeki bir anahtar
 çalışır ama projede **Chrome UX Report API** ayrıca etkinleştirilmeli, aksi halde
@@ -234,12 +236,12 @@ Bir Linux VPS'te `systemd` zamanlayıcısıyla günlük otomatik çalıştırma 
 [`deploy/README.md`](deploy/README.md)'ye bakın (Node/Chrome kurulumu, systemd
 birimleri, `journalctl` ile izleme, log rotasyonu).
 
-**Not:** `npm run research` (`--config` VERMEDEN) hâlâ eski varsayılan yola
-(`data/seo.db`) yazar — bu bilerek korunan bir geriye dönük uyumluluk. Çoklu
-müşteri kurulumunda alışkanlıkla bare `npm run research` çalıştırmayın; bu,
-`research-all`'ın kullandığı `data/<müşteri-slug>.db` geçmişinden AYRI, boş bir
-geçmiş başlatır. Standart kullanım `npm run research-all` ya da
-`npm run research -- --config config/<müşteri>.json`.
+**Not (2026-08-31 düzeltildi):** `npm run research` (`--config` VERMEDEN) daha önce sabit
+`data/seo.db`'ye yazıyordu — `research-all`'ın kullandığı `data/<müşteri-slug>.db`
+geçmişinden AYRI, trend geçmişini sessizce çatallayan bir tuzaktı (dış denetim bulgusu).
+Artık `--config` verilmese bile varsayılan `config/project.json` okunur ve `dbPath`
+domain'den türer — bare `npm run research` ve
+`npm run research -- --config config/project.json` AYNI veritabanına yazar.
 
 ## Mimari
 

@@ -1,6 +1,6 @@
 import { collectSourceCode } from '../codeaudit/collectSourceCode.js'
 import type { SourceFile, StackKind } from '../codeaudit/types.js'
-import { KEYWORD_GAP_COMPETITOR_COUNT, TECH_AUDIT_COMPETITOR_COUNT } from '../config/constants.js'
+import { BACKLINK_DOMAIN_LIMIT, KEYWORD_GAP_COMPETITOR_COUNT, TECH_AUDIT_COMPETITOR_COUNT } from '../config/constants.js'
 import type { ProjectConfig } from '../config/schema.js'
 import { AppError } from '../core/errors.js'
 import { createLogger } from '../core/logger.js'
@@ -107,7 +107,13 @@ export const runAllCollectors = async (
 
   // Aşama 2 — SERP'ten rakip domain'leri türet, kalan dalları paralel topla
   const competitorDomains = deps.deriveCompetitorDomains(serpResult.value)
-  const backlinkDomains = [...new Set([config.domain, ...config.seedCompetitors, ...competitorDomains])]
+  // Dış denetim bulgusu (2026-08-31) — keşfedilen rakip sayısı sınırsızdı; her biri ayrı
+  // ücretli DataForSEO çağrısı demekti (bir koşuda 90+ rakip keşfedilebiliyor, bkz.
+  // COMPETITOR_REPORT_LIMIT yorumu). `seedCompetitors` (kullanıcının bilerek belirttiği
+  // rakipler) her zaman dahil; yalnız KEŞFEDİLEN rakipler BACKLINK_DOMAIN_LIMIT'e kırpılır.
+  const backlinkDomains = [
+    ...new Set([config.domain, ...config.seedCompetitors, ...competitorDomains.slice(0, BACKLINK_DOMAIN_LIMIT)]),
+  ]
   const clientAuditUrls = deps.deriveAuditUrls(serpResult.value)
   const techUrls = [
     ...clientAuditUrls,

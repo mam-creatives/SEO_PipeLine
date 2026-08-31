@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { TOP_N_SERP } from '../../config/constants.js'
 import { ProviderError, summarizeZodError } from '../../core/errors.js'
 import { err, ok, type Result } from '../../core/result.js'
+import { fetchWithRetry } from '../../core/retry.js'
 import { extractRootDomain } from '../../core/text.js'
 import type { SerpSnapshot } from '../../core/types.js'
 import type { SerpProvider } from '../types.js'
@@ -86,9 +87,9 @@ export const createSerpApiProvider = (apiKey: string): SerpProvider => ({
   isMock: false,
   fetchSerp: async (keyword: string): Promise<Result<SerpSnapshot, ProviderError>> => {
     try {
-      const response = await fetch(buildSerpApiUrl(apiKey, keyword), {
+      const response = await fetchWithRetry(buildSerpApiUrl(apiKey, keyword), () => ({
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      })
+      }))
       if (!response.ok) {
         const hint =
           response.status === 401

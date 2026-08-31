@@ -1,4 +1,4 @@
-import { sortFindings, type Finding } from '../core/findings.js'
+import { dedupeWidespreadFindings, sortFindings, type Finding } from '../core/findings.js'
 import { escapeHtml } from './htmlEscape.js'
 import { impactEffortLabel, SEVERITY_LABEL } from './severityLabel.js'
 
@@ -24,7 +24,7 @@ export const renderCrawlFindingsMarkdown = (findings: readonly Finding[]): strin
 
   const lines: string[] = ['### Site Denetimi (Crawler)', '']
 
-  for (const [url, urlFindings] of groupByUrl(findings)) {
+  for (const [url, urlFindings] of groupByUrl(dedupeWidespreadFindings(findings))) {
     lines.push(`#### ${url}`, '')
     for (const finding of sortFindings(urlFindings)) {
       lines.push(`**${SEVERITY_LABEL[finding.severity]} — ${finding.title}** _(${impactEffortLabel(finding)})_`, '')
@@ -41,7 +41,7 @@ export const renderCrawlFindingsMarkdown = (findings: readonly Finding[]): strin
 export const renderCrawlFindingsHtml = (findings: readonly Finding[]): string => {
   if (findings.length === 0) return ''
 
-  const cards = [...groupByUrl(findings)].map(([url, urlFindings]) => {
+  const cards = [...groupByUrl(dedupeWidespreadFindings(findings))].map(([url, urlFindings]) => {
     const cardFindings = sortFindings(urlFindings)
       .map((finding) => {
         const priority = finding.severity === 'critical' ? 1 : finding.severity === 'high' ? 2 : 3
