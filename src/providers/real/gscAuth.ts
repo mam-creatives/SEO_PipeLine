@@ -127,7 +127,16 @@ export const createGscAuth = (clientEmail: string, privateKey: string): GscAuth 
     return ok(parsed.data.access_token)
   }
 
-  const resolveSiteUrl = async (token: string, domain: string): Promise<Result<string, ProviderError>> => {
+  // Dış denetim bulgusu (2026-08-31) — `resolveSiteUrl` her çağrıda mülk listesini yeniden
+  // çekiyordu; tek bir koşuda 1 (searchAnalytics) + N (URL Inspection, auditUrl başına)
+  // çağrı = 4-5 GEREKSİZ `/sites` GET'i (liste `domain`'e bağlı değil — Bearer token
+  // geçerli olduğu sürece aynı sonucu döner). `cachedToken`'la aynı yaşam döngüsü:
+  // bu `GscAuth` örneği (bir pipeline koşusu) boyunca bir kez çekilir.
+  let cachedSiteUrls: readonly string[] | null = null
+
+  const fetchSiteUrls = async (token: string): Promise<Result<readonly string[], ProviderError>> => {
+    if (cachedSiteUrls !== null) return ok(cachedSiteUrls)
+
     const response = await fetchWithRetry(SITES_ENDPOINT, () => ({
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -141,6 +150,14 @@ export const createGscAuth = (clientEmail: string, privateKey: string): GscAuth 
     }
 
     const siteUrls = (parsed.data.siteEntry ?? []).map((entry) => entry.siteUrl)
+    cachedSiteUrls = siteUrls
+    return ok(siteUrls)
+  }
+
+  const resolveSiteUrl = async (token: string, domain: string): Promise<Result<string, ProviderError>> => {
+    const siteUrlsResult = await fetchSiteUrls(token)
+    if (!siteUrlsResult.ok) return siteUrlsResult
+    const siteUrls = siteUrlsResult.value
     const matched = matchSiteUrl(siteUrls, domain)
     if (matched === null) {
       const visible = siteUrls.length === 0 ? 'hiçbiri' : siteUrls.join(', ')

@@ -12,9 +12,19 @@ export interface CrawlResult {
   readonly sitemapUrls: readonly string[]
 }
 
+/**
+ * Dış denetim bulgusu (2026-08-31) — bare `path.startsWith(excluded)` segment sınırına
+ * saygı göstermiyordu: `/cv` kuralı `/cv-hazirlama` gibi TAMAMEN FARKLI bir sayfayı da
+ * yanlışlıkla eliyordu. Artık ya tam eşleşme ya da `/`'le devam eden bir alt-yol aranıyor.
+ * `excluded` sondaki `/`'i taşıyorsa (kullanıcı `/admin/` gibi yazmış olabilir) önce
+ * normalize edilir ki `${normalized}/` çift `//` üretmesin.
+ */
 const isExcludedByConfig = (url: string, excludePaths: readonly string[]): boolean => {
   const path = new URL(url).pathname
-  return excludePaths.some((excluded) => path.startsWith(excluded))
+  return excludePaths.some((excluded) => {
+    const normalized = excluded.length > 1 && excluded.endsWith('/') ? excluded.slice(0, -1) : excluded
+    return path === normalized || path.startsWith(`${normalized}/`)
+  })
 }
 
 /** Ağ/timeout hatasını CrawledPage'e düşürür — tek sayfa hatası bütün taramayı düşürmemeli. */
