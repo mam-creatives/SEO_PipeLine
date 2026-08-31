@@ -37,8 +37,13 @@ const main = (): void => {
       process.exitCode = 1
       return
     }
+    // Dış denetim bulgusu (2026-08-31) — önceden allowOrigin: '*' sabitti (herkese açık).
+    // Artık config.domain'in apex + www varyantlarıyla sınırlı — hem CORS başlığı hem
+    // sunucu-taraflı 403 reddi bu listeye göre çalışır (bkz. collector.ts yorumu).
+    const config = loadProjectConfig('config/project.json')
+    const allowedOrigins = [`https://${config.domain}`, `https://www.${config.domain}`]
     const db = openDatabase('data/seo.db')
-    const server = createRumCollector(db, { port, allowOrigin: '*' })
+    const server = createRumCollector(db, { port, allowedOrigins })
     server.listen(port, () => {
       logger.info(`RUM toplayıcı http://localhost:${port}/ adresinde dinliyor. Durdurmak için Ctrl+C.`)
     })
