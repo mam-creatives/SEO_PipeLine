@@ -1,5 +1,5 @@
 import { RANK_DROP_ALERT_THRESHOLD } from '../config/constants.js'
-import type { Finding } from '../core/findings.js'
+import { findingRuleId, type Finding } from '../core/findings.js'
 import type { RunSnapshot } from '../core/types.js'
 
 export interface RankChange {
@@ -69,12 +69,16 @@ const EMPTY_BASELINE: TrendDiff = {
 }
 
 /**
- * Bulgu kimliği: kategori+başlık+url üçlüsü. Basitleştirme: bir bulgunun başlığı sayı içeriyorsa
- * (ör. "3 görselde alt eksik" → "2 görselde alt eksik") bu iki farklı bulgu sayılır — "düzeldi +
- * yeni açıldı" olarak görünür, "iyileşti" olarak değil. Kabul edilebilir: yanlış pozitif üretmez,
- * yalnız aynı kök sorunu iki ayrı satırda gösterir.
+ * Bulgu kimliği: ruleId (sayı-bağımsız kategori+başlık, bkz. `findingRuleId`) + url.
+ *
+ * Dış denetim bulgusu (2026-08-31, Faz C) — önceden ham `category|title|url` kullanılıyordu:
+ * bir bulgunun başlığı sayı içeriyorsa (ör. "3 görselde alt eksik" → "2 görselde alt eksik")
+ * bu iki AYRI bulgu sayılıyor, "düzeldi + yeni açıldı" churn'ü üretiyordu. Canlı `run13`
+ * raporunda diff bölümünün 1934 "yeni" bulgusunun büyük kısmı buydu. `findingRuleId` sayıyı
+ * `N`'e indirgediği için artık "3 görselde…" → "2 görselde…" aynı ruleId'ye düşer, bulgu
+ * "değişmedi" sayılır (evidence'ı değişse bile) — istenen davranış.
  */
-const findingKey = (finding: Finding): string => `${finding.category}|${finding.title}|${finding.url ?? ''}`
+const findingKey = (finding: Finding): string => `${findingRuleId(finding)}|${finding.url ?? ''}`
 
 const diffFindings = (
   prevFindings: readonly Finding[],

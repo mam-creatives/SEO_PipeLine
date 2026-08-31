@@ -12,8 +12,24 @@ const SECONDARY_IMPRESSION_SHARE_THRESHOLD = 0.2
 const secondaryPageCount = (pages: readonly { readonly page: string; readonly impressions: number }[]): number =>
   Math.max(pages.length - 1, 0)
 
-const cannibalizationFinding = (query: string, primary: GscRow, secondary: GscRow): Finding => {
-  const share = secondary.impressions / primary.impressions
+/**
+ * Dış denetim bulgusu (2026-08-31, Faz C) — önceden (sorgu, ikincil sayfa) çifti başına bir
+ * `Finding` üretiliyordu: canlı `run13`'te 26 bulgu, 233 satır, ve aynı 3 cümlelik açıklama
+ * TAM METNİYLE 26 kez tekrarlanıyordu. Bu bir render değil dedektör sorunuydu — dedektör
+ * zaten sorguya göre grupluyordu, sonra `flatMap` ile tekrar dağıtıyordu. Artık sorgu başına
+ * TEK bulgu: birincil sayfa + TÜM ikincil sayfalar tek `evidence`/`fixSnippet`'te.
+ */
+const cannibalizationFinding = (query: string, primary: GscRow, secondaries: readonly GscRow[]): Finding => {
+  const shares = secondaries.map((secondary) => secondary.impressions / primary.impressions)
+  const topShare = Math.max(...shares)
+  const evidence = [
+    `"${primary.page}" ${primary.impressions} gösterim`,
+    ...secondaries.map(
+      (secondary, index) => `"${secondary.page}" ${secondary.impressions} gösterim (%${Math.round((shares[index] ?? 0) * 100)})`,
+    ),
+  ].join(', ')
+  const pageCount = secondaries.length + 1
+
   return {
     category: 'content',
     severity: 'high',
@@ -21,13 +37,15 @@ const cannibalizationFinding = (query: string, primary: GscRow, secondary: GscRo
     culpritSelector: null,
     title: `"${query}" sorgusunda sayfa yamyamlığı (cannibalization)`,
     explanation:
-      `"${query}" sorgusunda hem "${primary.page}" hem "${secondary.page}" gösterime giriyor. ` +
-      `Google iki sayfa arasında kararsız kalıyor, ikisi de birbirinin sıralama gücünü bölüyor. ` +
-      `Çözüm: sayfalardan birini diğerine yönlendirin ya da içeriği birleştirip canonical verin.`,
-    evidence: `"${primary.page}" ${primary.impressions} gösterim, "${secondary.page}" ${secondary.impressions} gösterim (%${Math.round(share * 100)})`,
-    impact: estimateImpact('high', share),
+      `"${query}" sorgusunda ${pageCount} sayfa aynı anda gösterime giriyor: "${primary.page}" ve ` +
+      `${secondaries.length} sayfa daha. Google sayfalar arasında kararsız kalıyor, hepsi birbirinin ` +
+      `sıralama gücünü bölüyor. Çözüm: ikincil sayfaları birincile yönlendirin ya da içeriği birleştirip canonical verin.`,
+    evidence,
+    impact: estimateImpact('high', topShare),
     effort: 'medium',
-    fixSnippet: `<link rel="canonical" href="${primary.page}"> <!-- "${secondary.page}" sayfasına eklenir -->`,
+    fixSnippet: secondaries
+      .map((secondary) => `<link rel="canonical" href="${primary.page}"> <!-- "${secondary.page}" sayfasına eklenir -->`)
+      .join('\n'),
   }
 }
 
@@ -49,9 +67,10 @@ export const detectCannibalization = (rows: readonly GscRow[]): readonly Finding
     const sorted = [...pages].sort((a, b) => b.impressions - a.impressions)
     const primary = sorted[0]
     if (primary === undefined) return []
-    return sorted
+    const secondaries = sorted
       .slice(1)
       .filter((secondary) => secondary.impressions / primary.impressions >= SECONDARY_IMPRESSION_SHARE_THRESHOLD)
-      .map((secondary) => cannibalizationFinding(query, primary, secondary))
+    if (secondaries.length === 0) return []
+    return [cannibalizationFinding(query, primary, secondaries)]
   })
 }

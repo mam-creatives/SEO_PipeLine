@@ -91,6 +91,19 @@ const WIDESPREAD_FINDING_THRESHOLD = 3
 const URL_PREVIEW_LIMIT = 5
 
 /**
+ * Dış denetim bulgusu (2026-08-31, Faz C) — bulgu kimliği başlıktaki SAYIYI yok sayar:
+ * "7 görselde…" ve "4 görselde…" AYNI kural, yalnız vaka sayısı farklı. Sayı yok sayılmazsa
+ * hem `dedupeWidespreadFindings` (aynı şablonun 4 sayı-varyantı ayrı gruba düşer, hiçbiri tek
+ * başına eşiği geçmez — canlı koşuda 4 ayrı "N görselde width/height eksik" satırı kaldı) hem
+ * de `diffRuns.ts`'in `findingKey`'i (7→4 "1 düzeldi + 1 yeni açıldı" sayılır, koşu başına
+ * sonsuz churn üretir — canlı `run13`'te 1934 "yeni" bulgunun büyük kısmı buydu) bozuluyordu.
+ * Sorgu/keyword interpolasyonu taşıyan başlıklar ("${query}" sorgusunda…) sayı İÇERMEDİĞİ
+ * için etkilenmez — bunlar gerçekten farklı bulgular, ayrı kalmaları istenen davranış.
+ */
+export const findingRuleId = (finding: Finding): string =>
+  `${finding.category}|${finding.title.replace(/\d+([.,]\d+)?/g, 'N')}`
+
+/**
  * Dış denetim bulgusu (2026-08-31, ORTA 7) — canlı bir koşuda (300 sayfa taranınca) aynı
  * şablon hatası (ör. "<title> etiketi eksik") onlarca sayfada TAM METNİYLE tekrar tekrar
  * basılıyordu: hem 3.5 MB'lık kullanılamaz bir crawl bölümü, hem de yönetici özetinin
@@ -105,15 +118,15 @@ const URL_PREVIEW_LIMIT = 5
  * çağırır — tek yerden, iki yüzeyde de tutarlı.
  */
 export const dedupeWidespreadFindings = <T extends Finding>(findings: readonly T[]): readonly T[] => {
-  const byTemplate = new Map<string, T[]>()
+  const byRule = new Map<string, T[]>()
   for (const finding of findings) {
-    const key = `${finding.category}|${finding.title}`
-    const existing = byTemplate.get(key)
-    if (existing === undefined) byTemplate.set(key, [finding])
+    const key = findingRuleId(finding)
+    const existing = byRule.get(key)
+    if (existing === undefined) byRule.set(key, [finding])
     else existing.push(finding)
   }
 
-  return [...byTemplate.values()].flatMap((group): readonly T[] => {
+  return [...byRule.values()].flatMap((group): readonly T[] => {
     const urls = group.map((finding) => finding.url).filter((url): url is string => url !== null)
     // Grup içinde zaten url:null olan (site geneli) bir bulgu varsa ya da eşik aşılmadıysa dokunma.
     if (urls.length !== group.length || urls.length <= WIDESPREAD_FINDING_THRESHOLD) return group
@@ -121,8 +134,30 @@ export const dedupeWidespreadFindings = <T extends Finding>(findings: readonly T
     const preview = urls.slice(0, URL_PREVIEW_LIMIT).join(', ')
     const remainder = urls.length > URL_PREVIEW_LIMIT ? ` (+${urls.length - URL_PREVIEW_LIMIT} daha)` : ''
     const representative = group[0]!
-    return [{ ...representative, url: null, evidence: `${urls.length} sayfada tespit edildi: ${preview}${remainder}` }]
+    // Aynı ruleId farklı başlıklar taşıyabilir (7/4/3/2 görsel gibi sayı varyantları) —
+    // temsilci başlık tek başına yanıltıcı olmasın diye bu durumda evidence açıkça uyarır.
+    const titlesDiffer = group.some((finding) => finding.title !== representative.title)
+    const countNote = titlesDiffer ? ' (sayı sayfaya göre değişiyor)' : ''
+    return [
+      { ...representative, url: null, evidence: `${urls.length} sayfada tespit edildi${countNote}: ${preview}${remainder}` },
+    ]
   })
+}
+
+export interface CappedFindings<T extends Finding> {
+  readonly shown: readonly T[]
+  readonly hiddenCount: number
+}
+
+/**
+ * Dış denetim bulgusu (2026-08-31, Faz C) — `crawlSection.ts`'nin zaten uyguladığı
+ * dedupe→sırala desenini bir üst sınırla birleştirir; "Son Çalıştırmadan Bu Yana Değişenler"
+ * gibi hiçbir kırpma/sıralama almayan listeler (canlı `run13`'te 1934 satır, raporun %60'ı)
+ * için MD/HTML'in ikisinde de aynı davranışı tek yerden sağlar.
+ */
+export const capFindingsForDisplay = <T extends Finding>(findings: readonly T[], limit: number): CappedFindings<T> => {
+  const prepared = sortFindings(dedupeWidespreadFindings(findings))
+  return { shown: prepared.slice(0, limit), hiddenCount: Math.max(prepared.length - limit, 0) }
 }
 
 const SEVERITY_IMPACT_BASE: Readonly<Record<FindingSeverity, number>> = {

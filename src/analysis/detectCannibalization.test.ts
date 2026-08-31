@@ -45,13 +45,24 @@ describe('detectCannibalization', () => {
     expect(detectCannibalization(rows)).toEqual([])
   })
 
-  test('birden fazla ikincil sayfa varsa hepsi ayrı bulgu olarak döner', () => {
+  // Dış denetim bulgusu (2026-08-31, Faz C) — önceden bu senaryo 2 AYRI bulgu üretiyordu
+  // (ikincil sayfa başına bir Finding); canlı run13'te 26 bulgu/233 satır ve aynı açıklamanın
+  // tam metniyle tekrarına yol açmıştı. Artık sorgu başına TEK bulgu, tüm ikincil sayfalar
+  // aynı evidence/fixSnippet'te toplanır.
+  test('birden fazla ikincil sayfa varsa TEK bulguda toplanır', () => {
     const rows = [
       row({ page: 'https://ornek.com/a', impressions: 1000 }),
       row({ page: 'https://ornek.com/b', impressions: 400 }),
       row({ page: 'https://ornek.com/c', impressions: 300 }),
     ]
-    expect(detectCannibalization(rows)).toHaveLength(2)
+    const findings = detectCannibalization(rows)
+    expect(findings).toHaveLength(1)
+    expect(findings[0]?.url).toBe('https://ornek.com/a')
+    expect(findings[0]?.evidence).toContain('1000 gösterim')
+    expect(findings[0]?.evidence).toContain('400 gösterim')
+    expect(findings[0]?.evidence).toContain('300 gösterim')
+    expect(findings[0]?.fixSnippet).toContain('https://ornek.com/b')
+    expect(findings[0]?.fixSnippet).toContain('https://ornek.com/c')
   })
 
   test('farklı sorgular bağımsız değerlendirilir', () => {
