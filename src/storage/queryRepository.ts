@@ -178,6 +178,9 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     .prepare(`SELECT sourceUrl, targetUrl, anchorText, isInternal FROM page_links WHERE runId = ?`)
     .all(runId) as (Omit<PageLink, 'isInternal'> & { isInternal: number })[]
 
+  // Dış denetim bulgusu (2026-08-31, BLOKER 3) — bkz. migrations.ts v18 yorumu.
+  const sitemapUrlRows = db.prepare(`SELECT url FROM sitemap_urls WHERE runId = ?`).all(runId) as { url: string }[]
+
   return {
     run,
     keywords,
@@ -219,5 +222,6 @@ export const getRunSnapshot = (db: Db, runId: number): RunSnapshot => {
     })),
     pageLinks: pageLinks.map((row) => ({ ...row, isInternal: row.isInternal === 1 })),
     keywordGaps,
+    sitemapUrls: sitemapUrlRows.map((row) => row.url),
   }
 }

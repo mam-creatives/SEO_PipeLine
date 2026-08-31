@@ -244,6 +244,7 @@ describe('diffRuns', () => {
     pages: [],
     pageLinks: [],
     keywordGaps: [],
+    sitemapUrls: [],
     ...overrides,
   })
 

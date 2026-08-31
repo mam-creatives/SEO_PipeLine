@@ -17,6 +17,7 @@ import {
   insertPageLinks,
   insertPages,
   insertSerpSnapshots,
+  insertSitemapUrls,
   insertTechAudits,
 } from './snapshotRepository.js'
 
@@ -215,6 +216,7 @@ describe('storage', () => {
     insertPages(db, run.id, [sampleCrawledPage])
     insertPageLinks(db, run.id, [samplePageLink])
     insertKeywordGaps(db, run.id, [sampleKeywordGap])
+    insertSitemapUrls(db, run.id, ['https://ornekayakkabi.com.tr/sitemap-tr.xml'])
     insertAiSamples(db, run.id, [
       {
         query: 'en iyi ayakkabı mağazası',
@@ -239,6 +241,14 @@ describe('storage', () => {
     expect(snapshot.keywordGaps).toEqual([sampleKeywordGap])
     expect(snapshot.aiSamples[0]?.clientMentioned).toBe(true)
     expect(snapshot.aiSamples[0]?.competitorsMentioned).toEqual(['flo.com.tr'])
+    // BLOKER 3 (2026-08-31) — daha önce hiç kalıcı değildi, bkz. migrations.ts v18 yorumu.
+    expect(snapshot.sitemapUrls).toEqual(['https://ornekayakkabi.com.tr/sitemap-tr.xml'])
+  })
+
+  test('aynı run içinde aynı sitemap URL\'i iki kez eklenemez (UNIQUE)', () => {
+    const run = createRun(db, 'h', [])
+    insertSitemapUrls(db, run.id, ['https://ornekayakkabi.com.tr/sitemap.xml'])
+    expect(() => insertSitemapUrls(db, run.id, ['https://ornekayakkabi.com.tr/sitemap.xml'])).toThrow(StorageError)
   })
 
   test('aynı run içinde aynı (keyword, competitorDomain) iki kez eklenemez (UNIQUE)', () => {

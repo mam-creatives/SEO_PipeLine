@@ -259,6 +259,12 @@ export interface RunSnapshot {
   readonly pageLinks: readonly PageLink[]
   /** Faz 4.4 — "rakipte var, sende yok" keyword'leri. */
   readonly keywordGaps: readonly KeywordGap[]
+  /**
+   * Dış denetim bulgusu (2026-08-31, BLOKER 3) — önceden hiç kalıcı değildi; önceki run'ın
+   * bulguları `snapshotToCollectedData`'dan yeniden hesaplanırken sitemap her zaman boş
+   * dönüyor ve taranabilirlik/öksüz-sayfa bulguları her koşuda sahte "🆕 yeni" işaretleniyordu.
+   */
+  readonly sitemapUrls: readonly string[]
 }
 
 /**

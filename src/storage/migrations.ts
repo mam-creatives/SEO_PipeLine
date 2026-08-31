@@ -301,6 +301,20 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE pages ADD COLUMN mixedContentCount INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE pages ADD COLUMN imagesMissingDimensions INTEGER NOT NULL DEFAULT 0;
   `,
+  // Dış denetim bulgusu (2026-08-31, BLOKER 3) — sitemapUrls hiç kalıcı değildi (v8 yorumu),
+  // bu yüzden önceki run'ın bulguları `snapshotToCollectedData`'dan yeniden hesaplanırken
+  // sitemap her zaman boş dönüyordu ve taranabilirlik/öksüz-sayfa bulguları her koşuda
+  // sahte biçimde "🆕 yeni" işaretleniyordu. Diğer fact tablolarıyla aynı desen — açık
+  // runId index'i EKLENMEDİ (UNIQUE(runId, url) zaten runId'yi soldan kapsayan bir
+  // autoindex üretir, bkz. dış denetim bulgusu Faz B/12).
+  `
+  CREATE TABLE sitemap_urls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    runId INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    UNIQUE (runId, url)
+  );
+  `,
 ]
 
 export const applyMigrations = (db: Database): void => {
