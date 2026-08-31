@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { ConfigError } from '../core/errors.js'
-import { resolveCliPaths } from './args.js'
+import { extractRunIdFlag, resolveCliPaths } from './args.js'
 
 const failIfCalled = (): string => {
   throw new Error('readDomain çağrılmamalıydı')
@@ -62,5 +62,45 @@ describe('resolveCliPaths', () => {
 
   test('--code değeri eksikse ConfigError fırlatır', () => {
     expect(() => resolveCliPaths(['--code'], failIfCalled)).toThrow(ConfigError)
+  })
+
+  // Dış denetim bulgusu (2026-08-31, Faz C) — `--run <id>` bir başka komutun (`report.ts`)
+  // tükettiği bayrak; `resolveCliPaths`'in `--config`/`--code`'un yanında onu da "bilinmeyen
+  // argüman" saymaması gerekir.
+  test('--run varsa dbPath çözümlemesini bozmadan yok sayılır', () => {
+    const paths = resolveCliPaths(['--run', '5'], () => 'mamcreatives.com')
+    expect(paths).toEqual({ configPath: 'config/project.json', dbPath: 'data/mamcreatives-com.db' })
+  })
+
+  test('--config ve --run birlikte kullanılabilir', () => {
+    const paths = resolveCliPaths(['--config', 'config/musteri.json', '--run', '5'], () => 'musteri.com')
+    expect(paths).toEqual({ configPath: 'config/musteri.json', dbPath: 'data/musteri-com.db' })
+  })
+})
+
+describe('extractRunIdFlag', () => {
+  test('--run verilmezse null döner', () => {
+    expect(extractRunIdFlag([])).toBeNull()
+  })
+
+  test('--run <id> pozitif tam sayıyı döner', () => {
+    expect(extractRunIdFlag(['--run', '13'])).toBe(13)
+  })
+
+  test('--run=<id> biçimi de kabul edilir', () => {
+    expect(extractRunIdFlag(['--run=7'])).toBe(7)
+  })
+
+  test('--run negatif ya da sıfırsa ConfigError fırlatır', () => {
+    expect(() => extractRunIdFlag(['--run', '0'])).toThrow(ConfigError)
+    expect(() => extractRunIdFlag(['--run', '-3'])).toThrow(ConfigError)
+  })
+
+  test('--run sayı değilse ConfigError fırlatır', () => {
+    expect(() => extractRunIdFlag(['--run', 'abc'])).toThrow(ConfigError)
+  })
+
+  test('--run ondalıklıysa ConfigError fırlatır', () => {
+    expect(() => extractRunIdFlag(['--run', '5.5'])).toThrow(ConfigError)
   })
 })

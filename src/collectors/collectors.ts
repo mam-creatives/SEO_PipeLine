@@ -2,6 +2,7 @@ import { AI_SAMPLES_PER_QUERY, BACKLINK_CONCURRENCY, CRUX_CONCURRENCY, INDEXING_
 import { mapWithConcurrency } from '../core/concurrency.js'
 import type { ProjectConfig } from '../config/schema.js'
 import { ProviderError } from '../core/errors.js'
+import { createLogger } from '../core/logger.js'
 import { err, ok, type Result } from '../core/result.js'
 import type {
   AiVisibilitySample,
@@ -16,6 +17,8 @@ import type {
 } from '../core/types.js'
 import type { ProviderSet } from '../providers/types.js'
 import { detectMentions } from './detectMentions.js'
+
+const logger = createLogger('collectors')
 
 export const collectKeywords = async (
   providers: ProviderSet,
@@ -57,12 +60,18 @@ export const collectBacklinks = async (
 /**
  * TECH_AUDIT_CONCURRENCY ile sınırlı — Lighthouse süreç-global performance.mark()
  * kullandığı için aynı Node sürecinde paralel koşamaz (constants.ts'teki not).
+ *
+ * Dış denetim bulgusu (2026-08-31, Faz C) — URL başına 10-30sn, 7 URL ~2 dakika demekti
+ * ve bu süre boyunca tek bir log satırı bile yoktu. `onProgress` ile her Lighthouse
+ * koşusu bitince ilerleme basılır.
  */
 export const collectTechAudits = async (
   providers: ProviderSet,
   urls: readonly string[],
 ): Promise<Result<readonly TechAudit[], ProviderError>> => {
-  const results = await mapWithConcurrency(urls, TECH_AUDIT_CONCURRENCY, (url) => providers.tech.auditUrl(url))
+  const results = await mapWithConcurrency(urls, TECH_AUDIT_CONCURRENCY, (url) => providers.tech.auditUrl(url), (completed, total) =>
+    logger.info(`Lighthouse: ${completed}/${total} URL tamamlandı.`),
+  )
   const failed = results.find((result) => !result.ok)
   if (failed !== undefined && !failed.ok) {
     return err(failed.error)

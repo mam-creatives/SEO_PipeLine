@@ -4,8 +4,11 @@ import { slugify } from '../core/text.js'
 const DEFAULT_CONFIG_PATH = 'config/project.json'
 const CONFIG_FLAG = '--config'
 const CODE_FLAG = '--code'
-/** Bilinen bayraklar — extractFlag'in "bilinmeyen argüman" hatası bu ikisini de kabul etmeli. */
-const KNOWN_FLAGS = [CONFIG_FLAG, CODE_FLAG]
+/** Yalnız `report.ts` tüketir (bkz. `extractRunIdFlag`) — burada listelenmesi diğer
+ * komutların onu "bilinmeyen argüman" hatasıyla reddetmesini önler, başka bir etkisi yok. */
+const RUN_FLAG = '--run'
+/** Bilinen bayraklar — extractFlag'in "bilinmeyen argüman" hatası bunları kabul etmeli. */
+const KNOWN_FLAGS = [CONFIG_FLAG, CODE_FLAG, RUN_FLAG]
 
 export interface CliPaths {
   readonly configPath: string
@@ -52,7 +55,7 @@ const assertNoUnknownFlags = (argv: readonly string[]): void => {
     if (arg === undefined) continue
     const isKnownFlagOrItsValue = KNOWN_FLAGS.some((flag) => arg === flag || arg.startsWith(`${flag}=`))
     if (isKnownFlagOrItsValue) {
-      if (arg === CONFIG_FLAG || arg === CODE_FLAG) index += 1 // ayrı token'lı değeri de atla
+      if (arg === CONFIG_FLAG || arg === CODE_FLAG || arg === RUN_FLAG) index += 1 // ayrı token'lı değeri de atla
       continue
     }
     if (arg.startsWith('--')) {
@@ -86,4 +89,19 @@ export const resolveCliPaths = (
   const codePathOverride = extractFlagValue(argv, CODE_FLAG) ?? undefined
   const domain = readDomain(configPath)
   return { configPath, dbPath: `data/${slugify(domain)}.db`, codePathOverride }
+}
+
+/**
+ * Dış denetim bulgusu (2026-08-31, Faz C) — `report.ts` her zaman SON tamamlanmış run'ı
+ * yeniden render ediyordu; [runRepository.ts](../storage/runRepository.ts) içindeki
+ * `getRunById` zaten vardı ama hiç kullanılmıyordu. `--run <id>` yalnız `report.ts` tüketir.
+ */
+export const extractRunIdFlag = (argv: readonly string[]): number | null => {
+  const raw = extractFlagValue(argv, RUN_FLAG)
+  if (raw === null) return null
+  const id = Number(raw)
+  if (!Number.isInteger(id) || id < 1) {
+    throw new ConfigError(`${RUN_FLAG} pozitif bir tam sayı bekliyor, alınan: "${raw}"`)
+  }
+  return id
 }

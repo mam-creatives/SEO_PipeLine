@@ -6,8 +6,19 @@ import { createLogger } from '../core/logger.js'
 import { selectProviders } from '../providers/registry.js'
 import type { ProviderCategory, ProviderSet } from '../providers/types.js'
 import { resolveCliPaths } from './args.js'
+import { hasHelpFlag } from './help.js'
 
 const logger = createLogger('doctor')
+
+const USAGE = `Kullanım: npm run doctor -- [--config <yol>] [--code <yol>]
+
+Yapılandırma tanılaması: hangi kategorinin gerçek sağlayıcıya bağlandığını gösterir ve
+ÜCRETSİZ olanları (AI görünürlük, Search Console, URL Inspection, Lighthouse, CrUX,
+crawler) canlı dener. Ücretli/kotalı çağrılar (SerpApi, DataForSEO) hiç denenmez.
+
+  --config <yol>   config/project.json yerine kullanılacak müşteri config dosyası
+  --code <yol>     config'teki "codePath"i geçici olarak ezer
+  --help, -h       bu metni gösterir`
 
 const CATEGORY_LABELS: Readonly<Record<ProviderCategory, string>> = {
   keyword: 'Keyword hacmi',
@@ -166,8 +177,13 @@ const checkCodeAudit = (codePath: string | undefined): void => {
  * Kullanım: npm run doctor
  */
 const main = async (): Promise<void> => {
+  const argv = process.argv.slice(2)
+  if (hasHelpFlag(argv)) {
+    console.log(USAGE)
+    return
+  }
   try {
-    const paths = resolveCliPaths(process.argv.slice(2), (configPath) => loadProjectConfig(configPath).domain)
+    const paths = resolveCliPaths(argv, (configPath) => loadProjectConfig(configPath).domain)
     const config = loadProjectConfig(paths.configPath)
     const providers = selectProviders(loadEnv(), config)
 

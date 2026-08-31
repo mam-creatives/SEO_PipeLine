@@ -2,10 +2,13 @@ import { CRAWL_CONCURRENCY } from '../config/constants.js'
 import type { ProjectConfig } from '../config/schema.js'
 import { mapWithConcurrency } from '../core/concurrency.js'
 import type { ProviderError } from '../core/errors.js'
+import { createLogger } from '../core/logger.js'
 import { ok, type Result } from '../core/result.js'
 import { extractRootDomain } from '../core/text.js'
 import type { CrawledPage } from '../core/types.js'
 import type { ProviderSet } from '../providers/types.js'
+
+const logger = createLogger('crawler')
 
 export interface CrawlResult {
   readonly pages: readonly CrawledPage[]
@@ -136,12 +139,20 @@ export const collectCrawl = async (
     if (toFetch.length === 0) break
     for (const url of toFetch) visited.add(url)
 
-    const newPages = await mapWithConcurrency(toFetch, CRAWL_CONCURRENCY, async (url) => {
-      const result = await providers.crawl.fetchPage(url)
-      const page = result.ok ? result.value : degradedPage(url, result.error.message)
-      // Sağlayıcı kendi derinliğini bilemez (yer tutucu 0 döner) — gerçek BFS derinliği burada yazılır.
-      return { ...page, depth }
-    })
+    // Dış denetim bulgusu (2026-08-31, Faz C) — 300 sayfalık bir tarama dakikalarca tek log
+    // satırıyla sessiz kalıyordu. `pages.length` önceki dalgalardan gelen mutlak ilerleme,
+    // `completed`/`total` bu dalganın kendi sayacı — ikisi birlikte "N/toplam bütçe" verir.
+    const newPages = await mapWithConcurrency(
+      toFetch,
+      CRAWL_CONCURRENCY,
+      async (url) => {
+        const result = await providers.crawl.fetchPage(url)
+        const page = result.ok ? result.value : degradedPage(url, result.error.message)
+        // Sağlayıcı kendi derinliğini bilemez (yer tutucu 0 döner) — gerçek BFS derinliği burada yazılır.
+        return { ...page, depth }
+      },
+      (completed) => logger.info(`Derinlik ${depth}: ${pages.length + completed}/${config.crawlMaxPages} sayfa tarandı.`),
+    )
     pages.push(...newPages)
 
     const nextWave = newPages.flatMap((page) => page.internalLinks.map((link) => link.targetUrl))

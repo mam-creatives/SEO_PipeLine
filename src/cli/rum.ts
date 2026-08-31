@@ -21,6 +21,11 @@ const printUsage = (): void => {
 const main = (): void => {
   const command = process.argv[2]
 
+  if (command === '--help' || command === '-h') {
+    printUsage()
+    return
+  }
+
   if (command === 'snippet') {
     const endpoint = process.argv[3] ?? `http://localhost:${DEFAULT_PORT}/`
     console.log('\n--- npm ile (Next.js/Vite — önerilen) ---\n')
