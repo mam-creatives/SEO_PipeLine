@@ -57,6 +57,19 @@ API anahtarı olmadan her şey **MOCK modda** çalışır: Türkçe "ayakkabı" 
 Her müşteri bir config dosyasıdır: `config/project.json`. Şema `src/config/schema.ts`'te
 zod ile doğrulanır — hatalı config açık Türkçe mesajla reddedilir.
 
+**Hızlı başlangıç — yalnız domain ile:**
+
+```bash
+npm run init-client -- mamcreatives.com
+```
+
+`config/mamcreatives-com.json`'ı domainden tahmin edilen değerlerle (brandName, tek
+elemanlı brandTokens/seedKeywords, anasayfa auditUrls) hemen çalışır durumda üretir —
+`npm run doctor -- --config config/mamcreatives-com.json` doğrudan çalışır. Ama gerçek
+SEO değeri için aşağıdaki tabloya göre elle zenginleştirilmesi gerekir (özellikle
+`seedKeywords` — tahmin yalnız marka adını içerir, tek başına hiçbir şey ölçmez).
+Dosya zaten varsa `--force` olmadan üzerine yazılmaz.
+
 | Alan | Zorunlu | Ne yazılır |
 |---|:---:|---|
 | `domain` | ✓ | Kök domain, protokolsüz ve www'suz: `mamcreatives.com` |
