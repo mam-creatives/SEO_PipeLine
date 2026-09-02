@@ -21,6 +21,19 @@ export const ProjectConfigSchema = z.object({
   crawlMaxDepth: z.number().int().positive().default(5),
   /** robots.txt'e ek olarak taranmayacak path'ler, örn. ["/cart", "/wp-admin"]. */
   crawlExcludePaths: z.array(z.string().min(1)).default([]),
+  /**
+   * Dış denetim bulgusu (2026-09-02) — bazı siteler JS-fingerprint tabanlı bir anti-bot
+   * katmanı ("Please wait while your request is being verified...", navigator.webdriver
+   * kontrolü) kullanıyor; bu, `CRAWL_PROVIDER=live` ile bile crawler'ın GERÇEK içeriği HİÇ
+   * görememesine yol açıyor (bilgekampus.com'da doğrulandı — hem bot hem gerçek tarayıcı
+   * User-Agent'ı AYNI "Loader" sayfasını aldı, JS çalıştırmayan hiçbir istemci geçemiyor).
+   * `CRAWL_PROVIDER` global bir env değişkeni (tüm müşterilere uygulanır); bu alan olmadan
+   * o TEK müşteriyi engellemek için diğer TÜM müşterilerin crawler'ını kapatmak gerekirdi.
+   * `false` verilirse bu müşteride env ne olursa olsun mock crawler kullanılır (BLOKER 1
+   * düzeltmesi sayesinde mock artık sağlıklı bir anasayfa üretir — sahte "0 H1" gibi
+   * kritik bulgu üretmez, yalnız örnek/mock bulgu 🧪 rozetiyle işaretlenip özetten çıkar).
+   */
+  crawlEnabled: z.boolean().default(true),
   /** Faz 3 kod denetçisi — müşteri kaynak kodunun yerel yolu. Verilmezse kod denetimi atlanır. */
   codePath: z.string().min(1).optional(),
 })

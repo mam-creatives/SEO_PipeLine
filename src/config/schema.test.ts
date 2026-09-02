@@ -52,6 +52,21 @@ describe('ProjectConfigSchema', () => {
     const result = ProjectConfigSchema.safeParse({ ...validConfig, crawlMaxPages: 0 })
     expect(result.success).toBe(false)
   })
+
+  // Dış denetim bulgusu (2026-09-02) — bkz. registry.ts selectCrawl yorumu: bazı siteler
+  // JS-fingerprint tabanlı anti-bot katmanı kullanıyor, crawlEnabled:false bu TEK müşteriyi
+  // global CRAWL_PROVIDER'ı etkilemeden mock'a düşürmenin yolu.
+  test('crawlEnabled varsayılanı true\'dur', () => {
+    const result = ProjectConfigSchema.safeParse(validConfig)
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.crawlEnabled).toBe(true)
+  })
+
+  test('crawlEnabled:false açıkça verilebilir', () => {
+    const result = ProjectConfigSchema.safeParse({ ...validConfig, crawlEnabled: false })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.crawlEnabled).toBe(false)
+  })
 })
 
 describe('EnvSchema', () => {

@@ -87,9 +87,16 @@ const selectCrux = (env: Env): Selection<ProviderSet['crux']> =>
  * Crawler anahtar gerektirmez (yalnız fetch) — TECH_AUDIT_PROVIDER=lighthouse ile aynı
  * gerekçeyle açık env bayrağı ister: müşterinin canlı sitesine gerçek istek atar,
  * "anahtarsız = otomatik gerçek" hiçbir yerde yok, burada da olmamalı.
+ *
+ * `config.crawlEnabled === false` HER ZAMAN env'i ezer (bkz. schema.ts yorumu) — bazı
+ * siteler JS-fingerprint tabanlı bir anti-bot katmanı kullanıyor ve crawler'ın GERÇEK
+ * içeriği hiç görmesine izin vermiyor (bilgekampus.com'da doğrulandı); `CRAWL_PROVIDER`
+ * global olduğu için bu, o tek müşteriyi diğerlerini etkilemeden mock'a düşürmenin yolu.
  */
 const selectCrawl = (env: Env, config: ProjectConfig): Selection<ProviderSet['crawl']> =>
-  env.CRAWL_PROVIDER === 'live' ? real(createCrawlProvider()) : mock(createMockCrawlProvider(config))
+  config.crawlEnabled && env.CRAWL_PROVIDER === 'live'
+    ? real(createCrawlProvider())
+    : mock(createMockCrawlProvider(config))
 
 /**
  * Kategori başına mock/gerçek sağlayıcı seçiminin yapıldığı TEK yer.

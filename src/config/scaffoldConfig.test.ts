@@ -32,6 +32,7 @@ describe('buildScaffoldConfig', () => {
     expect(config.aiQueries).toEqual([])
     expect(config.crawlExcludePaths).toEqual([])
     expect(config.locale).toBe('tr-TR')
+    expect(config.crawlEnabled).toBe(true)
   })
 
   // Dış denetim bulgusu (2026-09-01) — "yalnız domain ile ilerle" isteğinin sözleşmesi:

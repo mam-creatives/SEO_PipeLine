@@ -39,5 +39,6 @@ export const buildScaffoldConfig = (domain: string): ProjectConfig => {
     crawlMaxPages: 300,
     crawlMaxDepth: 5,
     crawlExcludePaths: [],
+    crawlEnabled: true,
   }
 }

@@ -16,6 +16,7 @@ const config: ProjectConfig = {
   crawlMaxPages: 300,
   crawlMaxDepth: 5,
   crawlExcludePaths: [],
+  crawlEnabled: true,
   codePath: undefined,
 }
 
