@@ -256,6 +256,32 @@ Artık `--config` verilmese bile varsayılan `config/project.json` okunur ve `db
 domain'den türer — bare `npm run research` ve
 `npm run research -- --config config/project.json` AYNI veritabanına yazar.
 
+## Üç Versiyon
+
+Aynı analiz katmanını üç farklı güven/maliyet modeliyle sunan üç ayrı ürün yüzeyi var:
+
+| | Versiyon | Kim için | Kapsam |
+|---|---|---|---|
+| **b** | Bu CLI (`npm run research` vb.) | Ajansın kendi müşterileri | Tam derinlik — GSC, DataForSEO, tam site crawl'ı |
+| **a** | `npm run web` — kamuya açık hafif web aracı | Rastgele bir ziyaretçi | Yalnız domain + kendi AI-görünürlük soruları; GSC/DataForSEO yok, tek sayfa, sınırlı SerpApi |
+| **c** | `.claude/skills/audit-client` | Ajansın kendi yerel kullanımı | (b)'yi kod denetimiyle birlikte tetikleyen bir Claude Code skill'i — dağıtılmaz |
+
+**(a) — `npm run web`**: `src/web/`'te ayrı bir HTTP sunucusu (`node:http`, yeni bağımlılık
+yok). Ziyaretçi yalnızca domain + 1-5 AI-görünürlük sorusu girer; anasayfa crawl'ı,
+CWV (Lighthouse/PSI), Gemini GEO kontrolü ve (günlük SerpApi bütçesi izin verirse) kısa bir
+gerçek-rakip anlık görüntüsü içeren TEK sayfalık bir rapor döner. Güvenlik: `src/web/
+ssrfGuard.ts` DNS çözüp dönen HER IP'nin kamuya açık olduğunu doğrular (aksi halde
+`localhost`/dahili IP'lere karşı SSRF açığı olurdu); IP-başına + günlük global SerpApi
+bütçesi oran sınırı vardır (`src/web/rateLimit.ts`). Ziyaretçi taramaları ana `data/*.db`'ye
+hiç yazılmaz. Üretimde: `npm run web -- 8080 --origins https://siteniz.com` +
+[`deploy/seo-web.service`](deploy/seo-web.service) (kalıcı systemd servisi, `.timer`
+DEĞİL — TLS için nginx/Caddy ters proxy gerekir).
+
+**(c) — `.claude/skills/audit-client`**: yeni kod değil, mevcut `--code` bayrağının
+(`npm run research -- --config ... --code <yol>`) bir orkestrasyonu. Claude Code
+içinde çağrılır, config yoksa `init-client`'ı önerir, araştırmayı çalıştırır, "Kod
+Denetimi" ve "Site Denetimi" bölümlerini karşılaştırıp kök nedeni özetler.
+
 ## Mimari
 
 ```

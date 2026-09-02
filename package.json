@@ -15,6 +15,7 @@
     "rum": "tsx src/cli/rum.ts",
     "report": "tsx src/cli/report.ts",
     "discover-competitors": "tsx src/cli/discoverCompetitors.ts",
+    "web": "tsx src/cli/web.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"

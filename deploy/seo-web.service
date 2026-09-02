@@ -1,0 +1,36 @@
+# systemd servis birimi — Versiyon A: kamuya açık hafif SEO ön-kontrol web aracı.
+#
+# seo-pipeline.service/.timer'dan (günde bir kez toplu iş) FARKLI bir çalıştırma modeli:
+# bu KALICI bir HTTP sunucusu, .timer YOK — doğrudan bu .service etkinleştirilir.
+#
+# Kurulum: bu dosyayı /etc/systemd/system/seo-web.service olarak kopyalayın,
+# User/WorkingDirectory/ExecStart'ı kendi VPS yoluna göre düzenleyin, sonra:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now seo-web.service
+#
+# TLS/reverse proxy bu birimin kapsamında değil — nginx/Caddy ile 443'ten bu servisin
+# dinlediği porta (varsayılan 8080) ters proxy kurun, sertifikayı orada sonlandırın.
+#
+# --origins ZORUNLU tutulmalı (üretimde): boş bırakılırsa "geliştirme modu"na düşer,
+# her origin CORS'tan geçer (bkz. src/web/server.ts yorumu).
+#
+# EnvironmentFile= BİLEREK kullanılmıyor — seo-pipeline.service ile aynı gerekçe
+# (GSC_PRIVATE_KEY'in çift-tırnaklı `\n` kaçışı, bkz. o dosyadaki yorum).
+
+[Unit]
+Description=SEO Komuta Merkezi - Versiyon A (kamuya acik hafif web araci)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=seo
+WorkingDirectory=/opt/seo-komuta-merkezi
+ExecStart=/usr/bin/npm run web -- 8080 --origins https://mamcreatives.com,https://www.mamcreatives.com
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
